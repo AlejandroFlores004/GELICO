@@ -94,19 +94,6 @@ docker compose run --rm web python manage.py makemigrations
 docker compose down
 ```
 
-## Estructura del proyecto
-
-```text
-GELICO/
-├── Dockerfile
-├── docker-compose.yml
-├── requirements.txt
-├── manage.py
-├── README.md
-├── .gitignore
-└── gelico/
-```
-
 ## Autor
 
 Desarrollado por Alejandro Flores.
