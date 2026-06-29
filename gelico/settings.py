@@ -40,6 +40,8 @@ INSTALLED_APPS = [
     'calendario',
     'escuela',
     'liquidacion',
+    'tailwind',
+    'theme',
 ]
 
 MIDDLEWARE = [
@@ -118,6 +120,13 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+
+#Tailwind configuration
+TAILWIND_APP_NAME = "theme" 
+
+if DEBUG: 
+    INSTALLED_APPS += ["django_browser_reload"] 
+    MIDDLEWARE += ["django_browser_reload.middleware.BrowserReloadMiddleware"]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
