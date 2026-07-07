@@ -7,9 +7,10 @@ class Asignacion(models.Model):
     valor = models.DecimalField(max_digits=10, decimal_places=2)
     escuela = models.ForeignKey(Escuela, on_delete=models.CASCADE)
     bono = models.ForeignKey(Bono, on_delete=models.CASCADE)
+    fecha = models.DateField()
 
     def __str__(self):
-        return f"Asignación: {self.escuela.nombre_corto} - {self.bono.nombre}"
+        return f"Asignación: {self.escuela.nombre_corto} - {self.bono.nombre} - {self.fecha}"
     
     class Meta:
         verbose_name = "Asignación"

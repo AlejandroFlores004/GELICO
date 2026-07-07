@@ -4,13 +4,13 @@ from .models import Asignacion, Transferencia, Recibo, Observacion
 
 @admin.register(Asignacion)
 class AsignacionAdmin(admin.ModelAdmin):
-    list_display = ('escuela', 'bono', 'valor')
+    list_display = ('escuela', 'bono', 'valor','fecha')
     list_filter = ('escuela', 'bono')
-    search_fields = ('escuela__nombre', 'escuela__nombre_corto', 'bono__nombre')
+    search_fields = ('escuela__nombre', 'escuela__nombre_corto', 'bono__nombre', 'fecha')
     ordering = ('escuela__nombre',)
     fieldsets = (
         ('Información básica', {
-            'fields': ('valor', 'escuela', 'bono')
+            'fields': ('valor', 'escuela', 'bono', 'fecha')
         }),
     )
 
