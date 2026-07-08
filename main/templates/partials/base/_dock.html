@@ -1,39 +1,66 @@
 <!-- ===== MOBILE DOCK (below md) ===== -->
 <div class="dock md:hidden fixed bottom-0 left-0 right-0 bg-base-100 border-t border-base-300 z-50 flex justify-around items-center h-16 px-2 shadow-[0_-2px_10px_rgba(0,0,0,0.08)]">
 
-  <a href="#"
-     class="dock-item flex flex-col items-center gap-1 text-xs py-2 px-4 rounded-lg transition-colors
-            {% if request.resolver_match.url_name == 'clientes' %}text-primary font-semibold{% else %}text-gray-500 hover:text-base-content{% endif %}">
-    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-      <circle cx="12" cy="7" r="4"/>
-    </svg>
-    <span>Clientes</span>
-  </a>
+  <!-- Escuelas -->
+  <div class="dropdown dropdown-top dropdown-center">
+    <div tabindex="0" role="button"
+         class="dock-item flex flex-col items-center gap-1 text-xs py-2 px-4 rounded-lg transition-colors
+                {% if request.resolver_match.url_name == 'escuelas' %}text-primary font-semibold{% else %}text-base-content/60 hover:text-base-content{% endif %}">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+        <path d="M6 12v5c0 1.1 2.7 3 6 3s6-1.9 6-3v-5"/>
+      </svg>
+      <span>Escuelas</span>
+    </div>
+    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-48 p-2 shadow-md border border-base-300 mb-2">
+      <li><a href="#">Elemento 1</a></li>
+      <li><a href="#">Elemento 2</a></li>
+      <li><a href="#">Elemento 3</a></li>
+    </ul>
+  </div>
 
-  <a href="#"
-     class="dock-item flex flex-col items-center gap-1 text-xs py-2 px-4 rounded-lg transition-colors
-            {% if request.resolver_match.url_name == 'mechas' %}text-primary font-semibold{% else %}text-gray-500 hover:text-base-content{% endif %}">
-    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-    </svg>
-    <span>Mechas</span>
-  </a>
+  <!-- Programación -->
+  <div class="dropdown dropdown-top dropdown-center">
+    <div tabindex="0" role="button"
+         class="dock-item flex flex-col items-center gap-1 text-xs py-2 px-4 rounded-lg transition-colors
+                {% if request.resolver_match.url_name == 'programacion' %}text-primary font-semibold{% else %}text-base-content/60 hover:text-base-content{% endif %}">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      <span>Programación</span>
+    </div>
+    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-48 p-2 shadow-md border border-base-300 mb-2">
+      <li><a href="#">Elemento 1</a></li>
+      <li><a href="#">Elemento 2</a></li>
+      <li><a href="#">Elemento 3</a></li>
+    </ul>
+  </div>
 
-  <a href="#"
-     class="dock-item flex flex-col items-center gap-1 text-xs py-2 px-4 rounded-lg transition-colors
-            {% if request.resolver_match.url_name == 'recibos' %}text-primary font-semibold{% else %}text-gray-500 hover:text-base-content{% endif %}">
-    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-      <polyline points="14 2 14 8 20 8"/>
-      <line x1="16" y1="13" x2="8" y2="13"/>
-      <line x1="16" y1="17" x2="8" y2="17"/>
-      <polyline points="10 9 9 9 8 9"/>
-    </svg>
-    <span>Recibos</span>
-  </a>
+  <!-- Liquidaciones -->
+  <div class="dropdown dropdown-top dropdown-center">
+    <div tabindex="0" role="button"
+         class="dock-item flex flex-col items-center gap-1 text-xs py-2 px-4 rounded-lg transition-colors
+                {% if request.resolver_match.url_name == 'liquidaciones' %}text-primary font-semibold{% else %}text-base-content/60 hover:text-base-content{% endif %}">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>
+      <span>Liquidaciones</span>
+    </div>
+    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-48 p-2 shadow-md border border-base-300 mb-2">
+      <li><a href="#">Elemento 1</a></li>
+      <li><a href="#">Elemento 2</a></li>
+      <li><a href="#">Elemento 3</a></li>
+    </ul>
+  </div>
 
 </div>
