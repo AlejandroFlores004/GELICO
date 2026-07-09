@@ -29,7 +29,7 @@
               <path d="M14 10l2 2l-2 2"></path>
             </svg>
           </label>
-          <div class="px-4 font-bold">GELICO</div>
+          <div class="px-4 font-bold"><a href="{% url 'home' %}">GELICO</a></div>
         </div>
         <div class="flex-none flex items-center gap-2 px-4">
           <span class="text-sm text-base-content/60">{{ request.user.username }}</span>
@@ -53,7 +53,7 @@
 
   {% include 'partials/base/_logout.html' %}
   {% include 'partials/base/_messages.html' %}
-  
+
 
   </body>
 </html>
