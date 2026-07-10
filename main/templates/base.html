@@ -39,8 +39,10 @@
         </div>
       </nav>
 
+      
       <!-- Page content -->
       <div class="p-4">
+        {% include "partials/base/_breadcrumbs.html" %}
         {% block content %}{% endblock %}
       </div>
 

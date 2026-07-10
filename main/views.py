@@ -2,13 +2,19 @@ from django.shortcuts import render
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
+from django.urls import reverse
 from escuela.models import Escuela
 from django.contrib import messages
 
 # Create your views here.
 @login_required(login_url='login')
 def home_view(request):
-    return render(request, 'home.html')
+
+    breadcrumbs = [
+        {'name': 'Inicio', 'url': reverse('home')},
+    ]
+
+    return render(request, 'home.html', {'breadcrumbs': breadcrumbs})
 
 def login_view(request):
     if request.user.is_authenticated:
