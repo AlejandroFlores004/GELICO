@@ -17,21 +17,37 @@ Dashboard
         </p>
     </div>
 
-    {% include "partials/home/_stats.html" %}
-
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
 
-        <div class="xl:col-span-8">
-            {% include "partials/home/_schedule.html" %}
+        <!-- Columna izquierda -->
+        <div class="xl:col-span-3">
+
+            <div class="space-y-6">
+
+                {% include "partials/home/_active_call.html" %}
+
+                {% include "partials/home/_pending_reviews.html" %}
+
+                {% include "partials/home/_quick_actions.html" %}
+
+            </div>
+
         </div>
 
-        <div class="xl:col-span-4">
-            {% include "partials/home/_quick_actions.html" %}
+        <!-- Columna derecha -->
+        <div class="xl:col-span-9">
+
+            <div class="space-y-6">
+
+                {% include "partials/home/_schedule.html" %}
+
+                {% include "partials/home/_recent_activity.html" %}
+
+            </div>
+
         </div>
 
     </div>
-
-    {% include "partials/home/_recent_receipts.html" %}
 
 </main>
 {% endblock %}

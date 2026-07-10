@@ -2,6 +2,8 @@ from django.shortcuts import render
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
+from escuela.models import Escuela
+from django.contrib import messages
 
 # Create your views here.
 @login_required(login_url='login')
@@ -28,4 +30,5 @@ def login_view(request):
 
 def logout_view(request):
     logout(request)
+    messages.success(request, "Has cerrado sesión correctamente.")
     return redirect("login")
