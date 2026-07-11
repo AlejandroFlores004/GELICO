@@ -28,13 +28,13 @@ class AuxiliarAdmin(admin.ModelAdmin):
 
 @admin.register(Programacion)
 class ProgramacionAdmin(admin.ModelAdmin):
-    list_display = ('convocatoria', 'auxiliar', 'fecha_programada', 'hora_programada', 'estado')
+    list_display = ('convocatoria', 'auxiliar', 'fecha_programada', 'hora_programada', 'estado', 'escuela')
     list_filter = ('estado', 'convocatoria', 'fecha_programada')
     search_fields = ('convocatoria__nombre', 'auxiliar__nombre', 'auxiliar__apellido')
     ordering = ('-fecha_programada', '-hora_programada')
     fieldsets = (
         ('Información básica', {
-            'fields': ('convocatoria', 'auxiliar', 'fecha_programada', 'hora_programada', 'estado')
+            'fields': ('convocatoria', 'auxiliar', 'fecha_programada', 'hora_programada', 'estado', 'escuela')
         }),
     )
 
