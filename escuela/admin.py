@@ -13,7 +13,7 @@ class DistritoAdmin(admin.ModelAdmin):
 class EscuelaAdmin(admin.ModelAdmin):
     list_display = ('codigo', 'nombre', 'nombre_corto', 'distrito', 'estado')
     list_filter = ('estado', 'distrito')
-    search_fields = ('codigo', 'nombre', 'nombre_corto')
+    search_fields = ('codigo', 'nombre', 'nombre_corto','distrito__nombre')
     ordering = ('codigo',)
     fieldsets = (
         ('Información Básica', {
