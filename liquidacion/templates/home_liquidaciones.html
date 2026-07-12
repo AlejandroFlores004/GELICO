@@ -1,6 +1,40 @@
 {% extends "base.html" %}
 
+{% block title %}
+Consulta de Recibos
+{% endblock %}
+
 {% block content %}
-  <h1>Liquidaciones</h1>
-  <p>Bienvenido a la página de liquidaciones.</p>
+<main class="p-6 lg:p-8 space-y-6">
+
+    <div>
+        <h1 class="text-4xl font-bold">
+            Consulta de Recibos
+        </h1>
+
+        <p class="text-base-content/70">
+            Busca una escuela y revisa el estado de sus recibos.
+        </p>
+    </div>
+
+    <!-- Fila superior: búsqueda de escuela + datos de la escuela -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <div class="lg:col-span-4">
+            {% include "partials/recibos/_escuela_search.html" %}
+        </div>
+
+        <div class="lg:col-span-8">
+            {% include "partials/recibos/_escuela_info.html" %}
+        </div>
+
+    </div>
+
+    <!-- Búsqueda por componente -->
+    {% include "partials/recibos/_componente_search.html" %}
+
+    <!-- Listado de recibos -->
+    {% include "partials/recibos/_listado_recibos.html" %}
+
+</main>
 {% endblock %}

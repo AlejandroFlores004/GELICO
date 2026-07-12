@@ -1,0 +1,140 @@
+<div class="space-y-6">
+
+    {% for recibo in recibos %}
+    <div class="card bg-base-200 shadow-xl">
+        <div class="card-body space-y-4">
+
+            <div class="badge badge-neutral badge-lg">
+                Recibo No. {{ recibo.numero|default:"1" }}
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+                <div class="card bg-base-100 shadow">
+                    <div class="card-body p-4">
+                        <p class="text-sm opacity-70">Componente</p>
+                        <p class="font-semibold">{{ recibo.componente|default:"Pagos de auxiliares" }}</p>
+                    </div>
+                </div>
+
+                <div class="card bg-base-100 shadow">
+                    <div class="card-body p-4">
+                        <p class="text-sm opacity-70">Monto</p>
+                        <p class="font-semibold">${{ recibo.monto|default:"1500" }}</p>
+                    </div>
+                </div>
+
+                <div class="card bg-base-100 shadow">
+                    <div class="card-body p-4">
+                        <p class="text-sm opacity-70">Estado</p>
+                        <p class="font-semibold text-error">{{ recibo.estado|default:"Sin liquidar" }}</p>
+                    </div>
+                </div>
+
+                <div class="card bg-base-100 shadow">
+                    <div class="card-body p-4">
+                        <p class="text-sm opacity-70">Fecha</p>
+                        <p class="font-semibold">{{ recibo.fecha|default:"11/07/2026" }}</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="space-y-2">
+
+                <p class="font-semibold">
+                    Observaciones
+                </p>
+
+                <div class="card bg-base-100 shadow">
+                    <div class="card-body p-4">
+
+                        <p>
+                            {{ recibo.observacion|default:"No tenía legalizado" }}
+                        </p>
+
+                        <div class="card-actions justify-start mt-2">
+                            <button class="btn btn-primary btn-sm">
+                                Resolver
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+    {% empty %}
+
+    <!-- Ejemplo estático mientras no hay datos reales -->
+    <div class="card bg-base-200 shadow-xl">
+        <div class="card-body space-y-4">
+
+            <div class="badge badge-neutral badge-lg">
+                Recibo No. 1
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+                <div class="card bg-base-100 shadow">
+                    <div class="card-body p-4">
+                        <p class="text-sm opacity-70">Componente</p>
+                        <p class="font-semibold">Pagos de auxiliares</p>
+                    </div>
+                </div>
+
+                <div class="card bg-base-100 shadow">
+                    <div class="card-body p-4">
+                        <p class="text-sm opacity-70">Monto</p>
+                        <p class="font-semibold">$1500</p>
+                    </div>
+                </div>
+
+                <div class="card bg-base-100 shadow">
+                    <div class="card-body p-4">
+                        <p class="text-sm opacity-70">Estado</p>
+                        <p class="font-semibold text-error">Sin liquidar</p>
+                    </div>
+                </div>
+
+                <div class="card bg-base-100 shadow">
+                    <div class="card-body p-4">
+                        <p class="text-sm opacity-70">Fecha</p>
+                        <p class="font-semibold">11/07/2026</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="space-y-2">
+
+                <p class="font-semibold">
+                    Observaciones
+                </p>
+
+                <div class="card bg-base-100 shadow">
+                    <div class="card-body p-4">
+
+                        <p>
+                            No tenía legalizado
+                        </p>
+
+                        <div class="card-actions justify-start mt-2">
+                            <button class="btn btn-primary btn-sm">
+                                Resolver
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    {% endfor %}
+
+</div>
