@@ -44,10 +44,12 @@ INSTALLED_APPS = [
     'tailwind',
     'theme',
     'easyaudit',
+    "django_htmx",
     'main',
 ]
 
 MIDDLEWARE = [
+    "django_htmx.middleware.HtmxMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
