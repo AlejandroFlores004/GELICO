@@ -6,16 +6,21 @@
             Escuela
         </h2>
 
-        <div class="form-control">
-            <input type="text" name="escuela" placeholder="Buscar por nombre de escuela"
-                   class="input input-bordered w-full" value="San Sebastian" />
-        </div>
+        <form method="get">
+            {% csrf_token %}
+            <div class="form-control w-full">
+                <label class="label" for="{{ seleccionarEscuelas.escuela.id_for_label }}">
+                    <span class="label-text">Escuela</span>
+                </label>
+                <div class="w-full max-w-md">
+                    {{ seleccionarEscuelas.escuela }}
+                </div>
+            </div>
 
-        <div class="card-actions justify-end mt-2">
-            <button class="btn btn-primary btn-sm">
-                Buscar
-            </button>
-        </div>
+            <div class="card-actions justify-end mt-4">
+                <button type="submit" class="btn btn-primary">Buscar</button>
+            </div>
+        </form>
 
     </div>
 

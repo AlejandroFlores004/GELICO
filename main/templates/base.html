@@ -8,6 +8,7 @@
     <title>{% block title %}GELICO{% endblock %}</title>
     {% tailwind_css %}
     <link rel="icon" type="image/svg+xml" href="{% static 'logo.svg' %}">
+    <script src="{% static 'admin/js/vendor/jquery/jquery.js' %}"></script> <!-- jquery for select2 -->
     {% block extra_head %}{% endblock %}
   </head>
   <body>
@@ -55,7 +56,6 @@
 
   {% include 'partials/base/_logout.html' %}
   {% include 'partials/base/_messages.html' %}
-
 
   </body>
 </html>
