@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'theme',
     'easyaudit',
     "django_htmx",
+    "django_select2",
     'main',
 ]
 
