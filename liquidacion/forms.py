@@ -8,6 +8,7 @@ class SeleccionarEscuelaForm(forms.Form):
         widget=Select2Widget(attrs={
             'data-placeholder': 'Seleccione una escuela',
             'style': 'width: 100%',
+            'class': 'select2-daisy',
         }),
         label='Escuela',
         required=True
