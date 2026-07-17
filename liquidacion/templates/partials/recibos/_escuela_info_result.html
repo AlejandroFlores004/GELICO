@@ -1,0 +1,24 @@
+<div id="escuela-info" class="card bg-base-100 shadow-xl h-full">
+    <div class="card-body">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+
+            <div class="space-y-1">
+                <p>
+                    <span class="font-semibold">Escuela:</span> {{ escuela.nombre }}
+                </p>
+                <p>
+                    <span class="font-semibold">Encargado:</span> {{ encargado.nombre }}
+                    &middot; <span class="font-semibold">Teléfono:</span> {{ encargado.telefono }}
+                    &middot; <span class="font-semibold">Correo:</span> {{ encargado.email }}
+                </p>
+            </div>
+
+            <div>
+                <button class="btn btn-primary">
+                    Agregar recibo
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>

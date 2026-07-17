@@ -1,13 +1,13 @@
 <div class="card bg-base-100 shadow-xl h-full">
-
     <div class="card-body">
+        <h2 class="card-title">Escuela</h2>
 
-        <h2 class="card-title">
-            Escuela
-        </h2>
-
-        <form method="get">
-            {% csrf_token %}
+        <form
+            hx-get="{% url 'buscar_escuela' %}"
+            hx-target="#escuela-info"
+            hx-swap="outerHTML"
+            hx-indicator="#escuela-search-spinner"
+        >
             <div class="form-control w-full">
                 <label class="label" for="{{ seleccionarEscuelas.escuela.id_for_label }}">
                     <span class="label-text">Escuela</span>
@@ -18,10 +18,11 @@
             </div>
 
             <div class="card-actions justify-end mt-4">
-                <button type="submit" class="btn btn-primary">Buscar</button>
+                <button type="submit" class="btn btn-primary">
+                    <span id="escuela-search-spinner" class="htmx-indicator loading loading-spinner loading-sm"></span>
+                    Buscar
+                </button>
             </div>
         </form>
-
     </div>
-
 </div>

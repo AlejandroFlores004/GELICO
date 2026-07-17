@@ -1,11 +1,13 @@
 from django.shortcuts import render
 from django.urls import reverse
 from . import forms
+from escuela import models
 
 # Create your views here.
 def home_liquidaciones(request):
     
     seleccionarEscuelas = forms.SeleccionarEscuelaForm(request.GET or None)
+
 
 
     breadcrumbs = [
@@ -21,3 +23,18 @@ def home_liquidaciones(request):
             'seleccionarEscuelas': seleccionarEscuelas
         }
     )
+
+
+def buscar_escuela(request):
+    seleccionarEscuelas = forms.SeleccionarEscuelaForm(request.GET or None)
+
+    if seleccionarEscuelas.is_valid():
+        escuela = seleccionarEscuelas.cleaned_data['escuela']
+        encargado = models.Encargado.objects.filter(escuela=escuela).first()
+        return render(
+            request,
+            'partials/recibos/_escuela_info_result.html',
+            {'escuela': escuela, 'encargado': encargado}
+        )
+
+    return render(request, 'partials/recibos/_escuela_info.html', {})

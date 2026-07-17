@@ -8,7 +8,8 @@
     <title>{% block title %}GELICO{% endblock %}</title>
     {% tailwind_css %}
     <link rel="icon" type="image/svg+xml" href="{% static 'logo.svg' %}">
-    <script src="{% static 'admin/js/vendor/jquery/jquery.js' %}"></script> <!-- jquery for select2 -->
+    <script src="{% static 'admin/js/vendor/jquery/jquery.js' %}"></script>
+    
     {% block extra_head %}{% endblock %}
     <link rel="stylesheet" href="{% static 'css/select2-daisy.css' %}">
   </head>
@@ -16,7 +17,7 @@
 
   <div class="drawer lg:drawer-open">
     <input id="main-drawer" type="checkbox" class="drawer-toggle" />
-
+    <script src="{% static 'js/htmx.min.js' %}"></script>
     <!-- ===== MAIN CONTENT SIDE ===== -->
     <div class="drawer-content flex flex-col min-h-screen">
 
@@ -58,5 +59,6 @@
   {% include 'partials/base/_logout.html' %}
   {% include 'partials/base/_messages.html' %}
 
+  
   </body>
 </html>
