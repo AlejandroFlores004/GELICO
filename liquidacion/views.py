@@ -7,7 +7,7 @@ from escuela import models
 def home_liquidaciones(request):
     
     seleccionarEscuelas = forms.SeleccionarEscuelaForm(request.GET or None)
-
+    seleccionarBonos = forms.SeleccionarBonoForm(request.GET or None)
 
 
     breadcrumbs = [
@@ -20,7 +20,8 @@ def home_liquidaciones(request):
         'home_liquidaciones.html', 
         {
             'breadcrumbs': breadcrumbs, 
-            'seleccionarEscuelas': seleccionarEscuelas
+            'seleccionarEscuelas': seleccionarEscuelas,
+            'seleccionarBonos': seleccionarBonos,
         }
     )
 
