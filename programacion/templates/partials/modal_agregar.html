@@ -1,0 +1,73 @@
+<dialog id="modal_agregar" class="modal">
+    <div class="modal-box max-w-3xl rounded-2xl border border-base-300 shadow-2xl">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h3 class="font-bold text-xl flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-primary">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Agregar Auxiliar
+                </h3>
+                <p class="mt-1 text-sm text-base-content/70">Completa los datos del colaborador para registrarlo en el sistema.</p>
+            </div>
+            <button type="button" class="btn btn-sm btn-circle btn-ghost" onclick="modal_agregar.close()" aria-label="Cerrar">
+                ✕
+            </button>
+        </div>
+
+        <div class="divider my-4"></div>
+
+        <form method="POST" class="space-y-4">
+            {% csrf_token %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label class="form-control">
+                    <div class="label py-1">
+                        <span class="label-text font-medium">Nombre</span>
+                    </div>
+                    <input type="text" class="input input-bordered w-full" name="nombre" placeholder="Ej. María">
+                </label>
+
+                <label class="form-control">
+                    <div class="label py-1">
+                        <span class="label-text font-medium">Apellido</span>
+                    </div>
+                    <input type="text" class="input input-bordered w-full" name="apellido" placeholder="Ej. López">
+                </label>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label class="form-control">
+                    <div class="label py-1">
+                        <span class="label-text font-medium">Email</span>
+                    </div>
+                    <input type="email" class="input input-bordered w-full" name="email" placeholder="correo@ejemplo.com">
+                </label>
+
+                <label class="form-control">
+                    <div class="label py-1">
+                        <span class="label-text font-medium">Teléfono</span>
+                    </div>
+                    <input type="text" class="input input-bordered w-full" name="telefono" placeholder="0000-0000">
+                </label>
+            </div>
+
+            <label class="form-control">
+                <div class="label py-1">
+                    <span class="label-text font-medium">Institución</span>
+                </div>
+                <input type="text" class="input input-bordered w-full" name="institucion" placeholder="Nombre de la institución">
+            </label>
+
+            <div class="modal-action mt-6">
+                <button type="button" class="btn btn-outline" onclick="modal_agregar.close()">
+                    Cancelar
+                </button>
+
+                <button type="submit" class="btn btn-primary">
+                    Guardar
+                </button>
+            </div>
+        </form>
+    </div>
+</dialog>
