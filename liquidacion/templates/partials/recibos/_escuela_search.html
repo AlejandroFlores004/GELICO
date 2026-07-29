@@ -1,22 +1,40 @@
 <div class="card bg-base-100 shadow-xl h-full">
-
     <div class="card-body">
-
-        <h2 class="card-title">
+        <h2 class="card-title gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-primary">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l6.16-3.422A12.083 12.083 0 0118 20.944a12.083 12.083 0 01-6-1.334 12.083 12.083 0 01-6 1.334 12.083 12.083 0 01.84-10.366L12 14z" />
+            </svg>
             Escuela
         </h2>
 
-        <div class="form-control">
-            <input type="text" name="escuela" placeholder="Buscar por nombre de escuela"
-                   class="input input-bordered w-full" value="San Sebastian" />
-        </div>
+        <div class="divider my-1"></div>
 
-        <div class="card-actions justify-end mt-2">
-            <button class="btn btn-primary btn-sm">
-                Buscar
-            </button>
-        </div>
+        <form
+            hx-get="{% url 'buscar_escuela' %}"
+            hx-target="#escuela-info"
+            hx-swap="outerHTML"
+            hx-indicator="#escuela-search-spinner"
+            class="space-y-4"
+        >
+            <div class="form-control w-full">
+                <label class="label" for="{{ seleccionarEscuelas.escuela.id_for_label }}">
+                    <span class="label-text font-medium">Escuela</span>
+                </label>
+                <div class="w-full">
+                    {{ seleccionarEscuelas.escuela }}
+                </div>
+            </div>
 
+            <div class="card-actions justify-end">
+                <button type="submit" class="btn btn-primary w-full sm:w-auto gap-2">
+                    <span id="escuela-search-spinner" class="htmx-indicator loading loading-spinner loading-sm"></span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                    </svg>
+                    Buscar
+                </button>
+            </div>
+        </form>
     </div>
-
 </div>

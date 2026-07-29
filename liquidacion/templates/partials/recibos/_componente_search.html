@@ -4,23 +4,43 @@
 
         <div class="flex flex-col md:flex-row md:items-end gap-4">
 
-            <div class="form-control flex-1">
-                <label class="label">
-                    <span class="label-text font-semibold">Componente</span>
-                </label>
+            <div class="flex-1">
+                <h2 class="card-title gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-primary">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
+                    </svg>
+                    Bono
+                </h2>
 
-                <select name="componente" class="select select-bordered w-full">
-                    <option value="" disabled>Selecciona un componente</option>
-                    <option value="pagos_auxiliares" selected>Pagos de auxiliares</option>
-                    <option value="materiales">Materiales didácticos</option>
-                    <option value="mantenimiento">Mantenimiento</option>
-                    <option value="transporte">Transporte</option>
-                </select>
+                <div class="divider my-1"></div>
+
+                <form
+                    hx-get="#"
+                    hx-target="#bono-info"
+                    hx-swap="outerHTML"
+                    hx-indicator="#bono-search-spinner"
+                    class="space-y-4"
+                >
+                    <div class="form-control w-full">
+                        <label class="label" for="{{ seleccionarBonos.bono.id_for_label }}">
+                            <span class="label-text font-medium">Bono</span>
+                        </label>
+                        <div class="w-full">
+                            {{ seleccionarBonos.bono }}
+                        </div>
+                    </div>
+
+                    <div class="card-actions justify-end">
+                        <button type="submit" class="btn btn-primary gap-2">
+                            <span id="bono-search-spinner" class="htmx-indicator loading loading-spinner loading-sm"></span>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                            </svg>
+                            Buscar
+                        </button>
+                    </div>
+                </form>
             </div>
-
-            <button class="btn btn-primary">
-                Buscar
-            </button>
 
         </div>
 
