@@ -38,11 +38,11 @@
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
         <div class="lg:col-span-4">
-            {% include "partials/recibos/_escuela_search.html" %}
+            {% include "partials/liquidacion/_escuela_search.html" %}
         </div>
 
         <div class="lg:col-span-8">
-            {% include "partials/recibos/_escuela_info.html" %}
+            {% include "partials/liquidacion/_escuela_info.html" %}
         </div>
 
     </div>
@@ -50,12 +50,12 @@
     <div class="divider text-sm text-base-content/60 uppercase tracking-wide">Búsqueda por componente</div>
 
     <!-- Búsqueda por componente -->
-    {% include "partials/recibos/_componente_search.html" %}
+    {% include "partials/liquidacion/_componente_search.html" %}
 
     <div class="divider text-sm text-base-content/60 uppercase tracking-wide">Recibos</div>
 
     <!-- Listado de recibos -->
-    {% include "partials/recibos/_listado_recibos.html" %}
+    {% include "partials/liquidacion/_listado_recibos.html" %}
 
 </main>
 {% endblock %}

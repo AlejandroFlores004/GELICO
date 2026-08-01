@@ -17,7 +17,7 @@ def home_liquidaciones(request):
 
     return render(
         request, 
-        'home_liquidaciones.html', 
+        'liquidacion/liquidacionHome.html', 
         {
             'breadcrumbs': breadcrumbs, 
             'seleccionarEscuelas': seleccionarEscuelas,
@@ -34,8 +34,8 @@ def buscar_escuela(request):
         encargado = models.Encargado.objects.filter(escuela=escuela).first()
         return render(
             request,
-            'partials/recibos/_escuela_info_result.html',
+            'partials/liquidacion/_escuela_info_result.html',
             {'escuela': escuela, 'encargado': encargado}
         )
 
-    return render(request, 'partials/recibos/_escuela_info.html', {})
+    return render(request, 'partials/liquidacion/_escuela_info.html', {})
