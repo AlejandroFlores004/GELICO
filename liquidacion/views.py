@@ -22,8 +22,8 @@ def home_liquidaciones(request):
     ]
 
     return render(
-        request,
-        'liquidacion/liquidacionHome.html',
+        request, 
+        'liquidacion/liquidacionHome.html', 
         {
             'breadcrumbs': breadcrumbs,
             'seleccionarEscuelas': seleccionarEscuelas,
@@ -138,12 +138,8 @@ def asignacion_eliminar(request, pk):
         _, asignaciones = _filtrar_asignaciones(request)
         return render(
             request,
-            'partials/asignacion/_asignacion_form_success.html',
-            {'asignaciones': asignaciones}
+            'partials/liquidacion/_escuela_info_result.html',
+            {'escuela': escuela, 'encargado': encargado}
         )
 
-    return render(
-        request,
-        'partials/asignacion/_asignacion_delete_modal.html',
-        {'instance': instance}
-    )
+    return render(request, 'partials/liquidacion/_escuela_info.html', {})
