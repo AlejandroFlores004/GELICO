@@ -22,8 +22,8 @@ def home_liquidaciones(request):
     ]
 
     return render(
-        request,
-        'liquidacion/liquidacionHome.html',
+        request, 
+        'liquidacion/liquidacionHome.html', 
         {
             'breadcrumbs': breadcrumbs,
             'seleccionarEscuelas': seleccionarEscuelas,
@@ -43,7 +43,7 @@ def buscar_escuela(request):
         return render(
             request,
             'partials/liquidacion/_escuela_info_result.html',
-            {'escuela': escuela, 'encargado': encargado, 'seleccionarBono': seleccionarBono}
+            {'escuela': escuela, 'encargado': encargado}
         )
     return render(request, 'partials/liquidacion/_escuela_info.html', {})
 
