@@ -1,14 +1,13 @@
 from django.shortcuts import render
 from django.urls import reverse
 from . import forms
-from escuela import models
+from escuela.models import Escuela, Encargado
 
 # Create your views here.
 def home_liquidaciones(request):
-    
-    seleccionarEscuelas = forms.SeleccionarEscuelaForm(request.GET or None)
-    seleccionarBonos = forms.SeleccionarBonoForm(request.GET or None)
 
+    seleccionarEscuelas = forms.SeleccionarEscuelaForm(request.GET or None)
+    seleccionarBono = forms.SeleccionarBonoForm()
 
     breadcrumbs = [
         {'name': 'Inicio', 'url': reverse('home')},
@@ -16,12 +15,13 @@ def home_liquidaciones(request):
     ]
 
     return render(
-        request, 
-        'liquidacion/liquidacionHome.html', 
+        request,
+        'liquidacion/liquidacionHome.html',
         {
-            'breadcrumbs': breadcrumbs, 
+            'breadcrumbs': breadcrumbs,
             'seleccionarEscuelas': seleccionarEscuelas,
-            'seleccionarBonos': seleccionarBonos,
+            'seleccionarBono': seleccionarBono,
+            'form_media': seleccionarEscuelas.media + seleccionarBono.media,
         }
     )
 
@@ -31,11 +31,11 @@ def buscar_escuela(request):
 
     if seleccionarEscuelas.is_valid():
         escuela = seleccionarEscuelas.cleaned_data['escuela']
-        encargado = models.Encargado.objects.filter(escuela=escuela).first()
+        encargado = Encargado.objects.filter(escuela=escuela).first()
+        seleccionarBono = forms.SeleccionarBonoForm(escuela=escuela)
         return render(
             request,
             'partials/liquidacion/_escuela_info_result.html',
-            {'escuela': escuela, 'encargado': encargado}
+            {'escuela': escuela, 'encargado': encargado, 'seleccionarBono': seleccionarBono}
         )
-
     return render(request, 'partials/liquidacion/_escuela_info.html', {})
