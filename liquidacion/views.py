@@ -2,8 +2,8 @@ from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from . import forms
-from escuela.models import Escuela, Encargado
-from .models import Asignacion
+from escuela.models.models import Escuela, Encargado
+from .Escuela, Encargado import Asignacion
 
 # Create your views here.
 
@@ -11,11 +11,6 @@ from .models import Asignacion
 #Liquidaciones views
 def home_liquidaciones(request):
 
-    seleccionarEscuelas = forms.SeleccionarEscuelaForm(request.GET or None)
-    seleccionarBono = forms.SeleccionarBonoForm()
-
-#Liquidaciones views
-def home_liquidaciones(request):
 
     seleccionarEscuelas = forms.SeleccionarEscuelaForm(request.GET or None)
     seleccionarBono = forms.SeleccionarBonoForm()
@@ -26,8 +21,8 @@ def home_liquidaciones(request):
     ]
 
     return render(
-        request, 
-        'liquidacion/liquidacionHome.html', 
+        request,
+        'liquidacion/liquidacionHome.html',
         {
             'breadcrumbs': breadcrumbs,
             'seleccionarEscuelas': seleccionarEscuelas,
@@ -47,7 +42,6 @@ def buscar_escuela(request):
         return render(
             request,
             'partials/liquidacion/_escuela_info_result.html',
-            {'escuela': escuela, 'encargado': encargado}
+            {'escuela': escuela, 'encargado': encargado, 'seleccionarBono': seleccionarBono}
         )
-
     return render(request, 'partials/liquidacion/_escuela_info.html', {})
