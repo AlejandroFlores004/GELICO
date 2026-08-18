@@ -6,6 +6,7 @@ urlpatterns = [
     path('escuela/buscar/', views.buscar_escuela, name='buscar_escuela'),
 
     path('asignaciones/', views.home_asignaciones, name='home_asignaciones'),
+<<<<<<< HEAD
     path('asignaciones/buscar/', views.buscar_asignaciones, name='buscar_asignaciones'),
     path('asignaciones/nueva/', views.asignacion_form, name='asignacion_nueva'),
     path('asignaciones/<int:pk>/editar/', views.asignacion_form, name='asignacion_editar'),
