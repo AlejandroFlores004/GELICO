@@ -11,6 +11,9 @@
         <div class="divider my-1"></div>
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 8859bd7 (Implement filtering functionality for asignaciones with search form and pagination)
         <form
             hx-get="{% url 'buscar_asignaciones' %}"
             hx-target="#listado-asignaciones"
@@ -18,6 +21,7 @@
             hx-indicator="#asignacion-search-spinner"
             class="space-y-4"
         >
+<<<<<<< HEAD
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
 
                 <div class="form-control w-full">
@@ -45,36 +49,33 @@
                     {{ filtro_form.fecha }}
 =======
         <form class="space-y-4">
+=======
+>>>>>>> 8859bd7 (Implement filtering functionality for asignaciones with search form and pagination)
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
 
                 <div class="form-control w-full">
-                    <label class="label" for="filtro-escuela">
+                    <label class="label" for="{{ filtro_form.escuela.id_for_label }}">
                         <span class="label-text font-medium">Escuela</span>
                     </label>
-                    <select id="filtro-escuela" class="select select-bordered w-full">
-                        <option value="" selected>Todas las escuelas</option>
-                        <option>Centro Escolar Simón Bolívar</option>
-                        <option>Escuela Bilingüe San Rafael</option>
-                        <option>Complejo Educativo Las Delicias</option>
-                    </select>
+                    <div class="w-full">
+                        {{ filtro_form.escuela }}
+                    </div>
                 </div>
 
                 <div class="form-control w-full">
-                    <label class="label" for="filtro-bono">
+                    <label class="label" for="{{ filtro_form.bono.id_for_label }}">
                         <span class="label-text font-medium">Bono</span>
                     </label>
-                    <select id="filtro-bono" class="select select-bordered w-full">
-                        <option value="" selected>Todos los bonos</option>
-                        <option>Bono de Alimentación</option>
-                        <option>Bono de Útiles Escolares</option>
-                        <option>Bono de Mantenimiento</option>
-                    </select>
+                    <div class="w-full">
+                        {{ filtro_form.bono }}
+                    </div>
                 </div>
 
                 <div class="form-control w-full">
-                    <label class="label" for="filtro-fecha-desde">
-                        <span class="label-text font-medium">Fecha desde</span>
+                    <label class="label" for="{{ filtro_form.fecha.id_for_label }}">
+                        <span class="label-text font-medium">Fecha</span>
                     </label>
+<<<<<<< HEAD
                     <input type="date" id="filtro-fecha-desde" class="input input-bordered w-full" />
                 </div>
 
@@ -84,11 +85,15 @@
                     </label>
                     <input type="date" id="filtro-fecha-hasta" class="input input-bordered w-full" />
 >>>>>>> 4ae7a94 (Add asignaciones feature with search and listing functionality)
+=======
+                    {{ filtro_form.fecha }}
+>>>>>>> 8859bd7 (Implement filtering functionality for asignaciones with search form and pagination)
                 </div>
 
             </div>
 
             <div class="card-actions justify-end">
+<<<<<<< HEAD
 <<<<<<< HEAD
                 <a href="{% url 'home_asignaciones' %}" class="btn btn-ghost gap-2">
                     Limpiar
@@ -97,10 +102,17 @@
                     <span id="asignacion-search-spinner" class="htmx-indicator loading loading-spinner loading-sm"></span>
 =======
                 <button type="button" class="btn btn-ghost gap-2">
+=======
+                <a href="{% url 'home_asignaciones' %}" class="btn btn-ghost gap-2">
+>>>>>>> 8859bd7 (Implement filtering functionality for asignaciones with search form and pagination)
                     Limpiar
-                </button>
+                </a>
                 <button type="submit" class="btn btn-primary gap-2">
+<<<<<<< HEAD
 >>>>>>> 4ae7a94 (Add asignaciones feature with search and listing functionality)
+=======
+                    <span id="asignacion-search-spinner" class="htmx-indicator loading loading-spinner loading-sm"></span>
+>>>>>>> 8859bd7 (Implement filtering functionality for asignaciones with search form and pagination)
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                     </svg>
