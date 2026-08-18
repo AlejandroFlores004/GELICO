@@ -22,11 +22,11 @@
                     class="space-y-4"
                 >
                     <div class="form-control w-full">
-                        <label class="label" for="{{ seleccionarBonos.bono.id_for_label }}">
+                        <label class="label" for="{{ seleccionarBono.bono.id_for_label }}">
                             <span class="label-text font-medium">Bono</span>
                         </label>
-                        <div class="w-full">
-                            {{ seleccionarBonos.bono }}
+                        <div class="w-full" id="bono-select-wrapper">
+                            {{ seleccionarBono.bono }}
                         </div>
                     </div>
 
@@ -47,3 +47,7 @@
     </div>
 
 </div>
+
+<script>
+    $('#bono-select-wrapper .django-select2').djangoSelect2({ width: '100%' });
+</script>

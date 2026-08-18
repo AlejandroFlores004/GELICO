@@ -64,4 +64,6 @@
 
 .select2-container--default .select2-results__option[aria-selected="true"] {
     background-color: var(--color-base-200, oklch(var(--b2)));
+    color: var(--color-base-content, oklch(var(--bc)));
+    font-weight: 600;
 }
