@@ -3,7 +3,6 @@ from django_select2.forms import Select2Widget
 from escuela.models import Escuela
 from catalogo.models import Bono
 from .models import Asignacion
-from .models import Asignacion
 
 class SeleccionarEscuelaForm(forms.Form):
     escuela = forms.ModelChoiceField(
@@ -61,6 +60,38 @@ class FiltrarAsignacionesForm(forms.Form):
         widget=forms.DateInput(attrs={
             'type': 'date',
             'class': 'input input-bordered w-full',
-        }),
+        }, format='%Y-%m-%d'),
         label='Fecha',
     )
+
+
+class AsignacionForm(forms.ModelForm):
+    class Meta:
+        model = Asignacion
+        fields = ['escuela', 'bono', 'valor', 'fecha']
+        widgets = {
+            'escuela': Select2Widget(attrs={
+                'data-placeholder': 'Seleccione una escuela',
+                'style': 'width: 100%',
+                'class': 'select2-daisy',
+            }),
+            'bono': Select2Widget(attrs={
+                'data-placeholder': 'Seleccione un bono',
+                'style': 'width: 100%',
+                'class': 'select2-daisy',
+            }),
+            'valor': forms.NumberInput(attrs={
+                'class': 'input input-bordered w-full',
+                'step': '0.01',
+                'min': '0',
+            }),
+            'fecha': forms.DateInput(attrs={
+                'type': 'date',
+                'class': 'input input-bordered w-full',
+            }, format='%Y-%m-%d'),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields['escuela'].disabled = True
