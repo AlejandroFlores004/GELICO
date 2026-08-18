@@ -5,6 +5,9 @@ from . import forms
 from escuela.models import Escuela, Encargado
 
 # Create your views here.
+
+
+#Liquidaciones views
 def home_liquidaciones(request):
 
     seleccionarEscuelas = forms.SeleccionarEscuelaForm(request.GET or None)
@@ -46,3 +49,18 @@ def buscar_escuela(request):
             {'escuela': escuela, 'encargado': encargado, 'seleccionarBono': seleccionarBono}
         )
     return render(request, 'partials/liquidacion/_escuela_info.html', {})
+
+#Asignaciones views
+def home_asignaciones(request):
+    breadcrumbs = [
+        {'name': 'Inicio', 'url': reverse('home')},
+        {'name': 'Asignaciones', 'url': reverse('home_asignaciones')},
+    ]
+
+    return render(
+        request,
+        'asignacion/asignacionHome.html',
+        {
+            'breadcrumbs': breadcrumbs,
+        }
+    )
