@@ -1,9 +1,9 @@
 from django.core.paginator import Paginator
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import render
 from django.urls import reverse
 from . import forms
-from escuela.models.models import Escuela, Encargado
-from .Escuela, Encargado import Asignacion
+from escuela.models import Escuela, Encargado
+from .models import Asignacion
 
 # Create your views here.
 
