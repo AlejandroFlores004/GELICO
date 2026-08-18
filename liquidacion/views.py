@@ -1,8 +1,9 @@
 from django.core.paginator import Paginator
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import render
 from django.urls import reverse
 from . import forms
 from escuela.models import Escuela, Encargado
+from .models import Asignacion
 
 # Create your views here.
 
@@ -52,19 +53,62 @@ def buscar_escuela(request):
     return render(request, 'partials/liquidacion/_escuela_info.html', {})
 
 #Asignaciones views
+def _filtrar_asignaciones(request):
+    filtro_form = forms.FiltrarAsignacionesForm(request.GET or None)
+
+    asignaciones_list = Asignacion.objects.select_related(
+        'escuela', 'escuela__distrito', 'bono'
+    ).order_by('-fecha')
+
+    if filtro_form.is_valid():
+        escuela = filtro_form.cleaned_data.get('escuela')
+        bono = filtro_form.cleaned_data.get('bono')
+        fecha = filtro_form.cleaned_data.get('fecha')
+
+        if escuela:
+            asignaciones_list = asignaciones_list.filter(escuela=escuela)
+        if bono:
+            asignaciones_list = asignaciones_list.filter(bono=bono)
+        if fecha:
+            asignaciones_list = asignaciones_list.filter(fecha=fecha)
+
+    paginator = Paginator(asignaciones_list, 20)
+    asignaciones = paginator.get_page(request.GET.get('page'))
+
+    return filtro_form, asignaciones
+
+
 def home_asignaciones(request):
     breadcrumbs = [
         {'name': 'Inicio', 'url': reverse('home')},
         {'name': 'Asignaciones', 'url': reverse('home_asignaciones')},
     ]
 
+    filtro_form, asignaciones = _filtrar_asignaciones(request)
+
     return render(
         request,
         'asignacion/asignacionHome.html',
         {
             'breadcrumbs': breadcrumbs,
+            'asignaciones': asignaciones,
+            'filtro_form': filtro_form,
+            'form_media': filtro_form.media,
         }
     )
+<<<<<<< HEAD
+=======
+
+
+def buscar_asignaciones(request):
+    _, asignaciones = _filtrar_asignaciones(request)
+
+    return render(
+        request,
+        'partials/asignacion/_listado_asignaciones.html',
+        {'asignaciones': asignaciones}
+    )
+>>>>>>> 8859bd7 (Implement filtering functionality for asignaciones with search form and pagination)
 
 #Asignaciones views
 def _filtrar_asignaciones(request):
