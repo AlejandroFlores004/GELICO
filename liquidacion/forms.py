@@ -3,6 +3,7 @@ from django_select2.forms import Select2Widget
 from escuela.models import Escuela, Distrito
 from catalogo.models import Bono
 from .models import Asignacion
+from .models import Asignacion
 
 class SeleccionarEscuelaForm(forms.Form):
     escuela = forms.ModelChoiceField(
