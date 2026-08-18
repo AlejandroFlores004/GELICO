@@ -1,8 +1,4 @@
 {% load static %}
-{% url 'home_liquidaciones' as url_liquidaciones %}
-{% url 'admin:index' as url_admin %}
-{% url 'home_liquidaciones' as url_liquidaciones %}
-{% url 'admin:index' as url_admin %}
 <div class="drawer-side">
   <label for="main-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
 
@@ -142,12 +138,9 @@
         </svg>
         <span>Movimientos</span>
       </li>
+      <li><a href="{% url 'home_liquidaciones' %}" class="pl-8 {% if request.resolver_match.url_name == 'home_liquidaciones' %}menu-active{% endif %}">Liquidaciones</a></li>
+      <li><a href="{% url 'home_asignaciones' %}" class="pl-8 {% if request.resolver_match.url_name == 'home_asignaciones' %}menu-active{% endif %}">Asignaciones</a></li>
       <li><a href="{{ url_liquidaciones }}" class="pl-8 {% if request.path == url_liquidaciones %}menu-active{% endif %}">Liquidaciones</a></li>
-      <li><a href="#" class="pl-8">Asignaciones</a></li>
-      <li><a href="#" class="pl-8">Transferencias</a></li>
-      <li><a href="{{ url_liquidaciones }}" class="pl-8 {% if request.path == url_liquidaciones %}menu-active{% endif %}">Liquidaciones</a></li>
-      <li><a href="#" class="pl-8">Asignaciones</a></li>
-      <li><a href="#" class="pl-8">Transferencias</a></li>
 
       <li>
         <div class="divider my-0 opacity-40"></div>
@@ -155,8 +148,7 @@
 
       <!-- Sitio desarrollo -->
       <li>
-        <a href="{{ url_admin }}" class="{% if request.resolver_match.namespace == 'admin' %}menu-active{% endif %}">
-        <a href="{{ url_admin }}" class="{% if request.resolver_match.namespace == 'admin' %}menu-active{% endif %}">
+        <a href="{% url 'admin:index' %}" class="{% if request.resolver_match.namespace == 'admin' %}menu-active{% endif %}">
           <svg xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
               stroke-linejoin="round"
