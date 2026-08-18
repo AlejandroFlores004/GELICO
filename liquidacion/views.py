@@ -1,5 +1,5 @@
 from django.core.paginator import Paginator
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from . import forms
 from escuela.models import Escuela, Encargado
@@ -65,6 +65,7 @@ def _filtrar_asignaciones(request):
         escuela = filtro_form.cleaned_data.get('escuela')
         bono = filtro_form.cleaned_data.get('bono')
         fecha = filtro_form.cleaned_data.get('fecha')
+
 
 
         if escuela:
