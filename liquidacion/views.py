@@ -349,7 +349,6 @@ def _filtrar_asignaciones(request):
         bono = filtro_form.cleaned_data.get('bono')
         fecha = filtro_form.cleaned_data.get('fecha')
 
-
         if distrito:
             asignaciones_list = asignaciones_list.filter(escuela__distrito=distrito)
         if escuela:
