@@ -1,155 +1,103 @@
 {% load static %}
-<div class="drawer-side is-drawer-close:overflow-visible">
+<div class="drawer-side">
   <label for="main-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
 
-  <div class="flex min-h-full flex-col bg-base-200 is-drawer-close:w-14 is-drawer-open:w-64">
+  <div class="flex min-h-full flex-col bg-base-200 w-64">
 
     <!-- Sidebar Header -->
-    <div class="border-b border-base-300 p-3">
-      <div class="flex items-center gap-3">
+    <div class="border-b border-base-300 p-2">
+      <div class="flex items-center gap-2">
         <!-- Logo -->
-        <div class="flex size-10 shrink-0 items-center justify-center">
+        <div class="flex size-8 shrink-0 items-center justify-center">
           <img src="{% static 'logo.svg' %}" alt="Favicon"
-              class="size-9 object-contain"/>
+              class="size-7 object-contain"/>
         </div>
 
-        <!-- Title (hidden when collapsed) -->
-        <div class="is-drawer-close:hidden">
-          <h2 class="font-semibold leading-tight tracking-tight">Gestion de Liquidaciones y Convocatorias</h2>
+        <!-- Title -->
+        <div>
+          <h2 class="font-semibold leading-tight tracking-tight text-sm">Gestion de Liquidaciones y Convocatorias</h2>
           <p class="text-xs opacity-70">(GELICO)</p>
         </div>
       </div>
     </div>
 
     <!-- Menu -->
-    <ul class="menu w-full grow">
+    <ul class="menu menu-sm w-full grow">
 
       <!-- Escuelas -->
-      <li>
-        <a href="#"
-           class="is-drawer-close:tooltip is-drawer-close:tooltip-right"
-           data-tip="Escuelas">
-          <svg xmlns="http://www.w3.org/2000/svg"
-               viewBox="0 0 24 24"
-               stroke-linejoin="round"
-               stroke-linecap="round"
-               stroke-width="2"
-               fill="none"
-               stroke="currentColor"
-               class="my-1.5 inline-block size-4">
-            <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-            <path d="M6 12v5c0 1.1 2.7 3 6 3s6-1.9 6-3v-5"/>
-          </svg>
-          <span class="is-drawer-close:hidden">Escuelas</span>
-        </a>
+      <li class="menu-title flex-row items-center gap-2 text-xs font-bold! uppercase tracking-wide text-base-content!">
+        <svg xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            stroke-linejoin="round"
+            stroke-linecap="round"
+            stroke-width="2"
+            fill="none"
+            stroke="currentColor"
+            class="inline-block size-4">
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+          <path d="M6 12v5c0 1.1 2.7 3 6 3s6-1.9 6-3v-5"/>
+        </svg>
+        <span>Escuelas</span>
       </li>
+      <li><a href="#" class="pl-8">Escuelas</a></li>
+      <li><a href="#" class="pl-8">Encargados</a></li>
 
-      <li class="my-1.5">
-        <div class="divider my-0 opacity-40 is-drawer-close:mx-1"></div>
+      <li>
+        <div class="divider my-0 opacity-40"></div>
       </li>
 
       <!-- Programación -->
+      <li class="menu-title flex-row items-center gap-2 text-xs font-bold! uppercase tracking-wide text-base-content!">
+        <svg xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            stroke-linejoin="round"
+            stroke-linecap="round"
+            stroke-width="2"
+            fill="none"
+            stroke="currentColor"
+            class="inline-block size-4">
+          <rect x="3" y="4" width="18" height="18" rx="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <span>Programación</span>
+      </li>
+      <li><a href="#" class="pl-8">Convocatorias</a></li>
+      <li><a href="#" class="pl-8">Calendario</a></li>
+
       <li>
-        <a href="#"
-           class="is-drawer-close:tooltip is-drawer-close:tooltip-right"
-           data-tip="Programación">
-          <svg xmlns="http://www.w3.org/2000/svg"
-               viewBox="0 0 24 24"
-               stroke-linejoin="round"
-               stroke-linecap="round"
-               stroke-width="2"
-               fill="none"
-               stroke="currentColor"
-               class="my-1.5 inline-block size-4">
-            <rect x="3" y="4" width="18" height="18" rx="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8" y1="2" x2="8" y2="6"/>
-            <line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
-          <span class="is-drawer-close:hidden">Programación</span>
-        </a>
+        <div class="divider my-0 opacity-40"></div>
       </li>
 
-      <li class="my-1.5">
-        <div class="divider my-0 opacity-40 is-drawer-close:mx-1"></div>
+      <!-- Movimientos: Liquidaciones, Asignaciones, Transferencias -->
+      <li class="menu-title flex-row items-center gap-2 text-xs font-bold! uppercase tracking-wide text-base-content!">
+        <svg xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            stroke-linejoin="round"
+            stroke-linecap="round"
+            stroke-width="2"
+            fill="none"
+            stroke="currentColor"
+            class="inline-block size-4">
+          <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/>
+          <path d="M16 8h-6"/>
+          <path d="M16 12h-6"/>
+          <path d="M13 16h-3"/>
+        </svg>
+        <span>Movimientos</span>
       </li>
+      <li><a href="{% url 'home_liquidaciones' %}" class="pl-8 {% if request.resolver_match.url_name == 'home_liquidaciones' %}menu-active{% endif %}">Liquidaciones</a></li>
+      <li><a href="{% url 'home_asignaciones' %}" class="pl-8 {% if request.resolver_match.url_name == 'home_asignaciones' %}menu-active{% endif %}">Asignaciones</a></li>
+      <li><a href="#" class="pl-8">Transferencias</a></li>
 
-      <!-- Liquidaciones -->
       <li>
-        <a href="{% url 'home_liquidaciones' %}"
-          class="is-drawer-close:tooltip is-drawer-close:tooltip-right"
-          data-tip="Liquidaciones">
-          <svg xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              stroke-linejoin="round"
-              stroke-linecap="round"
-              stroke-width="2"
-              fill="none"
-              stroke="currentColor"
-              class="my-1.5 inline-block size-4">
-            <!-- receipt icon -->
-            <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/>
-            <path d="M16 8h-6"/>
-            <path d="M16 12h-6"/>
-            <path d="M13 16h-3"/>
-          </svg>
-          <span class="is-drawer-close:hidden">Liquidaciones</span>
-        </a>
+        <div class="divider my-0 opacity-40"></div>
       </li>
 
-      <!-- Asignaciones -->
-      <li>
-        <a href="#"
-          class="is-drawer-close:tooltip is-drawer-close:tooltip-right"
-          data-tip="Asignaciones">
-          <svg xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              stroke-linejoin="round"
-              stroke-linecap="round"
-              stroke-width="2"
-              fill="none"
-              stroke="currentColor"
-              class="my-1.5 inline-block size-4">
-            <!-- coins icon -->
-            <circle cx="8" cy="8" r="6"/>
-            <path d="M18.09 10.37A6 6 0 1 1 10.34 18"/>
-            <path d="M7 6h1v4"/>
-            <path d="m16.71 13.88.7.71-2.82 2.82"/>
-          </svg>
-          <span class="is-drawer-close:hidden">Asignaciones</span>
-        </a>
-      </li>
-
-      <!-- Transferencias -->
-      <li>
-        <a href="#"
-          class="is-drawer-close:tooltip is-drawer-close:tooltip-right"
-          data-tip="Transferencias">
-          <svg xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              stroke-linejoin="round"
-              stroke-linecap="round"
-              stroke-width="2"
-              fill="none"
-              stroke="currentColor"
-              class="my-1.5 inline-block size-4">
-            <!-- banknote icon -->
-            <rect width="20" height="12" x="2" y="6" rx="2"/>
-            <circle cx="12" cy="12" r="2"/>
-            <path d="M6 12h.01M18 12h.01"/>
-          </svg>
-          <span class="is-drawer-close:hidden">Transferencias</span>
-        </a>
-      </li>
-
-      <li class="my-1.5">
-        <div class="divider my-0 opacity-40 is-drawer-close:mx-1"></div>
-      </li>
       <!-- Sitio desarrollo -->
       <li>
-        <a href="{% url 'admin:index' %}"
-          class="is-drawer-close:tooltip is-drawer-close:tooltip-right"
-          data-tip="Sitio Desarrollo">
+        <a href="{% url 'admin:index' %}" class="{% if request.resolver_match.namespace == 'admin' %}menu-active{% endif %}">
           <svg xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
               stroke-linejoin="round"
@@ -157,12 +105,12 @@
               stroke-width="2"
               fill="none"
               stroke="currentColor"
-              class="my-1.5 inline-block size-4">
+              class="inline-block size-4">
             <polyline points="8 9 4 12 8 15"/>
             <polyline points="16 9 20 12 16 15"/>
             <line x1="14" y1="4" x2="10" y2="20"/>
           </svg>
-          <span class="is-drawer-close:hidden">Sitio Desarrollo</span>
+          <span>Sitio Desarrollo</span>
         </a>
       </li>
 
