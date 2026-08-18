@@ -1,5 +1,5 @@
 from django.core.paginator import Paginator
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from . import forms
 from escuela.models import Escuela, Encargado
@@ -64,6 +64,7 @@ def _filtrar_asignaciones(request):
         bono = filtro_form.cleaned_data.get('bono')
         fecha = filtro_form.cleaned_data.get('fecha')
 
+
         if escuela:
             asignaciones_list = asignaciones_list.filter(escuela=escuela)
         if bono:
@@ -107,4 +108,26 @@ def buscar_asignaciones(request):
         'partials/asignacion/_listado_asignaciones.html',
         {'asignaciones': asignaciones}
     )
->>>>>>> 8859bd7 (Implement filtering functionality for asignaciones with search form and pagination)
+
+
+def asignacion_form(request, pk=None):
+    instance = get_object_or_404(Asignacion, pk=pk) if pk else None
+
+    if request.method == 'POST':
+        form = forms.AsignacionForm(request.POST, instance=instance, prefix='asignacion')
+        if form.is_valid():
+            form.save()
+            _, asignaciones = _filtrar_asignaciones(request)
+            return render(
+                request,
+                'partials/asignacion/_asignacion_form_success.html',
+                {'asignaciones': asignaciones}
+            )
+    else:
+        form = forms.AsignacionForm(instance=instance, prefix='asignacion')
+
+    return render(
+        request,
+        'partials/asignacion/_asignacion_form_modal.html',
+        {'form': form, 'instance': instance}
+    )
