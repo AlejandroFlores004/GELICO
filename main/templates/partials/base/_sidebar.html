@@ -65,6 +65,7 @@
       </li>
       <li><a href="#" class="pl-8">Convocatorias</a></li>
       <li><a href="#" class="pl-8">Calendario</a></li>
+      <li><a href="{% url 'home_auxiliar' %}" class="pl-8 {% if request.resolver_match.url_name == 'home_auxiliar' %}menu-active{% endif %}">Auxiliar</a></li>
 
       <li>
         <div class="divider my-0 opacity-40"></div>

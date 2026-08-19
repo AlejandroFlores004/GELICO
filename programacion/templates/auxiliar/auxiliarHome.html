@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}
-    Gestión de Auxiliares
+    Auxiliares
 {% endblock %}
 
 {% block content %}
@@ -25,24 +25,21 @@
         </div>
         <div>
             <h1 class="text-4xl font-bold">
-                Gestión de Auxiliares
+                Auxiliares
             </h1>
             <p class="text-base-content/70">
-                Busca, registra y revisa los auxiliares del sistema.
+                Gestiona los auxiliares registrados en el sistema.
             </p>
         </div>
     </div>
 
     {% include "partials/toolbar.html" %}
 
-    <div class="divider text-sm text-base-content/60 uppercase tracking-wide">Búsqueda</div>
-
     {% include "partials/buscador.html" %}
 
-    <div class="divider text-sm text-base-content/60 uppercase tracking-wide">Colaboradores</div>
+    <div id="auxiliar-modal-wrapper"></div>
 
     {% include "partials/tabla.html" %}
 
-    {% include "partials/modal_agregar.html" %}
 </main>
 {% endblock %}

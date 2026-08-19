@@ -25,14 +25,16 @@
                     <div class="label py-1">
                         <span class="label-text font-medium">Nombre</span>
                     </div>
-                    <input type="text" class="input input-bordered w-full" name="nombre" placeholder="Ej. María">
+                    {{ form.nombre }}
+                    {% for error in form.nombre.errors %}<span class="text-error text-xs">{{ error }}</span>{% endfor %}
                 </label>
 
                 <label class="form-control">
                     <div class="label py-1">
                         <span class="label-text font-medium">Apellido</span>
                     </div>
-                    <input type="text" class="input input-bordered w-full" name="apellido" placeholder="Ej. López">
+                    {{ form.apellido }}
+                    {% for error in form.apellido.errors %}<span class="text-error text-xs">{{ error }}</span>{% endfor %}
                 </label>
             </div>
 
@@ -41,14 +43,16 @@
                     <div class="label py-1">
                         <span class="label-text font-medium">Email</span>
                     </div>
-                    <input type="email" class="input input-bordered w-full" name="email" placeholder="correo@ejemplo.com">
+                    {{ form.email }}
+                    {% for error in form.email.errors %}<span class="text-error text-xs">{{ error }}</span>{% endfor %}
                 </label>
 
                 <label class="form-control">
                     <div class="label py-1">
                         <span class="label-text font-medium">Teléfono</span>
                     </div>
-                    <input type="text" class="input input-bordered w-full" name="telefono" placeholder="0000-0000">
+                    {{ form.telefono }}
+                    {% for error in form.telefono.errors %}<span class="text-error text-xs">{{ error }}</span>{% endfor %}
                 </label>
             </div>
 
@@ -56,7 +60,8 @@
                 <div class="label py-1">
                     <span class="label-text font-medium">Institución</span>
                 </div>
-                <input type="text" class="input input-bordered w-full" name="institucion" placeholder="Nombre de la institución">
+                {{ form.institucion }}
+                {% for error in form.institucion.errors %}<span class="text-error text-xs">{{ error }}</span>{% endfor %}
             </label>
 
             <div class="modal-action mt-6">

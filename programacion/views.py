@@ -1,53 +1,46 @@
-from django.contrib import messages
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, render
+
+from .forms import AuxiliarForm
+from .models import Auxiliar
 
 
 def auxiliarHomeView(request):
-    auxiliares = request.session.get("auxiliares", [])
-
-    if request.method == "POST":
-        nombre = request.POST.get("nombre", "").strip()
-        apellido = request.POST.get("apellido", "").strip()
-        email = request.POST.get("email", "").strip()
-        telefono = request.POST.get("telefono", "").strip()
-        institucion = request.POST.get("institucion", "").strip()
-
-        if nombre and apellido and email and institucion:
-            auxiliares.append(
-                {
-                    "nombre": nombre,
-                    "apellido": apellido,
-                    "email": email,
-                    "telefono": telefono or "",
-                    "institucion": institucion,
-                }
-            )
-            request.session["auxiliares"] = auxiliares
-            messages.success(request, "Auxiliar agregado para prueba.")
-        else:
-            messages.error(request, "Completa los campos obligatorios para guardar.")
-
-        return redirect("auxliar")
-
     search = request.GET.get("q", "").strip()
+    auxiliares = Auxiliar.objects.all().order_by('apellido', 'nombre')
     if search:
-        filtered = [
-            auxiliar
-            for auxiliar in auxiliares
-            if search.lower() in " ".join(
-                [
-                    auxiliar.get("nombre", ""),
-                    auxiliar.get("apellido", ""),
-                    auxiliar.get("email", ""),
-                    auxiliar.get("institucion", ""),
-                ]
-            ).lower()
-        ]
+        filtered = auxiliares.filter(nombre__icontains=search) | auxiliares.filter(apellido__icontains=search) | auxiliares.filter(email__icontains=search) | auxiliares.filter(institucion__icontains=search)
     else:
         filtered = auxiliares
 
     return render(
         request,
         "auxiliar/auxiliarHome.html",
-        {"auxiliares": auxiliares, "auxiliares_filtrados": filtered, "search": search},
+        {
+            "auxiliares": auxiliares,
+            "auxiliares_filtrados": filtered,
+            "search": search,
+        },
+    )
+
+
+def auxiliar_form(request, pk=None):
+    instance = get_object_or_404(Auxiliar, pk=pk) if pk else None
+
+    if request.method == "POST":
+        form = AuxiliarForm(request.POST, instance=instance)
+        if form.is_valid():
+            form.save()
+            auxiliares = Auxiliar.objects.all().order_by('apellido', 'nombre')
+            return render(
+                request,
+                "partials/auxiliar/modal_form_success.html",
+                {"auxiliares": auxiliares},
+            )
+    else:
+        form = AuxiliarForm(instance=instance)
+
+    return render(
+        request,
+        "partials/auxiliar/modal_form.html",
+        {"form": form, "instance": instance},
     )

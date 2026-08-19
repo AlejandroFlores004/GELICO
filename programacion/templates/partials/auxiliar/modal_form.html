@@ -1,0 +1,86 @@
+<div id="auxiliar-modal-wrapper">
+    <dialog id="auxiliar-modal" class="modal">
+        <div class="modal-box max-w-3xl rounded-2xl border border-base-300 shadow-2xl">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
+            </form>
+
+            <h3 class="font-bold text-xl">
+                {% if instance %}Editar Auxiliar{% else %}Agregar Auxiliar{% endif %}
+            </h3>
+
+            <form
+                hx-post="{% if instance %}{% url 'auxiliar_editar' instance.pk %}{% else %}{% url 'auxiliar_nuevo' %}{% endif %}"
+                hx-target="#auxiliar-modal-wrapper"
+                hx-swap="outerHTML"
+                class="space-y-4 mt-4"
+            >
+                {% csrf_token %}
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="form-control w-full">
+                        <label class="label" for="{{ form.nombre.id_for_label }}">
+                            <span class="label-text font-medium">Nombre</span>
+                        </label>
+                        {{ form.nombre }}
+                        {% if form.nombre.errors %}<span class="text-error text-xs mt-1">{{ form.nombre.errors.0 }}</span>{% endif %}
+                    </div>
+
+                    <div class="form-control w-full">
+                        <label class="label" for="{{ form.apellido.id_for_label }}">
+                            <span class="label-text font-medium">Apellido</span>
+                        </label>
+                        {{ form.apellido }}
+                        {% if form.apellido.errors %}<span class="text-error text-xs mt-1">{{ form.apellido.errors.0 }}</span>{% endif %}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="form-control w-full">
+                        <label class="label" for="{{ form.email.id_for_label }}">
+                            <span class="label-text font-medium">Email</span>
+                        </label>
+                        {{ form.email }}
+                        {% if form.email.errors %}<span class="text-error text-xs mt-1">{{ form.email.errors.0 }}</span>{% endif %}
+                    </div>
+
+                    <div class="form-control w-full">
+                        <label class="label" for="{{ form.telefono.id_for_label }}">
+                            <span class="label-text font-medium">Telefono</span>
+                        </label>
+                        {{ form.telefono }}
+                        {% if form.telefono.errors %}<span class="text-error text-xs mt-1">{{ form.telefono.errors.0 }}</span>{% endif %}
+                    </div>
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.institucion.id_for_label }}">
+                        <span class="label-text font-medium">Institucion</span>
+                    </label>
+                    {{ form.institucion }}
+                    {% if form.institucion.errors %}<span class="text-error text-xs mt-1">{{ form.institucion.errors.0 }}</span>{% endif %}
+                </div>
+
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('auxiliar-modal').close()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#auxiliar-modal-wrapper');
+            var dialog = wrapper.querySelector('#auxiliar-modal');
+            dialog.showModal();
+
+            dialog.addEventListener('close', function () {
+                wrapper.innerHTML = '';
+            }, { once: true });
+        })();
+    </script>
+</div>
