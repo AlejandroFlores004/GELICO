@@ -1,6 +1,12 @@
+from decimal import Decimal
+
 from django.core.paginator import Paginator
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils import timezone
+from weasyprint import HTML
 from . import forms
 from escuela.models import Escuela, Encargado
 from .models import Asignacion
@@ -54,7 +60,7 @@ def buscar_escuela(request):
     return render(request, 'partials/liquidacion/_escuela_info.html', {})
 
 #Asignaciones views
-def _filtrar_asignaciones(request):
+def _asignaciones_filtradas(request):
     filtro_form = forms.FiltrarAsignacionesForm(request.GET or None)
 
     asignaciones_list = Asignacion.objects.select_related(
@@ -76,6 +82,12 @@ def _filtrar_asignaciones(request):
             asignaciones_list = asignaciones_list.filter(bono=bono)
         if fecha:
             asignaciones_list = asignaciones_list.filter(fecha=fecha)
+
+    return filtro_form, asignaciones_list
+
+
+def _filtrar_asignaciones(request):
+    filtro_form, asignaciones_list = _asignaciones_filtradas(request)
 
     paginator = Paginator(asignaciones_list, 20)
     asignaciones = paginator.get_page(request.GET.get('page'))
@@ -153,3 +165,24 @@ def asignacion_eliminar(request, pk):
         'partials/asignacion/_asignacion_delete_modal.html',
         {'instance': instance}
     )
+
+
+def asignacion_imprimir(request):
+    _, asignaciones = _asignaciones_filtradas(request)
+
+    total = sum((asignacion.valor for asignacion in asignaciones), Decimal('0'))
+
+    html_string = render_to_string(
+        'partials/asignacion/_asignacion_reporte_pdf.html',
+        {
+            'asignaciones': asignaciones,
+            'total': total,
+            'fecha_generacion': timezone.localdate(),
+        }
+    )
+
+    pdf = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
+
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename="asignaciones.pdf"'
+    return response
