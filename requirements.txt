@@ -11,3 +11,4 @@ django-easy-audit==1.3.9
 django-htmx==1.28.0
 django-select2==8.4.8
 weasyprint==59.0
+pydyf==0.8.0

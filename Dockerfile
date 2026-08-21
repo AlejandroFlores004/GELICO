@@ -2,9 +2,16 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-# Install Node.js
+# Install Node.js and WeasyPrint system dependencies (Pango, Cairo, GDK-PixBuf)
 RUN apt-get update && \
-    apt-get install -y curl && \
+    apt-get install -y curl \
+        libpango-1.0-0 \
+        libpangoft2-1.0-0 \
+        libpangocairo-1.0-0 \
+        libcairo2 \
+        libgdk-pixbuf-2.0-0 \
+        libffi-dev \
+        shared-mime-info && \
     curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y nodejs && \
     apt-get clean && \
