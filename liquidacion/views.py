@@ -59,11 +59,14 @@ def _filtrar_asignaciones(request):
     ).order_by('-fecha')
 
     if filtro_form.is_valid():
+        distrito = filtro_form.cleaned_data.get('distrito')
         escuela = filtro_form.cleaned_data.get('escuela')
         bono = filtro_form.cleaned_data.get('bono')
         fecha = filtro_form.cleaned_data.get('fecha')
 
 
+        if distrito:
+            asignaciones_list = asignaciones_list.filter(escuela__distrito=distrito)
         if escuela:
             asignaciones_list = asignaciones_list.filter(escuela=escuela)
         if bono:
@@ -127,4 +130,23 @@ def asignacion_form(request, pk=None):
         request,
         'partials/asignacion/_asignacion_form_modal.html',
         {'form': form, 'instance': instance}
+    )
+
+
+def asignacion_eliminar(request, pk):
+    instance = get_object_or_404(Asignacion, pk=pk)
+
+    if request.method == 'POST':
+        instance.delete()
+        _, asignaciones = _filtrar_asignaciones(request)
+        return render(
+            request,
+            'partials/asignacion/_asignacion_form_success.html',
+            {'asignaciones': asignaciones}
+        )
+
+    return render(
+        request,
+        'partials/asignacion/_asignacion_delete_modal.html',
+        {'instance': instance}
     )
