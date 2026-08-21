@@ -144,7 +144,12 @@ def asignacion_eliminar(request, pk):
         _, asignaciones = _filtrar_asignaciones(request)
         return render(
             request,
-            'partials/liquidacion/_escuela_info_result.html',
-            {'escuela': escuela, 'encargado': encargado, 'seleccionarBono': seleccionarBono}
+            'partials/asignacion/_asignacion_form_success.html',
+            {'asignaciones': asignaciones}
         )
-    return render(request, 'partials/liquidacion/_escuela_info.html', {})
+
+    return render(
+        request,
+        'partials/asignacion/_asignacion_delete_modal.html',
+        {'instance': instance}
+    )
