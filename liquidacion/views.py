@@ -98,9 +98,6 @@ def home_asignaciones(request):
             'form_media': filtro_form.media,
         }
     )
-<<<<<<< HEAD
-=======
-
 
 def buscar_asignaciones(request):
     _, asignaciones = _filtrar_asignaciones(request)
