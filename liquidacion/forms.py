@@ -1,6 +1,6 @@
 from django import forms
 from django_select2.forms import Select2Widget
-from escuela.models import Escuela
+from escuela.models import Escuela, Distrito
 from catalogo.models import Bono
 from .models import Asignacion
 from .models import Asignacion
@@ -36,6 +36,16 @@ class SeleccionarBonoForm(forms.Form):
 
 
 class FiltrarAsignacionesForm(forms.Form):
+    distrito = forms.ModelChoiceField(
+        queryset=Distrito.objects.all(),
+        widget=Select2Widget(attrs={
+            'data-placeholder': 'Todos los distritos',
+            'style': 'width: 100%',
+            'class': 'select2-daisy',
+        }),
+        label='Distrito',
+        required=False,
+    )
     escuela = forms.ModelChoiceField(
         queryset=Escuela.objects.all(),
         widget=Select2Widget(attrs={
