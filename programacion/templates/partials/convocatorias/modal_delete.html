@@ -1,0 +1,30 @@
+<div id="convocatoria-modal-wrapper">
+    <dialog id="convocatoria-modal" class="modal">
+        <div class="modal-box">
+            <form method="dialog"><button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button></form>
+            <h3 class="font-bold text-lg">Eliminar Convocatoria</h3>
+            <p class="text-base-content/70 text-sm mt-2">Esta acción no se puede deshacer. La convocatoria se eliminará de forma permanente.</p>
+            <div class="bg-base-200 rounded-lg p-4 mt-5 space-y-2 text-sm">
+                <div class="flex justify-between gap-4"><span class="text-base-content/60">Nombre</span><span class="font-medium text-right">{{ instance.nombre }}</span></div>
+                <div class="flex justify-between gap-4"><span class="text-base-content/60">Inicio</span><span class="font-medium text-right">{{ instance.fecha_inicio|date:"d/m/Y" }}</span></div>
+                <div class="flex justify-between gap-4"><span class="text-base-content/60">Fin</span><span class="font-medium text-right">{{ instance.fecha_fin|date:"d/m/Y" }}</span></div>
+            </div>
+            <form hx-post="{% url 'convocatoria_eliminar' instance.pk %}{% querystring %}" hx-target="#convocatoria-modal-wrapper" hx-swap="outerHTML">
+                {% csrf_token %}
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('convocatoria-modal').close()">Cancelar</button>
+                    <button type="submit" class="btn btn-error">Borrar</button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop"><button>close</button></form>
+    </dialog>
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#convocatoria-modal-wrapper');
+            var dialog = wrapper.querySelector('#convocatoria-modal');
+            dialog.showModal();
+            dialog.addEventListener('close', function () { wrapper.innerHTML = ''; }, { once: true });
+        })();
+    </script>
+</div>
