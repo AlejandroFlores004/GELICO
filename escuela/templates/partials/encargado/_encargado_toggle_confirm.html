@@ -1,0 +1,49 @@
+<div id="encargado-modal-wrapper">
+    <dialog id="encargado-modal" class="modal">
+        <div class="modal-box">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+            </form>
+
+            <h3 class="font-bold text-lg">
+                {% if encargado.estado %}Desactivar encargado{% else %}Activar encargado{% endif %}
+            </h3>
+
+            <p class="py-4">
+                ¿Estás seguro que deseas {% if encargado.estado %}desactivar{% else %}activar{% endif %}
+                a <strong>{{ encargado.nombre }} {{ encargado.apellido }}</strong>
+                ({{ encargado.escuela.nombre_corto }})?
+                {% if not encargado.estado %}
+                Esto desactivará automáticamente al encargado activo actual de esa escuela, si hay uno.
+                {% endif %}
+            </p>
+
+            <form
+                hx-post="{% url 'encargado_toggle' encargado.pk %}"
+                hx-target="#encargado-modal-wrapper"
+                hx-swap="outerHTML"
+            >
+                {% csrf_token %}
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('encargado-modal').close()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Confirmar</button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#encargado-modal-wrapper');
+            var dialog = wrapper.querySelector('#encargado-modal');
+            dialog.showModal();
+
+            dialog.addEventListener('close', function () {
+                wrapper.innerHTML = '';
+            }, { once: true });
+        })();
+    </script>
+</div>
