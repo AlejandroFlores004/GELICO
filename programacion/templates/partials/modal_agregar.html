@@ -76,3 +76,17 @@
         </form>
     </div>
 </dialog>
+
+<script>
+    (function () {
+        var telefono = document.getElementById('{{ form.telefono.id_for_label }}');
+        if (!telefono) return;
+
+        telefono.addEventListener('input', function () {
+            var digitos = telefono.value.replace(/\D/g, '').slice(0, 8);
+            telefono.value = digitos.length > 4
+                ? digitos.slice(0, 4) + '-' + digitos.slice(4)
+                : digitos;
+        });
+    })();
+</script>

@@ -10,7 +10,7 @@
             </h3>
 
             <form
-                hx-post="{% if instance %}{% url 'auxiliar_editar' instance.pk %}{% else %}{% url 'auxiliar_nuevo' %}{% endif %}"
+                hx-post="{% if instance %}{% url 'auxiliar_editar' instance.pk %}{% else %}{% url 'auxiliar_nuevo' %}{% endif %}{% querystring %}"
                 hx-target="#auxiliar-modal-wrapper"
                 hx-swap="outerHTML"
                 class="space-y-4 mt-4"
@@ -76,7 +76,17 @@
         (function () {
             var wrapper = document.currentScript.closest('#auxiliar-modal-wrapper');
             var dialog = wrapper.querySelector('#auxiliar-modal');
+            var telefono = wrapper.querySelector('#{{ form.telefono.id_for_label }}');
             dialog.showModal();
+
+            if (telefono) {
+                telefono.addEventListener('input', function () {
+                    var digitos = telefono.value.replace(/\D/g, '').slice(0, 8);
+                    telefono.value = digitos.length > 4
+                        ? digitos.slice(0, 4) + '-' + digitos.slice(4)
+                        : digitos;
+                });
+            }
 
             dialog.addEventListener('close', function () {
                 wrapper.innerHTML = '';

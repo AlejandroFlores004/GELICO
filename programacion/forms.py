@@ -11,6 +11,11 @@ class AuxiliarForm(forms.ModelForm):
             'nombre': forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Ej. María'}),
             'apellido': forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Ej. López'}),
             'email': forms.EmailInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'correo@ejemplo.com'}),
-            'telefono': forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': '0000-0000'}),
+            'telefono': forms.TextInput(attrs={
+                'class': 'input input-bordered w-full',
+                'placeholder': '0000-0000',
+                'maxlength': '9',
+                'inputmode': 'numeric',
+            }),
             'institucion': forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Nombre de la institución'}),
         }
