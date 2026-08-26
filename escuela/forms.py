@@ -1,6 +1,6 @@
 from django import forms
 from django_select2.forms import Select2Widget
-from .models import Escuela, Encargado
+from .models import Escuela, Encargado, Distrito
 
 #Formulario para filtrar/Buscar encargados en el listado
 class FiltrarEncargadosForm(forms.Form):
@@ -11,8 +11,21 @@ class FiltrarEncargadosForm(forms.Form):
             'data-placeholder': 'Todas las escuelas',
             'style': 'width: 100%',
             'class': 'select2-daisy',
+            'data-allow-clear': 'false', #Esta linea quita la x
         }),
         label='Escuela',
+        required=False,
+    )
+    
+    distrito = forms.ModelChoiceField(
+        queryset=Distrito.objects.all(),
+        widget=Select2Widget(attrs={
+            'data-placeholder': 'Todos los distritos',
+            'style': 'width: 100%',
+            'class': 'select2-daisy',
+            'data-allow-clear': 'false',
+        }),
+        label='Distrito',
         required=False,
     )
      

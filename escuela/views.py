@@ -1,3 +1,7 @@
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+from django.utils import timezone
+from weasyprint import HTML
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404
@@ -5,42 +9,58 @@ from django.urls import reverse
 from . import forms
 from .models import Encargado
 
-
-def _filtrar_encargados(request):
-    #Formulario de filtrado con lo que traiga la url, si no trae nada,
-    # se crea un formulario vacío.
+def _encargados_filtrados(request):
+    # exactamente el cuerpo que ya tenías en _filtrar_encargados, PERO sin el Paginator
     filtro_form = forms.FiltrarEncargadosForm(request.GET or None)
-    
-    #consulta a la base trae la escuela y el distito en la misma consulta.
+
     encargados_list = Encargado.objects.select_related(
-        'escuela', 'escuela__distrito').order_by('escuela__nombre_corto', '-estado','apellido')
-    #is_valid es para revisar que los datos que vienen en la url sean correctos,
-    # si no lo son, no se filtra nada.
+        'escuela', 'escuela__distrito'
+    ).order_by('escuela__nombre_corto', '-estado', 'apellido')
+
     if filtro_form.is_valid():
         escuela = filtro_form.cleaned_data.get('escuela')
         estado = filtro_form.cleaned_data.get('estado')
         texto = filtro_form.cleaned_data.get('texto')
-        
+        distrito = filtro_form.cleaned_data.get('distrito')
+
+        if distrito:
+            encargados_list = encargados_list.filter(escuela__distrito=distrito)
         if escuela:
             encargados_list = encargados_list.filter(escuela=escuela)
         if estado:
-            #Estado es texto, 1= true, 0= false,
-            # por eso se hace la conversión a booleano.
-            encargados_list = encargados_list.filter(estado =(estado == '1'))
-            
+            encargados_list = encargados_list.filter(estado=(estado == '1'))
         if texto:
-         encargados_list = encargados_list.filter(
-            Q(nombre__icontains=texto)|
-            Q(apellido__icontains=texto)|
-            Q(email__icontains=texto)
-         )
-                
-    #paginación de la lista de encargados, 20 por página.
+            encargados_list = encargados_list.filter(
+                Q(nombre__icontains=texto) |
+                Q(apellido__icontains=texto) |
+                Q(email__icontains=texto)
+            )
+
+    return filtro_form, encargados_list
+
+
+def _filtrar_encargados(request):
+    # ahora esta SOLO agrega la paginación, reutilizando la de arriba
+    filtro_form, encargados_list = _encargados_filtrados(request)
+
     paginator = Paginator(encargados_list, 20)
     encargados = paginator.get_page(request.GET.get('page'))
-    
+
     return filtro_form, encargados
-    
+
+def encargado_imprimir(request):
+    _, encargados = _encargados_filtrados(request)
+
+    html_string = render_to_string(
+        'partials/encargado/_encargado_reporte_pdf.html',
+        {'encargados': encargados, 'fecha_generacion': timezone.localdate()}
+    )
+    pdf = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
+
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename="Encargados.pdf"'
+    return response
+
 
 def home_encargados(request):
     breadcrumbs = [
