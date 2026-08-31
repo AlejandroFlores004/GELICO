@@ -1,0 +1,11 @@
+<div class="flex justify-start">
+    <button
+        hx-get="{% url 'convocatoria_nueva' %}"
+        hx-target="#convocatoria-modal-wrapper"
+        hx-swap="outerHTML"
+        class="btn btn-primary gap-2"
+    >
+        <span aria-hidden="true">+</span>
+        Agregar Convocatoria
+    </button>
+</div>

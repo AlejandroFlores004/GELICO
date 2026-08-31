@@ -63,7 +63,7 @@
         </svg>
         <span>Programación</span>
       </li>
-      <li><a href="#" class="pl-8">Convocatorias</a></li>
+      <li><a href="{% url 'home_convocatorias' %}" class="pl-8 {% if request.resolver_match.url_name == 'home_convocatorias' %}menu-active{% endif %}">Convocatorias</a></li>
       <li><a href="#" class="pl-8">Calendario</a></li>
       <li><a href="{% url 'home_auxiliar' %}" class="pl-8 {% if request.resolver_match.url_name == 'home_auxiliar' %}menu-active{% endif %}">Auxiliar</a></li>
       <li>
