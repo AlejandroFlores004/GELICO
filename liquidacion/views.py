@@ -9,13 +9,14 @@ from django.utils import timezone
 from weasyprint import HTML
 from . import forms
 from escuela.models import Escuela, Encargado
-from .models import Asignacion
+from .models import Asignacion, Transferencia
 
 # Create your views here.
 
-
 #Liquidaciones views
 def home_liquidaciones(request):
+
+
 
     seleccionarEscuelas = forms.SeleccionarEscuelaForm(request.GET or None)
     seleccionarBono = forms.SeleccionarBonoForm()
@@ -186,3 +187,134 @@ def asignacion_imprimir(request):
     response = HttpResponse(pdf, content_type='application/pdf')
     response['Content-Disposition'] = 'inline; filename="asignaciones.pdf"'
     return response
+
+#Transferencia views
+def _transferencias_filtradas(request):
+    filtro_form = forms.FiltrarTransferenciasForm(request.GET or None)
+
+    transferencias_list = Transferencia.objects.select_related(
+        'asignacion', 'asignacion__escuela', 'asignacion__escuela__distrito', 'asignacion__bono'
+    ).order_by('-fecha')
+
+    if filtro_form.is_valid():
+        distrito = filtro_form.cleaned_data.get('distrito')
+        escuela = filtro_form.cleaned_data.get('escuela')
+        bono = filtro_form.cleaned_data.get('bono')
+        fecha = filtro_form.cleaned_data.get('fecha')
+
+        if distrito:
+            transferencias_list = transferencias_list.filter(asignacion__escuela__distrito=distrito)
+        if escuela:
+            transferencias_list = transferencias_list.filter(asignacion__escuela=escuela)
+        if bono:
+            transferencias_list = transferencias_list.filter(asignacion__bono=bono)
+        if fecha:
+            transferencias_list = transferencias_list.filter(fecha=fecha)
+
+    return filtro_form, transferencias_list
+
+
+def _filtrar_transferencias(request):
+    filtro_form, transferencias_list = _transferencias_filtradas(request)
+
+    paginator = Paginator(transferencias_list, 20)
+    transferencias = paginator.get_page(request.GET.get('page'))
+
+    return filtro_form, transferencias
+
+
+def home_transferencias(request):
+    breadcrumbs = [
+        {'name': 'Inicio', 'url': reverse('home')},
+        {'name': 'Transferencias', 'url': reverse('home_transferencias')},
+    ]
+
+    filtro_form, transferencias = _filtrar_transferencias(request)
+
+    return render(
+        request,
+        'transferencia/transferenciaHome.html',
+        {
+            'breadcrumbs': breadcrumbs,
+            'transferencias': transferencias,
+            'filtro_form': filtro_form,
+            'form_media': filtro_form.media,
+        }
+    )
+
+
+def buscar_transferencias(request):
+    _, transferencias = _filtrar_transferencias(request)
+
+    return render(
+        request,
+        'partials/transferencia/_listado_transferencias.html',
+        {'transferencias': transferencias}
+    )
+
+
+def transferencia_asignaciones_por_escuela(request):
+    escuela_id = request.GET.get('transferencia-escuela')
+    escuela = Escuela.objects.filter(pk=escuela_id).first() if escuela_id else None
+
+    form = forms.TransferenciaForm(escuela=escuela, prefix='transferencia')
+
+    return render(
+        request,
+        'partials/transferencia/_transferencia_asignacion_select.html',
+        {'form': form}
+    )
+
+
+def transferencia_saldo_asignacion(request):
+    asignacion_id = request.GET.get('transferencia-asignacion')
+    asignacion = Asignacion.objects.filter(pk=asignacion_id).select_related('bono').first() if asignacion_id else None
+
+    return render(
+        request,
+        'partials/transferencia/_transferencia_saldo_asignacion.html',
+        {'asignacion': asignacion}
+    )
+
+
+def transferencia_form(request):
+    asignacion = None
+
+    if request.method == 'POST':
+        form = forms.TransferenciaForm(request.POST, prefix='transferencia')
+        if form.is_valid():
+            form.save()
+            _, transferencias = _filtrar_transferencias(request)
+            return render(
+                request,
+                'partials/transferencia/_transferencia_form_success.html',
+                {'transferencias': transferencias}
+            )
+        asignacion = form.cleaned_data.get('asignacion')
+    else:
+        form = forms.TransferenciaForm(prefix='transferencia')
+
+    return render(
+        request,
+        'partials/transferencia/_transferencia_form_modal.html',
+        {'form': form, 'asignacion': asignacion}
+    )
+
+
+def transferencia_eliminar(request, pk):
+    instance = get_object_or_404(Transferencia, pk=pk)
+
+    if request.method == 'POST':
+        instance.delete()
+        _, transferencias = _filtrar_transferencias(request)
+        return render(
+            request,
+            'partials/transferencia/_transferencia_form_success.html',
+            {'transferencias': transferencias}
+        )
+
+    return render(
+        request,
+        'partials/transferencia/_transferencia_delete_modal.html',
+        {'instance': instance}
+    )

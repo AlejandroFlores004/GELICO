@@ -1,0 +1,125 @@
+<div id="transferencia-modal-wrapper">
+    <dialog id="transferencia-modal" class="modal">
+        <div class="modal-box">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+            </form>
+
+            <h3 class="font-bold text-lg">
+                Nueva Transferencia
+            </h3>
+
+            <form
+                hx-post="{% url 'transferencia_nueva' %}"
+                hx-target="#transferencia-modal-wrapper"
+                hx-swap="outerHTML"
+                class="space-y-4 mt-4"
+            >
+                {% csrf_token %}
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.escuela.id_for_label }}">
+                        <span class="label-text font-medium">Escuela</span>
+                    </label>
+                    <div class="w-full" id="transferencia-escuela-select-wrapper">
+                        {{ form.escuela }}
+                    </div>
+                    <span class="text-xs text-base-content/60 mt-1">Selecciona la escuela para cargar sus asignaciones.</span>
+                    {% if form.escuela.errors %}
+                    <span class="text-error text-xs mt-1">{{ form.escuela.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.asignacion.id_for_label }}">
+                        <span class="label-text font-medium">Asignación</span>
+                    </label>
+                    <div class="w-full" id="transferencia-asignacion-select-wrapper">
+                        {{ form.asignacion }}
+                    </div>
+                    {% if form.asignacion.errors %}
+                    <span class="text-error text-xs mt-1">{{ form.asignacion.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label">
+                        <span class="label-text font-medium">Saldo disponible</span>
+                    </label>
+                    {% include "partials/transferencia/_transferencia_saldo_asignacion.html" %}
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.monto.id_for_label }}">
+                        <span class="label-text font-medium">Monto</span>
+                    </label>
+                    {{ form.monto }}
+                    {% if form.monto.errors %}
+                    <span class="text-error text-xs mt-1">{{ form.monto.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.fecha.id_for_label }}">
+                        <span class="label-text font-medium">Fecha</span>
+                    </label>
+                    {{ form.fecha }}
+                    {% if form.fecha.errors %}
+                    <span class="text-error text-xs mt-1">{{ form.fecha.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('transferencia-modal').close()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#transferencia-modal-wrapper');
+            var dialog = wrapper.querySelector('#transferencia-modal');
+            dialog.showModal();
+
+            function initSelect2In(container) {
+                container.querySelectorAll('.django-select2').forEach(function (el) {
+                    try {
+                        var $el = $(el);
+                        if ($el.hasClass('select2-hidden-accessible')) {
+                            $el.select2('destroy');
+                        }
+                        $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
+
+                        if (el.hasAttribute('hx-trigger')) {
+                            $el.on('select2:select select2:unselect select2:clear', function () {
+                                htmx.trigger(this, 'change');
+                            });
+                        }
+                    } catch (err) {
+                        console.error('No se pudo inicializar select2', err);
+                    }
+                });
+            }
+
+            initSelect2In(wrapper);
+
+            wrapper.addEventListener('htmx:afterSettle', function (evt) {
+                if (evt.target.id === 'transferencia-asignacion-select-wrapper') {
+                    initSelect2In(evt.target);
+                }
+            });
+
+            dialog.addEventListener('close', function () {
+                wrapper.querySelectorAll('.django-select2.select2-hidden-accessible').forEach(function (el) {
+                    $(el).select2('destroy');
+                });
+                wrapper.innerHTML = '';
+            }, { once: true });
+        })();
+    </script>
+</div>

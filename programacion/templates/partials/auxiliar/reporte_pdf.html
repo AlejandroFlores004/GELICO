@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <title>Reporte de auxiliares</title>
+    <style>
+        @page { size: letter landscape; margin: 1.5cm; }
+        body { font-family: sans-serif; color: #222; font-size: 11px; }
+        h1 { margin: 0 0 4px; font-size: 22px; }
+        p { color: #666; margin: 0 0 18px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #eeeeee; text-align: left; }
+        th, td { border: 1px solid #cccccc; padding: 8px; }
+    </style>
+</head>
+<body>
+    <h1>Auxiliares</h1>
+    <p>Reporte generado el {% now "d/m/Y" %}</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Correo</th>
+                <th>Institución</th>
+                <th>Teléfono</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for auxiliar in auxiliares %}
+            <tr>
+                <td>{{ auxiliar.nombre }} {{ auxiliar.apellido }}</td>
+                <td>{{ auxiliar.email }}</td>
+                <td>{{ auxiliar.institucion }}</td>
+                <td>{{ auxiliar.telefono|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4">No existen registros.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

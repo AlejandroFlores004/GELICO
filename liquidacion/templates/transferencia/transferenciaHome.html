@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    Transferencias
+{% endblock %}
+
+{% block extra_head %}
+    {{ form_media }}
+{% endblock %}
+
+{% block content %}
+<main class="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
+    <div class="flex items-center gap-4">
+        <div class="bg-primary text-primary-content rounded-2xl p-4 shadow-md shadow-primary/20">
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.75"
+                stroke="currentColor"
+                class="w-8 h-8"
+            >
+                <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"
+                />
+            </svg>
+        </div>
+        <div>
+            <h1 class="text-4xl font-bold">
+                Transferencias
+            </h1>
+            <p class="text-base-content/70">
+                Gestiona las transferencias realizadas para cada asignación.
+            </p>
+        </div>
+    </div>
+
+    <!-- Botón agregar transferencia -->
+    <div class="flex justify-start">
+        <button
+            hx-get="{% url 'transferencia_nueva' %}"
+            hx-target="#transferencia-modal-wrapper"
+            hx-swap="outerHTML"
+            class="btn btn-primary gap-2"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Agregar Transferencia
+        </button>
+    </div>
+
+    <!-- Modal de creación / edición de transferencia -->
+    <div id="transferencia-modal-wrapper"></div>
+
+    <!-- Búsqueda con filtros -->
+    {% include "partials/transferencia/_transferencia_search.html" %}
+
+    <!-- Listado de transferencias -->
+    {% include "partials/transferencia/_listado_transferencias.html" %}
+
+</main>
+{% endblock %}

@@ -1,0 +1,19 @@
+<div class="w-full" id="transferencia-saldo-wrapper"{% if oob %} hx-swap-oob="true"{% endif %}>
+    {% if asignacion %}
+    <input
+        type="text"
+        class="input input-bordered w-full font-semibold {% if asignacion.saldo_disponible > 0 %}text-success{% else %}text-error{% endif %}"
+        value="${{ asignacion.saldo_disponible|floatformat:2 }} disponibles de ${{ asignacion.valor|floatformat:2 }}"
+        readonly
+        tabindex="-1"
+    >
+    {% else %}
+    <input
+        type="text"
+        class="input input-bordered w-full text-base-content/50"
+        value="Seleccione una asignación para ver el saldo disponible"
+        readonly
+        tabindex="-1"
+    >
+    {% endif %}
+</div>
