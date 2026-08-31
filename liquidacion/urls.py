@@ -15,7 +15,7 @@ urlpatterns = [
     path('transferencias/', views.home_transferencias, name='home_transferencias'),
     path('transferencias/buscar/', views.buscar_transferencias, name='buscar_transferencias'),
     path('transferencias/asignaciones-por-escuela/', views.transferencia_asignaciones_por_escuela, name='transferencia_asignaciones_por_escuela'),
+    path('transferencias/saldo-asignacion/', views.transferencia_saldo_asignacion, name='transferencia_saldo_asignacion'),
     path('transferencias/nueva/', views.transferencia_form, name='transferencia_nueva'),
-    path('transferencias/<int:pk>/editar/', views.transferencia_form, name='transferencia_editar'),
     path('transferencias/<int:pk>/eliminar/', views.transferencia_eliminar, name='transferencia_eliminar'),
 ]

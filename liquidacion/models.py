@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models
 from catalogo.models import Bono
 from escuela.models import Escuela
@@ -11,7 +12,16 @@ class Asignacion(models.Model):
 
     def __str__(self):
         return f"Asignación: {self.escuela.nombre_corto} - {self.bono.nombre} - {self.fecha}"
-    
+
+    @property
+    def total_transferido(self):
+        total = self.transferencia_set.aggregate(total=models.Sum('monto'))['total']
+        return total or Decimal('0')
+
+    @property
+    def saldo_disponible(self):
+        return self.valor - self.total_transferido
+
     class Meta:
         verbose_name = "Asignación"
         verbose_name_plural = "Asignaciones"

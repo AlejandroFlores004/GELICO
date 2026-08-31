@@ -6,11 +6,11 @@
             </form>
 
             <h3 class="font-bold text-lg">
-                {% if instance %}Editar Transferencia{% else %}Nueva Transferencia{% endif %}
+                Nueva Transferencia
             </h3>
 
             <form
-                hx-post="{% if instance %}{% url 'transferencia_editar' instance.pk %}{% else %}{% url 'transferencia_nueva' %}{% endif %}"
+                hx-post="{% url 'transferencia_nueva' %}"
                 hx-target="#transferencia-modal-wrapper"
                 hx-swap="outerHTML"
                 class="space-y-4 mt-4"
@@ -24,11 +24,7 @@
                     <div class="w-full" id="transferencia-escuela-select-wrapper">
                         {{ form.escuela }}
                     </div>
-                    {% if instance %}
-                    <span class="text-xs text-base-content/60 mt-1">La escuela no se puede modificar en una transferencia existente.</span>
-                    {% else %}
                     <span class="text-xs text-base-content/60 mt-1">Selecciona la escuela para cargar sus asignaciones.</span>
-                    {% endif %}
                     {% if form.escuela.errors %}
                     <span class="text-error text-xs mt-1">{{ form.escuela.errors.0 }}</span>
                     {% endif %}
@@ -41,12 +37,16 @@
                     <div class="w-full" id="transferencia-asignacion-select-wrapper">
                         {{ form.asignacion }}
                     </div>
-                    {% if instance %}
-                    <span class="text-xs text-base-content/60 mt-1">La asignación no se puede modificar en una transferencia existente.</span>
-                    {% endif %}
                     {% if form.asignacion.errors %}
                     <span class="text-error text-xs mt-1">{{ form.asignacion.errors.0 }}</span>
                     {% endif %}
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label">
+                        <span class="label-text font-medium">Saldo disponible</span>
+                    </label>
+                    {% include "partials/transferencia/_transferencia_saldo_asignacion.html" %}
                 </div>
 
                 <div class="form-control w-full">

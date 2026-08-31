@@ -174,6 +174,10 @@ class TransferenciaForm(forms.ModelForm):
                 'data-placeholder': 'Primero seleccione una escuela',
                 'style': 'width: 100%',
                 'class': 'select2-daisy',
+                'hx-get': reverse_lazy('transferencia_saldo_asignacion'),
+                'hx-target': '#transferencia-saldo-wrapper',
+                'hx-swap': 'outerHTML',
+                'hx-trigger': 'change',
             }),
             'monto': forms.NumberInput(attrs={
                 'class': 'input input-bordered w-full',
@@ -189,17 +193,32 @@ class TransferenciaForm(forms.ModelForm):
     def __init__(self, *args, escuela=None, **kwargs):
         super().__init__(*args, **kwargs)
 
-        if self.instance and self.instance.pk:
-            escuela = self.instance.asignacion.escuela
-            self.initial['escuela'] = escuela.pk
-            self.fields['escuela'].disabled = True
-            self.fields['asignacion'].disabled = True
-        elif escuela is None and self.data:
+        if escuela is None and self.data:
             escuela_id = self.data.get(self.add_prefix('escuela'))
             if escuela_id:
                 escuela = Escuela.objects.filter(pk=escuela_id).first()
 
         if escuela is not None:
-            self.fields['asignacion'].queryset = Asignacion.objects.filter(escuela=escuela).select_related('bono')
+            queryset = Asignacion.objects.filter(escuela=escuela).select_related('bono')
+            ids_con_saldo = [asignacion.pk for asignacion in queryset if asignacion.saldo_disponible > 0]
+            self.fields['asignacion'].queryset = queryset.filter(pk__in=ids_con_saldo)
+            self.fields['asignacion'].label_from_instance = (
+                lambda asignacion: f"{asignacion.bono.nombre} (Saldo disponible: ${asignacion.saldo_disponible:.2f})"
+            )
         else:
             self.fields['asignacion'].queryset = Asignacion.objects.none()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        asignacion = cleaned_data.get('asignacion')
+        monto = cleaned_data.get('monto')
+
+        if asignacion is not None and monto is not None:
+            saldo_disponible = asignacion.saldo_disponible
+            if monto > saldo_disponible:
+                self.add_error(
+                    'monto',
+                    f'El monto excede el saldo disponible de la asignación (${saldo_disponible:.2f}).'
+                )
+
+        return cleaned_data

@@ -258,11 +258,22 @@ def transferencia_asignaciones_por_escuela(request):
     )
 
 
-def transferencia_form(request, pk=None):
-    instance = get_object_or_404(Transferencia, pk=pk) if pk else None
+def transferencia_saldo_asignacion(request):
+    asignacion_id = request.GET.get('transferencia-asignacion')
+    asignacion = Asignacion.objects.filter(pk=asignacion_id).select_related('bono').first() if asignacion_id else None
+
+    return render(
+        request,
+        'partials/transferencia/_transferencia_saldo_asignacion.html',
+        {'asignacion': asignacion}
+    )
+
+
+def transferencia_form(request):
+    asignacion = None
 
     if request.method == 'POST':
-        form = forms.TransferenciaForm(request.POST, instance=instance, prefix='transferencia')
+        form = forms.TransferenciaForm(request.POST, prefix='transferencia')
         if form.is_valid():
             form.save()
             _, transferencias = _filtrar_transferencias(request)
@@ -271,13 +282,14 @@ def transferencia_form(request, pk=None):
                 'partials/transferencia/_transferencia_form_success.html',
                 {'transferencias': transferencias}
             )
+        asignacion = form.cleaned_data.get('asignacion')
     else:
-        form = forms.TransferenciaForm(instance=instance, prefix='transferencia')
+        form = forms.TransferenciaForm(prefix='transferencia')
 
     return render(
         request,
         'partials/transferencia/_transferencia_form_modal.html',
-        {'form': form, 'instance': instance}
+        {'form': form, 'asignacion': asignacion}
     )
 
 
