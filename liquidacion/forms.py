@@ -52,6 +52,7 @@ class FiltrarAsignacionesForm(forms.Form):
             'data-placeholder': 'Todas las escuelas',
             'style': 'width: 100%',
             'class': 'select2-daisy',
+            'data-allow-clear': 'false', #Esta linea quita la x
         }),
         label='Escuela',
         required=False,
@@ -62,6 +63,7 @@ class FiltrarAsignacionesForm(forms.Form):
             'data-placeholder': 'Todos los bonos',
             'style': 'width: 100%',
             'class': 'select2-daisy',
+            'data-allow-clear': 'false', #Esta linea quita la x
         }),
         label='Bono',
         required=False,

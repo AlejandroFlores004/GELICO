@@ -21,6 +21,14 @@ def home_liquidaciones(request):
     seleccionarEscuelas = forms.SeleccionarEscuelaForm(request.GET or None)
     seleccionarBono = forms.SeleccionarBonoForm()
 
+#Liquidaciones views
+def home_liquidaciones(request):
+
+
+
+    seleccionarEscuelas = forms.SeleccionarEscuelaForm(request.GET or None)
+    seleccionarBono = forms.SeleccionarBonoForm()
+
     breadcrumbs = [
         {'name': 'Inicio', 'url': reverse('home')},
         {'name': 'Liquidaciones', 'url': reverse('home_liquidaciones')},

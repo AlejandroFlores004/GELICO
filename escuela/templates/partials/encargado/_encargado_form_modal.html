@@ -1,0 +1,102 @@
+<div id="encargado-modal-wrapper">
+    <dialog id="encargado-modal" class="modal">
+        <div class="modal-box">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+            </form>
+
+            <h3 class="font-bold text-lg">
+                {% if cambiar %}Cambiar Encargado{% elif instance %}Editar Encargado{% else %}Nuevo Encargado{% endif %}
+            </h3>
+
+            <form
+                hx-post="{% if cambiar %}{% url 'encargado_cambiar' activo.pk %}{% elif instance %}{% url 'encargado_editar' instance.pk %}{% else %}{% url 'encargado_nuevo' %}{% endif %}"
+                hx-target="#encargado-modal-wrapper"
+                hx-swap="outerHTML"
+                class="space-y-4 mt-4"
+            >
+                {% csrf_token %}
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.nombre.id_for_label }}">
+                        <span class="label-text font-medium">Nombre</span>
+                    </label>
+                    {{ form.nombre }}
+                    {% if form.nombre.errors %}<span class="text-error text-xs mt-1">{{ form.nombre.errors.0 }}</span>{% endif %}
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.apellido.id_for_label }}">
+                        <span class="label-text font-medium">Apellido</span>
+                    </label>
+                    {{ form.apellido }}
+                    {% if form.apellido.errors %}<span class="text-error text-xs mt-1">{{ form.apellido.errors.0 }}</span>{% endif %}
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.telefono.id_for_label }}">
+                        <span class="label-text font-medium">Teléfono</span>
+                    </label>
+                    {{ form.telefono }}
+                    {% if form.telefono.errors %}<span class="text-error text-xs mt-1">{{ form.telefono.errors.0 }}</span>{% endif %}
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.email.id_for_label }}">
+                        <span class="label-text font-medium">Email</span>
+                    </label>
+                    {{ form.email }}
+                    {% if form.email.errors %}<span class="text-error text-xs mt-1">{{ form.email.errors.0 }}</span>{% endif %}
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.escuela.id_for_label }}">
+                        <span class="label-text font-medium">Escuela</span>
+                    </label>
+                    <div class="w-full" id="encargado-escuela-select-wrapper">
+                        {{ form.escuela }}
+                    </div>
+                    {% if instance or cambiar %}
+                    <span class="text-xs text-base-content/60 mt-1">La escuela no se puede modificar acá.</span>
+                    {% endif %}
+                    {% if form.escuela.errors %}<span class="text-error text-xs mt-1">{{ form.escuela.errors.0 }}</span>{% endif %}
+                </div>
+
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('encargado-modal').close()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#encargado-modal-wrapper');
+            var dialog = wrapper.querySelector('#encargado-modal');
+            dialog.showModal();
+
+            wrapper.querySelectorAll('.django-select2').forEach(function (el) {
+                try {
+                    var $el = $(el);
+                    if ($el.hasClass('select2-hidden-accessible')) {
+                        $el.select2('destroy');
+                    }
+                    $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
+                } catch (err) {
+                    console.error('No se pudo inicializar select2', err);
+                }
+            });
+
+            dialog.addEventListener('close', function () {
+                wrapper.querySelectorAll('.django-select2.select2-hidden-accessible').forEach(function (el) {
+                    $(el).select2('destroy');
+                });
+                wrapper.innerHTML = '';
+            }, { once: true });
+        })();
+    </script>
+</div>

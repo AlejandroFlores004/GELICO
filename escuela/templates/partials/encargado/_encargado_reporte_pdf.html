@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Reporte de Encargados</title>
+<style>
+    @page {
+        size: A4 landscape;
+        margin: 1.5cm;
+        @bottom-right {
+            content: "Página " counter(page) " de " counter(pages);
+            font-size: 9px;
+            color: #666;
+        }
+    }
+    * { box-sizing: border-box; }
+    body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 11px; color: #1f2937; }
+    header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1f2937; padding-bottom: 10px; margin-bottom: 16px; }
+    header h1 { margin: 0; font-size: 20px; }
+    header p { margin: 2px 0 0; color: #4b5563; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { text-align: left; background-color: #f3f4f6; border-bottom: 1px solid #d1d5db; padding: 6px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; }
+    tbody td { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+    tbody tr:nth-child(even) { background-color: #fafafa; }
+    .subtexto { color: #6b7280; font-size: 9px; }
+</style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1>Reporte de Encargados</h1>
+            <p>GELICO</p>
+        </div>
+        <p class="subtexto">Generado el {{ fecha_generacion|date:"d/m/Y" }}</p>
+    </header>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Escuela</th>
+                <th>Distrito</th>
+                <th>Nombre</th>
+                <th>Teléfono</th>
+                <th>Email</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for encargado in encargados %}
+            <tr>
+                <td>{{ encargado.escuela.codigo }} - {{ encargado.escuela.nombre_corto }}</td>
+                <td>{{ encargado.escuela.distrito.nombre }}</td>
+                <td>{{ encargado.nombre }} {{ encargado.apellido }}</td>
+                <td>{{ encargado.telefono }}</td>
+                <td>{{ encargado.email }}</td>
+                <td>{% if encargado.estado %}Activo{% else %}Inactivo{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center">No hay encargados registrados.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

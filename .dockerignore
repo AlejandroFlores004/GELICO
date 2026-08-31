@@ -1,0 +1,7 @@
+**/node_modules
+**/.bin
+theme/static_src/node_modules
+.git
+.venv
+__pycache__
+*.pyc
