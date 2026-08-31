@@ -1,4 +1,5 @@
 from django.http import HttpResponse
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from weasyprint import HTML
@@ -24,8 +25,17 @@ def _auxiliares_filtrados(request):
     return search, auxiliares
 
 
+def _filtrar_auxiliares(request):
+    search, auxiliares_list = _auxiliares_filtrados(request)
+
+    paginator = Paginator(auxiliares_list, 20)
+    auxiliares = paginator.get_page(request.GET.get("page"))
+
+    return search, auxiliares
+
+
 def auxiliarHomeView(request):
-    search, auxiliares = _auxiliares_filtrados(request)
+    search, auxiliares = _filtrar_auxiliares(request)
 
     return render(
         request,
@@ -38,7 +48,7 @@ def auxiliarHomeView(request):
 
 
 def buscar_auxiliares(request):
-    _, auxiliares = _auxiliares_filtrados(request)
+    _, auxiliares = _filtrar_auxiliares(request)
 
     return render(
         request,
@@ -54,7 +64,7 @@ def auxiliar_form(request, pk=None):
         form = AuxiliarForm(request.POST, instance=instance)
         if form.is_valid():
             form.save()
-            _, auxiliares = _auxiliares_filtrados(request)
+            _, auxiliares = _filtrar_auxiliares(request)
             return render(
                 request,
                 "partials/auxiliar/modal_form_success.html",
@@ -75,7 +85,7 @@ def auxiliar_eliminar(request, pk):
 
     if request.method == "POST":
         instance.delete()
-        _, auxiliares = _auxiliares_filtrados(request)
+        _, auxiliares = _filtrar_auxiliares(request)
         return render(
             request,
             "partials/auxiliar/modal_form_success.html",

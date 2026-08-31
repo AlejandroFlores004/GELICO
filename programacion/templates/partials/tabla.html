@@ -12,7 +12,7 @@
                 <h2 class="card-title m-0">Auxiliares</h2>
             </div>
             <div class="badge badge-outline">
-                {{ auxiliares|length }} registros
+                {{ auxiliares.paginator.count }} registros
             </div>
         </div>
 
@@ -89,5 +89,45 @@
                 </tbody>
             </table>
         </div>
+
+        {% if auxiliares.paginator.num_pages > 1 %}
+        <div class="flex justify-center py-4">
+            <div class="join">
+                {% if auxiliares.has_previous %}
+                <a
+                    href="{% url 'home_auxiliar' %}{% querystring page=auxiliares.previous_page_number %}"
+                    hx-get="{% url 'buscar_auxiliares' %}{% querystring page=auxiliares.previous_page_number %}"
+                    hx-target="#listado-auxiliares"
+                    hx-swap="outerHTML"
+                    class="join-item btn btn-sm"
+                >«</a>
+                {% else %}
+                <button class="join-item btn btn-sm btn-disabled">«</button>
+                {% endif %}
+
+                {% for numero in auxiliares.paginator.page_range %}
+                <a
+                    href="{% url 'home_auxiliar' %}{% querystring page=numero %}"
+                    hx-get="{% url 'buscar_auxiliares' %}{% querystring page=numero %}"
+                    hx-target="#listado-auxiliares"
+                    hx-swap="outerHTML"
+                    class="join-item btn btn-sm {% if numero == auxiliares.number %}btn-active{% endif %}"
+                >{{ numero }}</a>
+                {% endfor %}
+
+                {% if auxiliares.has_next %}
+                <a
+                    href="{% url 'home_auxiliar' %}{% querystring page=auxiliares.next_page_number %}"
+                    hx-get="{% url 'buscar_auxiliares' %}{% querystring page=auxiliares.next_page_number %}"
+                    hx-target="#listado-auxiliares"
+                    hx-swap="outerHTML"
+                    class="join-item btn btn-sm"
+                >»</a>
+                {% else %}
+                <button class="join-item btn btn-sm btn-disabled">»</button>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
