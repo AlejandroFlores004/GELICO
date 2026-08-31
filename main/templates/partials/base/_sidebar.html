@@ -89,7 +89,7 @@
       </li>
       <li><a href="{% url 'home_liquidaciones' %}" class="pl-8 {% if request.resolver_match.url_name == 'home_liquidaciones' %}menu-active{% endif %}">Liquidaciones</a></li>
       <li><a href="{% url 'home_asignaciones' %}" class="pl-8 {% if request.resolver_match.url_name == 'home_asignaciones' %}menu-active{% endif %}">Asignaciones</a></li>
-      <li><a href="#" class="pl-8">Transferencias</a></li>
+      <li><a href="{% url 'home_transferencias' %}" class="pl-8 {% if request.resolver_match.url_name == 'home_transferencias' %}menu-active{% endif %}">Transferencias</a></li>
 
       <li>
         <div class="divider my-0 opacity-40"></div>
