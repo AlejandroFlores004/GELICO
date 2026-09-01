@@ -3,7 +3,7 @@ from django.urls import reverse_lazy
 from django_select2.forms import Select2Widget
 from escuela.models import Escuela, Distrito
 from catalogo.models import Bono
-from .models import Asignacion, Transferencia
+from .models import Asignacion, Transferencia, Recibo, Observacion
 
 class SeleccionarEscuelaForm(forms.Form):
     escuela = forms.ModelChoiceField(
@@ -205,7 +205,7 @@ class TransferenciaForm(forms.ModelForm):
             ids_con_saldo = [asignacion.pk for asignacion in queryset if asignacion.saldo_disponible > 0]
             self.fields['asignacion'].queryset = queryset.filter(pk__in=ids_con_saldo)
             self.fields['asignacion'].label_from_instance = (
-                lambda asignacion: f"{asignacion.bono.nombre} (Saldo disponible: ${asignacion.saldo_disponible:.2f})"
+                lambda asignacion: f"{asignacion.bono.nombre} (Saldo disponible: ${asignacion.saldo_disponible:,.2f})"
             )
         else:
             self.fields['asignacion'].queryset = Asignacion.objects.none()
@@ -220,7 +220,83 @@ class TransferenciaForm(forms.ModelForm):
             if monto > saldo_disponible:
                 self.add_error(
                     'monto',
-                    f'El monto excede el saldo disponible de la asignación (${saldo_disponible:.2f}).'
+                    f'El monto excede el saldo disponible de la asignación (${saldo_disponible:,.2f}).'
                 )
 
         return cleaned_data
+
+
+class ReciboForm(forms.ModelForm):
+    transferencia = forms.ModelChoiceField(
+        queryset=Transferencia.objects.none(),
+        widget=Select2Widget(attrs={
+            'data-placeholder': 'Seleccione una transferencia',
+            'style': 'width: 100%',
+            'class': 'select2-daisy',
+        }),
+        label='Transferencia',
+    )
+
+    class Meta:
+        model = Recibo
+        fields = ['transferencia', 'monto', 'fecha']
+        widgets = {
+            'monto': forms.NumberInput(attrs={
+                'class': 'input input-bordered w-full',
+                'step': '0.01',
+                'min': '0',
+            }),
+            'fecha': forms.DateInput(attrs={
+                'type': 'date',
+                'class': 'input input-bordered w-full',
+            }, format='%Y-%m-%d'),
+        }
+
+    def __init__(self, *args, asignaciones=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if self.instance and self.instance.pk:
+            self.fields['transferencia'].queryset = Transferencia.objects.filter(pk=self.instance.transferencia_id)
+            self.fields['transferencia'].disabled = True
+        elif asignaciones is not None:
+            self.fields['transferencia'].queryset = Transferencia.objects.filter(
+                asignacion__in=asignaciones
+            ).select_related('asignacion', 'asignacion__bono')
+
+        self.fields['transferencia'].label_from_instance = (
+            lambda transferencia: f"Transferencia del {transferencia.fecha} (Pendiente: ${transferencia.saldo_pendiente:,.2f})"
+        )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        transferencia = cleaned_data.get('transferencia')
+        monto = cleaned_data.get('monto')
+
+        if transferencia is not None and monto is not None:
+            saldo_pendiente = transferencia.saldo_pendiente
+            if self.instance and self.instance.pk:
+                saldo_pendiente += self.instance.monto
+
+            if monto > saldo_pendiente:
+                self.add_error(
+                    'monto',
+                    f'El monto excede el saldo pendiente de la transferencia (${saldo_pendiente:,.2f}).'
+                )
+
+        return cleaned_data
+
+
+class ObservacionForm(forms.ModelForm):
+    class Meta:
+        model = Observacion
+        fields = ['comentario']
+        widgets = {
+            'comentario': forms.Textarea(attrs={
+                'class': 'textarea textarea-bordered textarea-sm w-full',
+                'rows': 2,
+                'placeholder': 'Agregar una observación...',
+            }),
+        }
+        labels = {
+            'comentario': '',
+        }

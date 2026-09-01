@@ -34,7 +34,16 @@ class Transferencia(models.Model):
 
     def __str__(self):
         return f"Transferencia: {self.asignacion.escuela.nombre_corto} - {self.asignacion.bono.nombre} - {self.fecha}"
-    
+
+    @property
+    def total_recibido(self):
+        total = self.recibo_set.aggregate(total=models.Sum('monto'))['total']
+        return total or Decimal('0')
+
+    @property
+    def saldo_pendiente(self):
+        return self.monto - self.total_recibido
+
     class Meta:
         verbose_name = "Transferencia"
         verbose_name_plural = "Transferencias"
@@ -47,10 +56,15 @@ class Recibo(models.Model):
 
     def __str__(self):
         return f"Recibo: {self.transferencia.asignacion.escuela.nombre_corto} - {self.transferencia.asignacion.bono.nombre} - {self.fecha}"
-    
+
+    @property
+    def tiene_observaciones_pendientes(self):
+        return self.observacion_set.filter(resuelto=False).exists()
+
     class Meta:
         verbose_name = "Recibo"
         verbose_name_plural = "Recibos"
+        ordering = ['-fecha']
 
 class Observacion(models.Model):
     fecha = models.DateField()
@@ -60,7 +74,8 @@ class Observacion(models.Model):
 
     def __str__(self):
         return f"Observación: {self.recibo.transferencia.asignacion.escuela.nombre_corto} - {self.recibo.transferencia.asignacion.bono.nombre} - {self.fecha} - {'Resuelto' if self.resuelto else 'Pendiente'}"
-    
+
     class Meta:
         verbose_name = "Observación"
         verbose_name_plural = "Observaciones"
+        ordering = ['-fecha']

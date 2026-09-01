@@ -1,3 +1,4 @@
+{% load moneda %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -110,7 +111,7 @@
                 <td>{{ asignacion.escuela.codigo }} - {{ asignacion.escuela.nombre_corto }}</td>
                 <td>{{ asignacion.escuela.distrito.nombre }}</td>
                 <td>{{ asignacion.bono.nombre }}</td>
-                <td class="text-right">${{ asignacion.valor|floatformat:2 }}</td>
+                <td class="text-right">${{ asignacion.valor|moneda }}</td>
                 <td>{{ asignacion.fecha|date:"d/m/Y" }}</td>
             </tr>
             {% empty %}
@@ -122,7 +123,7 @@
         <tfoot>
             <tr>
                 <td colspan="3">Total</td>
-                <td class="text-right">${{ total|floatformat:2 }}</td>
+                <td class="text-right">${{ total|moneda }}</td>
                 <td></td>
             </tr>
         </tfoot>

@@ -1,0 +1,102 @@
+{% load moneda %}
+<div id="bono-info" class="card bg-base-100 shadow-xl h-full">
+    <div class="card-body gap-5">
+
+        <div class="flex items-start gap-4 min-w-0">
+            <div class="flex items-center justify-center shrink-0
+                        w-14 h-14
+                        rounded-full
+                        bg-warning
+                        text-warning-content
+                        shadow-lg shadow-warning/20">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-7 h-7">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
+                </svg>
+            </div>
+            <div class="space-y-1 min-w-0">
+                <p class="text-lg font-semibold leading-tight truncate">{{ bono.nombre }}</p>
+                {% if bono.descripcion %}
+                <p class="text-sm text-base-content/60">{{ bono.descripcion }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="divider my-0"></div>
+
+        <div class="space-y-4">
+            <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50">Asignación y transferencias</p>
+
+            {% for asignacion in asignaciones %}
+            <div class="rounded-xl border border-base-300 p-4 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <span class="text-sm text-base-content/60">Asignación del {{ asignacion.fecha }}</span>
+                    <span class="badge badge-outline">Valor: ${{ asignacion.valor|moneda }}</span>
+                </div>
+
+                <div class="stats stats-vertical sm:stats-horizontal bg-base-200 shadow w-full">
+                    <div class="stat py-3">
+                        <div class="stat-title">Transferido</div>
+                        <div class="stat-value text-base font-semibold">${{ asignacion.total_transferido|moneda }}</div>
+                    </div>
+                    <div class="stat py-3">
+                        <div class="stat-title">Saldo total de la asignación</div>
+                        <div class="stat-value text-base font-semibold">${{ asignacion.valor|moneda }}</div>
+                    </div>
+                </div>
+
+                {% with transferencias=asignacion.transferencia_set.all %}
+                {% if transferencias %}
+                <div class="overflow-x-auto">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Fecha de transferencia</th>
+                                <th class="text-right">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transferencia in transferencias %}
+                            <tr class="hover">
+                                <td>{{ transferencia.fecha }}</td>
+                                <td class="text-right">${{ transferencia.monto|moneda }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-sm text-base-content/50">Sin transferencias registradas para esta asignación.</p>
+                {% endif %}
+                {% endwith %}
+            </div>
+            {% empty %}
+            <div class="flex items-center gap-2 rounded-xl bg-base-200/60 px-3 py-2 text-sm text-base-content/60">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 shrink-0">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                Esta escuela no tiene asignaciones registradas para este bono.
+            </div>
+            {% endfor %}
+        </div>
+
+    </div>
+</div>
+
+<div id="listado-recibos-wrapper" hx-swap-oob="true">
+    <div class="flex flex-wrap items-center justify-between gap-2 mt-2">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-base-content/60">Recibos</h3>
+        <button
+            hx-get="{% url 'recibo_nuevo' %}?escuela={{ escuela.id }}&amp;bono={{ bono.id }}"
+            hx-target="#recibo-modal-wrapper"
+            hx-swap="outerHTML"
+            class="btn btn-primary btn-sm gap-2"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Agregar recibo
+        </button>
+    </div>
+    <div class="divider my-1"></div>
+    {% include "partials/liquidacion/_listado_recibos.html" %}
+</div>

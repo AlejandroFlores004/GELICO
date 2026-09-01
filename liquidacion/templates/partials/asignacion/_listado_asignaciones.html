@@ -1,3 +1,4 @@
+{% load moneda %}
 <div id="listado-asignaciones"{% if oob %} hx-swap-oob="true"{% endif %} class="space-y-6">
 
     <div class="card bg-base-100 shadow-xl border border-base-300">
@@ -34,7 +35,7 @@
                             <td>
                                 <div class="text-sm max-w-xs whitespace-normal break-words">{{ asignacion.bono.nombre }}</div>
                             </td>
-                            <td class="font-semibold">${{ asignacion.valor|floatformat:2 }}</td>
+                            <td class="font-semibold">${{ asignacion.valor|moneda }}</td>
                             <td>{{ asignacion.fecha|date:"d/m/Y" }}</td>
                             <td>
                                 <div class="flex justify-end gap-2">

@@ -9,7 +9,8 @@ from django.utils import timezone
 from weasyprint import HTML
 from . import forms
 from escuela.models import Escuela, Encargado
-from .models import Asignacion, Transferencia
+from catalogo.models import Bono
+from .models import Asignacion, Transferencia, Recibo, Observacion
 
 # Create your views here.
 
@@ -59,6 +60,129 @@ def buscar_escuela(request):
             {'escuela': escuela, 'encargado': encargado, 'seleccionarBono': seleccionarBono}
         )
     return render(request, 'partials/liquidacion/_escuela_info.html', {})
+
+
+def _asignaciones_de_bono(escuela, bono):
+    return Asignacion.objects.filter(
+        escuela=escuela, bono=bono
+    ).prefetch_related('transferencia_set').order_by('-fecha')
+
+
+def _recibos_de(asignaciones):
+    return Recibo.objects.filter(
+        transferencia__asignacion__in=asignaciones
+    ).select_related(
+        'transferencia', 'transferencia__asignacion', 'transferencia__asignacion__bono'
+    ).prefetch_related('observacion_set')
+
+
+def _recibo_con_relaciones(pk):
+    return Recibo.objects.select_related(
+        'transferencia', 'transferencia__asignacion', 'transferencia__asignacion__bono'
+    ).prefetch_related('observacion_set').get(pk=pk)
+
+
+def buscar_bono(request):
+    escuela_id = request.GET.get('escuela')
+    escuela = Escuela.objects.filter(pk=escuela_id).first() if escuela_id else None
+    seleccionarBono = forms.SeleccionarBonoForm(request.GET or None, escuela=escuela)
+
+    if escuela is not None and seleccionarBono.is_valid():
+        bono = seleccionarBono.cleaned_data['bono']
+        asignaciones = _asignaciones_de_bono(escuela, bono)
+        return render(
+            request,
+            'partials/liquidacion/_bono_info_result.html',
+            {
+                'escuela': escuela,
+                'bono': bono,
+                'asignaciones': asignaciones,
+                'recibos': _recibos_de(asignaciones),
+                'observacion_form': forms.ObservacionForm(),
+            }
+        )
+    return render(request, 'partials/liquidacion/_bono_info.html', {})
+
+
+def recibo_form(request, pk=None):
+    instance = get_object_or_404(Recibo, pk=pk) if pk else None
+
+    if instance:
+        asignacion = instance.transferencia.asignacion
+        escuela, bono = asignacion.escuela, asignacion.bono
+    else:
+        escuela_id = request.GET.get('escuela') or request.POST.get('escuela')
+        bono_id = request.GET.get('bono') or request.POST.get('bono')
+        escuela = Escuela.objects.filter(pk=escuela_id).first() if escuela_id else None
+        bono = Bono.objects.filter(pk=bono_id).first() if bono_id else None
+
+    asignaciones = _asignaciones_de_bono(escuela, bono) if escuela and bono else Asignacion.objects.none()
+
+    if request.method == 'POST':
+        form = forms.ReciboForm(request.POST, instance=instance, asignaciones=asignaciones)
+        if form.is_valid():
+            form.save()
+            return render(
+                request,
+                'partials/liquidacion/_recibo_form_success.html',
+                {'recibos': _recibos_de(asignaciones), 'observacion_form': forms.ObservacionForm()}
+            )
+    else:
+        form = forms.ReciboForm(instance=instance, asignaciones=asignaciones)
+
+    return render(
+        request,
+        'partials/liquidacion/_recibo_form_modal.html',
+        {'form': form, 'instance': instance, 'escuela': escuela, 'bono': bono}
+    )
+
+
+def recibo_eliminar(request, pk):
+    instance = get_object_or_404(Recibo, pk=pk)
+    asignacion = instance.transferencia.asignacion
+    asignaciones = _asignaciones_de_bono(asignacion.escuela, asignacion.bono)
+
+    if request.method == 'POST':
+        instance.delete()
+        return render(
+            request,
+            'partials/liquidacion/_recibo_form_success.html',
+            {'recibos': _recibos_de(asignaciones), 'observacion_form': forms.ObservacionForm()}
+        )
+
+    return render(request, 'partials/liquidacion/_recibo_delete_modal.html', {'instance': instance})
+
+
+def observacion_crear(request, recibo_pk):
+    recibo = get_object_or_404(Recibo, pk=recibo_pk)
+
+    if request.method == 'POST':
+        form = forms.ObservacionForm(request.POST)
+        if form.is_valid():
+            observacion = form.save(commit=False)
+            observacion.recibo = recibo
+            observacion.fecha = timezone.localdate()
+            observacion.save()
+
+    return render(
+        request,
+        'partials/liquidacion/_recibo_card.html',
+        {'recibo': _recibo_con_relaciones(recibo_pk), 'observacion_form': forms.ObservacionForm()}
+    )
+
+
+def observacion_resolver(request, pk):
+    observacion = get_object_or_404(Observacion, pk=pk)
+
+    if request.method == 'POST':
+        observacion.resuelto = True
+        observacion.save(update_fields=['resuelto'])
+
+    return render(
+        request,
+        'partials/liquidacion/_recibo_card.html',
+        {'recibo': _recibo_con_relaciones(observacion.recibo_id), 'observacion_form': forms.ObservacionForm()}
+    )
 
 #Asignaciones views
 def _asignaciones_filtradas(request):
