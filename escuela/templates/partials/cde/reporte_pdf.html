@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de CDE</title>
+    <style>
+        body { font-family: Arial, sans-serif; color: #1f2937; margin: 30px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 12px; }
+        th { background: #f3f4f6; }
+        h1 { font-size: 22px; margin-bottom: 5px; }
+        .subtitle { color: #4b5563; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Reporte de CDE</h1>
+    <div class="subtitle">Listado de periodos activos y registrados</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Escuela</th>
+                <th>Distrito</th>
+                <th>Fecha inicio</th>
+                <th>Fecha fin</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cde in cdes %}
+            <tr>
+                <td>{{ cde.escuela.nombre_corto }}</td>
+                <td>{{ cde.escuela.distrito.nombre }}</td>
+                <td>{{ cde.FechaInicio|date:"d/m/Y" }}</td>
+                <td>{{ cde.FechaFin|date:"d/m/Y" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4">No existen registros.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
