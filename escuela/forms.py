@@ -1,6 +1,7 @@
 from django import forms
 from django_select2.forms import Select2Widget
 from .models import Escuela, Encargado, Distrito, CDE
+from .models import Escuela, Encargado, Distrito, CDE
 
 #Formulario para filtrar/Buscar encargados en el listado
 class FiltrarEncargadosForm(forms.Form):
@@ -135,14 +136,12 @@ class CDEForm(forms.ModelForm):
 
         widgets = {
             'FechaInicio': forms.DateInput(
-                format='%Y-%m-%d',
                 attrs={
                     'type': 'date',
                     'class': 'input input-bordered w-full',
                 }
             ),
             'FechaFin': forms.DateInput(
-                format='%Y-%m-%d',
                 attrs={
                     'type': 'date',
                     'class': 'input input-bordered w-full',
