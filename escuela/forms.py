@@ -1,6 +1,6 @@
 from django import forms
 from django_select2.forms import Select2Widget
-from .models import Escuela, Encargado, Distrito
+from .models import Escuela, Encargado, Distrito, CDE
 
 #Formulario para filtrar/Buscar encargados en el listado
 class FiltrarEncargadosForm(forms.Form):
@@ -73,3 +73,87 @@ class EncargadoForm(forms.ModelForm):
             super().__init__(*args, **kwargs)
             if self.instance and self.instance.pk:
                 self.fields['escuela'].disabled = True
+
+
+class CDEFilterForm(forms.Form):
+    q = forms.CharField(
+        required=False,
+        label='Buscar',
+        widget=forms.TextInput(attrs={
+            'class': 'input input-bordered w-full',
+            'placeholder': 'Código, nombre o distrito',
+        }),
+    )
+    escuela = forms.ModelChoiceField(
+        queryset=Escuela.objects.all().order_by('nombre_corto'),
+        required=False,
+        label='Escuela',
+        widget=Select2Widget(attrs={
+            'data-placeholder': 'Seleccione una escuela',
+            'style': 'width: 100%',
+            'class': 'select2-daisy',
+        }),
+    )
+    distrito = forms.ModelChoiceField(
+        queryset=Distrito.objects.all().order_by('nombre'),
+        required=False,
+        label='Distrito',
+        widget=Select2Widget(attrs={
+            'data-placeholder': 'Todos los distritos',
+            'style': 'width: 100%',
+            'class': 'select2-daisy',
+            'data-allow-clear': 'false',
+        }),
+    )
+    fecha_inicio = forms.DateField(
+        required=False,
+        label='Desde',
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'input input-bordered w-full',
+        }),
+    )
+    fecha_fin = forms.DateField(
+        required=False,
+        label='Hasta',
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'input input-bordered w-full',
+        }),
+    )
+
+
+class CDEForm(forms.ModelForm):
+    class Meta:
+        model = CDE
+        fields = ['FechaInicio', 'FechaFin', 'escuela']
+        labels = {
+            'FechaInicio': 'Fecha Inicio',
+            'FechaFin': 'Fecha Fin',
+            'escuela': 'Escuela',
+        }
+
+        widgets = {
+            'FechaInicio': forms.DateInput(
+                attrs={
+                    'type': 'date',
+                    'class': 'input input-bordered w-full',
+                }
+            ),
+            'FechaFin': forms.DateInput(
+                attrs={
+                    'type': 'date',
+                    'class': 'input input-bordered w-full',
+                }
+            ),
+            'escuela': Select2Widget(attrs={
+                'data-placeholder': 'Seleccione una escuela',
+                'style': 'width: 100%; display: none !important;',
+                'class': 'select2-daisy',
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields['escuela'].disabled = True
