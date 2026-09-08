@@ -136,12 +136,14 @@ class CDEForm(forms.ModelForm):
 
         widgets = {
             'FechaInicio': forms.DateInput(
+                format='%Y-%m-%d',
                 attrs={
                     'type': 'date',
                     'class': 'input input-bordered w-full',
                 }
             ),
             'FechaFin': forms.DateInput(
+                format='%Y-%m-%d',
                 attrs={
                     'type': 'date',
                     'class': 'input input-bordered w-full',
