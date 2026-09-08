@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Distrito, Escuela, CDE, Encargado
+from .models import Distrito, Escuela, CDE, Encargado, Telefono
 
 
 @admin.register(Distrito)
@@ -47,18 +47,24 @@ class CDEAdmin(admin.ModelAdmin):
     )
 
 
+class TelefonoInline(admin.TabularInline):
+    model = Telefono
+    extra = 1
+
+
 @admin.register(Encargado)
 class EncargadoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'apellido', 'email', 'telefono', 'escuela', 'estado')
+    list_display = ('nombre', 'apellido', 'email', 'escuela', 'estado')
     list_filter = ('estado', 'escuela')
-    search_fields = ('nombre', 'apellido', 'email', 'telefono')
+    search_fields = ('nombre', 'apellido', 'email', 'telefonos__numero')
     ordering = ('apellido', 'nombre')
+    inlines = [TelefonoInline]
     fieldsets = (
         ('Información Personal', {
             'fields': ('nombre', 'apellido')
         }),
         ('Contacto', {
-            'fields': ('email', 'telefono')
+            'fields': ('email',)
         }),
         ('Relaciones', {
             'fields': ('escuela',)

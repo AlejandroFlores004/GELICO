@@ -41,7 +41,6 @@ class CDE(models.Model):
 class Encargado(models.Model):
     nombre = models.CharField(max_length=255)
     apellido = models.CharField(max_length=255)
-    telefono = models.CharField(max_length=20)
     email = models.EmailField(unique=True)
     estado = models.BooleanField(default=True)
     escuela = models.ForeignKey(Escuela, on_delete=models.CASCADE)
@@ -52,3 +51,25 @@ class Encargado(models.Model):
     class Meta:
         verbose_name = "Encargado"
         verbose_name_plural = "Encargados"
+
+class Telefono(models.Model):
+    class Tipo(models.TextChoices):
+        FIJO = 'fijo', 'Fijo'
+        CELULAR = 'celular', 'Celular'
+
+    class Etiqueta(models.TextChoices):
+        PERSONAL = 'personal', 'Personal'
+        INSTITUCIONAL = 'institucional', 'Institucional'
+
+    encargado = models.ForeignKey(Encargado, on_delete=models.CASCADE, related_name='telefonos')
+    tipo = models.CharField(max_length=10, choices=Tipo.choices)
+    etiqueta = models.CharField(max_length=20, choices=Etiqueta.choices, default=Etiqueta.PERSONAL)
+    numero = models.CharField(max_length=20)
+
+    def __str__(self):
+        return f"{self.get_tipo_display()}: {self.numero}"
+
+    class Meta:
+        verbose_name = "Teléfono"
+        verbose_name_plural = "Teléfonos"
+        unique_together = ('encargado', 'tipo')

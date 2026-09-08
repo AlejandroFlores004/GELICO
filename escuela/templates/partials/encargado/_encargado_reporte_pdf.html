@@ -51,7 +51,13 @@
                 <td>{{ encargado.escuela.codigo }} - {{ encargado.escuela.nombre_corto }}</td>
                 <td>{{ encargado.escuela.distrito.nombre }}</td>
                 <td>{{ encargado.nombre }} {{ encargado.apellido }}</td>
-                <td>{{ encargado.telefono }}</td>
+                <td>
+                    {% for tel in encargado.telefonos.all %}
+                    {{ tel.get_tipo_display }}: {{ tel.numero }}{% if not forloop.last %}<br>{% endif %}
+                    {% empty %}
+                    —
+                    {% endfor %}
+                </td>
                 <td>{{ encargado.email }}</td>
                 <td>{% if encargado.estado %}Activo{% else %}Inactivo{% endif %}</td>
             </tr>
