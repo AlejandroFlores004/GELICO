@@ -8,6 +8,7 @@
         </h2>
         <div class="divider my-1"></div>
         <form
+            id="cde-buscador-form"
             hx-get="{% url 'buscar_cdes' %}"
             hx-target="#listado-cdes"
             hx-swap="outerHTML"
@@ -47,3 +48,15 @@
         </form>
     </div>
 </div>
+
+<script>
+    (function () {
+        document.querySelectorAll('#cde-buscador-form .django-select2').forEach(function (el) {
+            try {
+                $(el).djangoSelect2({ width: '100%' });
+            } catch (err) {
+                console.error('No se pudo inicializar select2', err);
+            }
+        });
+    })();
+</script>
