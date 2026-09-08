@@ -34,25 +34,46 @@
                 </div>
 
                 <div class="form-control w-full">
-                    <label class="label" for="{{ form.telefono_fijo.id_for_label }}">
-                        <span class="label-text font-medium">Teléfono Fijo</span>
+                    <label class="label">
+                        <span class="label-text font-medium">Teléfono</span>
                     </label>
-                    <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
-                        {{ form.telefono_fijo }}
-                        {{ form.etiqueta_fijo }}
-                    </div>
-                    {% if form.telefono_fijo.errors %}<span class="text-error text-xs mt-1">{{ form.telefono_fijo.errors.0 }}</span>{% endif %}
-                </div>
 
-                <div class="form-control w-full">
-                    <label class="label" for="{{ form.telefono_celular.id_for_label }}">
-                        <span class="label-text font-medium">Teléfono Celular</span>
-                    </label>
-                    <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
-                        {{ form.telefono_celular }}
-                        {{ form.etiqueta_celular }}
+                    {{ formset.management_form }}
+
+                    <div id="telefonos-container" class="space-y-2">
+                        {% for tel_form in formset %}
+                        <div class="telefono-row grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2">
+                            {{ tel_form.id }}
+                            {{ tel_form.numero }}
+                            {{ tel_form.etiqueta }}
+                            {% if tel_form.instance.pk %}
+                            <label class="label cursor-pointer gap-1 justify-start sm:justify-center">
+                                {{ tel_form.DELETE }}
+                                <span class="label-text text-xs">Quitar</span>
+                            </label>
+                            {% endif %}
+                            {% if tel_form.numero.errors %}<span class="text-error text-xs">{{ tel_form.numero.errors.0 }}</span>{% endif %}
+                        </div>
+                        {% endfor %}
                     </div>
-                    {% if form.telefono_celular.errors %}<span class="text-error text-xs mt-1">{{ form.telefono_celular.errors.0 }}</span>{% endif %}
+
+                    <button type="button" id="add-telefono-btn" class="btn btn-ghost btn-sm gap-1 mt-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                        Agregar número
+                    </button>
+
+                    <template id="telefono-empty-form">
+                        <div class="telefono-row grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2">
+                            {{ formset.empty_form.numero }}
+                            {{ formset.empty_form.etiqueta }}
+                        </div>
+                    </template>
+
+                    {% if formset.non_form_errors %}
+                    <span class="text-error text-xs mt-1">{{ formset.non_form_errors.0 }}</span>
+                    {% endif %}
                 </div>
 
                 {% if form.non_field_errors %}
@@ -97,25 +118,49 @@
             var dialog = wrapper.querySelector('#encargado-modal');
             dialog.showModal();
 
-            [
-                wrapper.querySelector('#{{ form.telefono_fijo.id_for_label }}'),
-                wrapper.querySelector('#{{ form.telefono_celular.id_for_label }}')
-            ].forEach(function (telInput) {
-                if (telInput) {
-                    IMask(telInput, { mask: '0000-0000' });
+            var telefonosContainer = wrapper.querySelector('#telefonos-container');
+            var totalFormsInput = wrapper.querySelector('#id_telefonos-TOTAL_FORMS');
+            var emptyFormTemplate = wrapper.querySelector('#telefono-empty-form').innerHTML;
+
+            function aplicarMascara(input) {
+                if (input) {
+                    IMask(input, { mask: '0000-0000' });
                 }
+            }
+
+            telefonosContainer.querySelectorAll('.telefono-input').forEach(aplicarMascara);
+
+            wrapper.querySelector('#add-telefono-btn').addEventListener('click', function () {
+                var index = parseInt(totalFormsInput.value, 10);
+                var html = emptyFormTemplate.replace(/__prefix__/g, index);
+                telefonosContainer.insertAdjacentHTML('beforeend', html);
+                totalFormsInput.value = index + 1;
+
+                var filas = telefonosContainer.querySelectorAll('.telefono-row');
+                aplicarMascara(filas[filas.length - 1].querySelector('.telefono-input'));
             });
 
-            wrapper.querySelectorAll('.django-select2').forEach(function (el) {
-                try {
-                    var $el = $(el);
-                    if ($el.hasClass('select2-hidden-accessible')) {
-                        $el.select2('destroy');
+            // Se difiere un tick (requestAnimationFrame) para que el navegador termine
+            // de pintar el <dialog> recién abierto antes de que select2 mida/manipule
+            // el <select>. Inicializarlo en el mismo tick que showModal() es lo que
+            // provoca que a veces no llegue a ocultar el <select> original.
+            requestAnimationFrame(function () {
+                wrapper.querySelectorAll('.django-select2').forEach(function (el) {
+                    try {
+                        var $el = $(el);
+                        if ($el.data('select2')) {
+                            $el.select2('destroy');
+                        }
+                        // Por si quedó un contenedor visual huérfano de una inicialización previa/duplicada
+                        $el.siblings('.select2-container').remove();
+                        $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
+                        // Evita que el auto-init global de django_select2.js (si carga tarde)
+                        // vuelva a inicializar este mismo campo por encima.
+                        $el.removeClass('django-select2');
+                    } catch (err) {
+                        console.error('No se pudo inicializar select2', err);
                     }
-                    $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
-                } catch (err) {
-                    console.error('No se pudo inicializar select2', err);
-                }
+                });
             });
 
             dialog.addEventListener('close', function () {

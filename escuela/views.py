@@ -99,9 +99,12 @@ def encargado_form(request, pk=None):
     instance = get_object_or_404(Encargado, pk=pk) if pk else None
     if request.method == 'POST':
         form = forms.EncargadoForm(request.POST, instance=instance, prefix='encargado')
-        if form.is_valid():
+        formset = forms.TelefonoFormSet(request.POST, instance=instance, prefix='telefonos')
+        if form.is_valid() and formset.is_valid():
             es_nuevo = instance is None
             encargado = form.save() #Guarda (crea o actualiza) en la bd
+            formset.instance = encargado #Necesario cuando instance era None (creación)
+            formset.save()
             if es_nuevo and encargado.estado:
                 # Al crear un encargado nuevo (activo por defecto), desactiva
                 # a los demás encargados activos de la misma escuela.
@@ -115,14 +118,15 @@ def encargado_form(request, pk=None):
                 {'encargados': encargados}
             )
     else:
-        #Primera vez que se carga el formulario, se crea el formulario 
+        #Primera vez que se carga el formulario, se crea el formulario
         # con la instancia del encargado
         form = forms.EncargadoForm(instance=instance, prefix='encargado')
-        
+        formset = forms.TelefonoFormSet(instance=instance, prefix='telefonos')
+
     return render(
          request,
        'partials/encargado/_encargado_form_modal.html',
-         {'form': form, 'instance': instance}
+         {'form': form, 'formset': formset, 'instance': instance}
      )
 
 # Cambiar Encargado: Crea un nuevo encargado y desactiva el anterior.
@@ -135,9 +139,12 @@ def encargado_cambiar(request, pk):
         form = forms.EncargadoForm(request.POST, instance=nuevo_instance, prefix='encargado')
         #Siempre se bloquea la escuela
         form.fields['escuela'].disabled = True
-        
-        if form.is_valid():
-            form.save() #Guarda al nuevo encargado
+        formset = forms.TelefonoFormSet(request.POST, instance=nuevo_instance, prefix='telefonos')
+
+        if form.is_valid() and formset.is_valid():
+            encargado = form.save() #Guarda al nuevo encargado
+            formset.instance = encargado
+            formset.save()
             activo.estado = False #El anterior encargado pasa a inactivo
             activo.save() # El anterior pasa a inactivo
             _, encargados = _filtrar_encargados(request)
@@ -147,11 +154,12 @@ def encargado_cambiar(request, pk):
     else:
             form = forms.EncargadoForm(instance=nuevo_instance, prefix='encargado')
             form.fields['escuela'].disabled = True
-            
+            formset = forms.TelefonoFormSet(instance=nuevo_instance, prefix='telefonos')
+
     return render(
-            request, 
+            request,
             'partials/encargado/_encargado_form_modal.html',
-            {'form': form, 'instance': None, 'cambiar': True, 'activo': activo}
+            {'form': form, 'formset': formset, 'instance': None, 'cambiar': True, 'activo': activo}
         )
     
 # Cambiar estado de un encargado, activo/inactivo

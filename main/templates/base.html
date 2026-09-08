@@ -19,6 +19,20 @@
   <div class="drawer lg:drawer-open">
     <input id="main-drawer" type="checkbox" class="drawer-toggle" />
     <script src="{% static 'js/htmx.min.js' %}"></script>
+    <script>
+        // Si el target a reemplazar contiene un <dialog> abierto (ej: un modal
+        // que se re-renderiza a sí mismo tras un error de validación), hay que
+        // sacarlo del DOM ya mismo, de forma sincrónica, antes del swap. Si no,
+        // el navegador puede tardar en sacarlo de la capa superior (top layer)
+        // y dejar restos visuales del dialog viejo (ej: un <select> duplicado).
+        document.body.addEventListener('htmx:beforeSwap', function (evt) {
+            var openDialog = evt.detail.target.querySelector('dialog[open]');
+            if (openDialog) {
+                openDialog.close();
+                openDialog.remove();
+            }
+        });
+    </script>
     <!-- ===== MAIN CONTENT SIDE ===== -->
     <div class="drawer-content flex flex-col min-h-screen">
 
