@@ -9,4 +9,11 @@ urlpatterns = [
     path('encargado/<int:pk>/cambiar/',views.encargado_cambiar, name='encargado_cambiar'),
     path('encargado/<int:pk>/toggle/',views.encargado_toggle_estado, name='encargado_toggle'),
     path('encargado/imprimir/', views.encargado_imprimir, name='encargado_imprimir'),
+
+    path('', views.home_escuelas, name='home_escuelas'),
+    path('buscar/', views.buscar_escuelas, name='escuela_buscar'),
+    path('nueva/', views.escuela_form, name='escuela_nueva'),
+    path('<int:pk>/editar/', views.escuela_form, name='escuela_editar'),
+    path('<int:pk>/toggle/', views.escuela_toggle_estado, name='escuela_toggle'),
+    path('imprimir/', views.escuela_imprimir, name='escuela_imprimir'),
 ]

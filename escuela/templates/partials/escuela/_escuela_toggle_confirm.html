@@ -1,0 +1,45 @@
+<div id="escuela-modal-wrapper">
+    <dialog id="escuela-modal" class="modal">
+        <div class="modal-box">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+            </form>
+
+            <h3 class="font-bold text-lg">
+                {% if escuela.estado %}Desactivar escuela{% else %}Activar escuela{% endif %}
+            </h3>
+
+            <p class="py-4">
+                ¿Estás seguro que deseas {% if escuela.estado %}desactivar{% else %}activar{% endif %}
+                a <strong>{{ escuela.codigo }} - {{ escuela.nombre_corto }}</strong>?
+            </p>
+
+            <form
+                hx-post="{% url 'escuela_toggle' escuela.pk %}"
+                hx-target="#escuela-modal-wrapper"
+                hx-swap="outerHTML"
+            >
+                {% csrf_token %}
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('escuela-modal').close()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Confirmar</button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#escuela-modal-wrapper');
+            var dialog = wrapper.querySelector('#escuela-modal');
+            dialog.showModal();
+
+            dialog.addEventListener('close', function () {
+                wrapper.innerHTML = '';
+            }, { once: true });
+        })();
+    </script>
+</div>

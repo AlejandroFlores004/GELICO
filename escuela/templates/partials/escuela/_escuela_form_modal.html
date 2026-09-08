@@ -1,0 +1,91 @@
+<div id="escuela-modal-wrapper">
+    <dialog id="escuela-modal" class="modal">
+        <div class="modal-box">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+            </form>
+
+            <h3 class="font-bold text-lg">
+                {% if instance %}Editar Escuela{% else %}Nueva Escuela{% endif %}
+            </h3>
+
+            <form
+                hx-post="{% if instance %}{% url 'escuela_editar' instance.pk %}{% else %}{% url 'escuela_nueva' %}{% endif %}"
+                hx-target="#escuela-modal-wrapper"
+                hx-swap="outerHTML"
+                class="space-y-4 mt-4"
+            >
+                {% csrf_token %}
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.codigo.id_for_label }}">
+                        <span class="label-text font-medium">Código</span>
+                    </label>
+                    {{ form.codigo }}
+                    {% if form.codigo.errors %}<span class="text-error text-xs mt-1">{{ form.codigo.errors.0 }}</span>{% endif %}
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.nombre.id_for_label }}">
+                        <span class="label-text font-medium">Nombre</span>
+                    </label>
+                    {{ form.nombre }}
+                    {% if form.nombre.errors %}<span class="text-error text-xs mt-1">{{ form.nombre.errors.0 }}</span>{% endif %}
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.nombre_corto.id_for_label }}">
+                        <span class="label-text font-medium">Nombre Corto</span>
+                    </label>
+                    {{ form.nombre_corto }}
+                    {% if form.nombre_corto.errors %}<span class="text-error text-xs mt-1">{{ form.nombre_corto.errors.0 }}</span>{% endif %}
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.distrito.id_for_label }}">
+                        <span class="label-text font-medium">Distrito</span>
+                    </label>
+                    <div class="w-full" id="escuela-distrito-select-wrapper">
+                        {{ form.distrito }}
+                    </div>
+                    {% if form.distrito.errors %}<span class="text-error text-xs mt-1">{{ form.distrito.errors.0 }}</span>{% endif %}
+                </div>
+
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('escuela-modal').close()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#escuela-modal-wrapper');
+            var dialog = wrapper.querySelector('#escuela-modal');
+            dialog.showModal();
+
+            wrapper.querySelectorAll('.django-select2').forEach(function (el) {
+                try {
+                    var $el = $(el);
+                    if ($el.hasClass('select2-hidden-accessible')) {
+                        $el.select2('destroy');
+                    }
+                    $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
+                } catch (err) {
+                    console.error('No se pudo inicializar select2', err);
+                }
+            });
+
+            dialog.addEventListener('close', function () {
+                wrapper.querySelectorAll('.django-select2.select2-hidden-accessible').forEach(function (el) {
+                    $(el).select2('destroy');
+                });
+                wrapper.innerHTML = '';
+            }, { once: true });
+        })();
+    </script>
+</div>
