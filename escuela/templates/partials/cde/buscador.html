@@ -17,6 +17,8 @@
         <form
             hx-get="{% url 'buscar_transferencias' %}"
             hx-target="#listado-transferencias"
+            hx-get="{% url 'buscar_transferencias' %}"
+            hx-target="#listado-transferencias"
             hx-swap="outerHTML"
             hx-indicator="#transferencia-search-spinner"
             hx-indicator="#transferencia-search-spinner"
