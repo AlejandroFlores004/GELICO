@@ -40,7 +40,7 @@
                             <td>
                                 {% for tel in encargado.telefonos.all %}
                                 <div class="text-xs whitespace-nowrap">
-                                    <span class="font-medium">{{ tel.get_tipo_display }}:</span> {{ tel.numero }}
+                                    {{ tel.numero }}
                                     <span class="badge badge-ghost badge-xs">{{ tel.get_etiqueta_display }}</span>
                                 </div>
                                 {% empty %}

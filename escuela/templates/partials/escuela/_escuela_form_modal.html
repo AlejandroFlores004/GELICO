@@ -68,16 +68,27 @@
             var dialog = wrapper.querySelector('#escuela-modal');
             dialog.showModal();
 
-            wrapper.querySelectorAll('.django-select2').forEach(function (el) {
-                try {
-                    var $el = $(el);
-                    if ($el.hasClass('select2-hidden-accessible')) {
-                        $el.select2('destroy');
+            // Se difiere un tick (requestAnimationFrame) para que el navegador termine
+            // de pintar el <dialog> recién abierto antes de que select2 mida/manipule
+            // el <select>. Inicializarlo en el mismo tick que showModal() es lo que
+            // provoca que a veces no llegue a ocultar el <select> original.
+            requestAnimationFrame(function () {
+                wrapper.querySelectorAll('.django-select2').forEach(function (el) {
+                    try {
+                        var $el = $(el);
+                        if ($el.data('select2')) {
+                            $el.select2('destroy');
+                        }
+                        // Por si quedó un contenedor visual huérfano de una inicialización previa/duplicada
+                        $el.siblings('.select2-container').remove();
+                        $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
+                        // Evita que el auto-init global de django_select2.js (si carga tarde)
+                        // vuelva a inicializar este mismo campo por encima.
+                        $el.removeClass('django-select2');
+                    } catch (err) {
+                        console.error('No se pudo inicializar select2', err);
                     }
-                    $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
-                } catch (err) {
-                    console.error('No se pudo inicializar select2', err);
-                }
+                });
             });
 
             dialog.addEventListener('close', function () {

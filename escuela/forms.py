@@ -53,32 +53,6 @@ class FiltrarEncargadosForm(forms.Form):
     
     #Formulario para crear o editar un encargado
 class EncargadoForm(forms.ModelForm):
-    #Estos 4 campos no son del modelo Encargado, son de Telefono (relación aparte)
-    telefono_fijo = forms.CharField(
-        required=False,
-        label='Teléfono Fijo',
-        widget=forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': '0000-0000'}),
-    )
-    etiqueta_fijo = forms.ChoiceField(
-        choices=Telefono.Etiqueta.choices,
-        required=False,
-        initial=Telefono.Etiqueta.INSTITUCIONAL,
-        label='Etiqueta',
-        widget=forms.Select(attrs={'class': 'select select-bordered w-full'}),
-    )
-    telefono_celular = forms.CharField(
-        required=False,
-        label='Teléfono Celular',
-        widget=forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': '0000-0000'}),
-    )
-    etiqueta_celular = forms.ChoiceField(
-        choices=Telefono.Etiqueta.choices,
-        required=False,
-        initial=Telefono.Etiqueta.PERSONAL,
-        label='Etiqueta',
-        widget=forms.Select(attrs={'class': 'select select-bordered w-full'}),
-    )
-
     class Meta:
             model = Encargado
             fields = ['nombre', 'apellido', 'email', 'escuela']
@@ -86,7 +60,7 @@ class EncargadoForm(forms.ModelForm):
             widgets = {
                 'nombre': forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Ej: Juan'}),
                 'apellido': forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Ej: Pérez'}),
-                'email': forms.EmailInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'correo@ejemplo.com'}),
+                'email': forms.EmailInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'nombre.apellido@clases.edu.sv'}),
                 'escuela': Select2Widget(attrs={
                     'data-placeholder': 'Seleccione una Escuela',
                     'style': ' width: 100%',
@@ -98,39 +72,40 @@ class EncargadoForm(forms.ModelForm):
             super().__init__(*args, **kwargs)
             if self.instance and self.instance.pk:
                 self.fields['escuela'].disabled = True
-                telefono_fijo = self.instance.telefonos.filter(tipo=Telefono.Tipo.FIJO).first()
-                telefono_celular = self.instance.telefonos.filter(tipo=Telefono.Tipo.CELULAR).first()
-                if telefono_fijo:
-                    self.fields['telefono_fijo'].initial = telefono_fijo.numero
-                    self.fields['etiqueta_fijo'].initial = telefono_fijo.etiqueta
-                if telefono_celular:
-                    self.fields['telefono_celular'].initial = telefono_celular.numero
-                    self.fields['etiqueta_celular'].initial = telefono_celular.etiqueta
 
+    def clean_email(self):
+        email = self.cleaned_data.get('email', '').strip().lower()
+        if not email.endswith('@clases.edu.sv'):
+            raise forms.ValidationError('El correo debe ser institucional (@clases.edu.sv).')
+        return email
+
+
+#Formset para los teléfonos (uno o más) de un Encargado
+class BaseTelefonoFormSet(forms.BaseInlineFormSet):
     def clean(self):
-        cleaned_data = super().clean()
-        if not cleaned_data.get('telefono_fijo') and not cleaned_data.get('telefono_celular'):
-            raise forms.ValidationError('Debe ingresar al menos un número de teléfono (fijo o celular).')
-        return cleaned_data
+        super().clean()
+        if any(self.errors):
+            return
+        hay_numero = any(
+            form.cleaned_data.get('numero') and not form.cleaned_data.get('DELETE', False)
+            for form in self.forms
+            if form.cleaned_data
+        )
+        if not hay_numero:
+            raise forms.ValidationError('Debe ingresar al menos un número de teléfono.')
 
-    def save(self, commit=True):
-        encargado = super().save(commit=commit)
 
-        def _guardar_telefono(tipo, numero, etiqueta):
-            numero = (numero or '').strip()
-            if numero:
-                Telefono.objects.update_or_create(
-                    encargado=encargado, tipo=tipo,
-                    defaults={'numero': numero, 'etiqueta': etiqueta or Telefono.Etiqueta.PERSONAL},
-                )
-            else:
-                Telefono.objects.filter(encargado=encargado, tipo=tipo).delete()
-
-        if commit:
-            _guardar_telefono(Telefono.Tipo.FIJO, self.cleaned_data.get('telefono_fijo'), self.cleaned_data.get('etiqueta_fijo'))
-            _guardar_telefono(Telefono.Tipo.CELULAR, self.cleaned_data.get('telefono_celular'), self.cleaned_data.get('etiqueta_celular'))
-
-        return encargado
+TelefonoFormSet = forms.inlineformset_factory(
+    Encargado, Telefono,
+    formset=BaseTelefonoFormSet,
+    fields=['numero', 'etiqueta'],
+    widgets={
+        'numero': forms.TextInput(attrs={'class': 'input input-bordered w-full telefono-input', 'placeholder': '0000-0000'}),
+        'etiqueta': forms.Select(attrs={'class': 'select select-bordered w-full'}),
+    },
+    extra=1,
+    can_delete=True,
+)
 
 
 #Formulario para filtrar/Buscar escuelas en el listado

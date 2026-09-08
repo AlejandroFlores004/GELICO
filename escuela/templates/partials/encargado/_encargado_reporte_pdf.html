@@ -53,7 +53,7 @@
                 <td>{{ encargado.nombre }} {{ encargado.apellido }}</td>
                 <td>
                     {% for tel in encargado.telefonos.all %}
-                    {{ tel.get_tipo_display }}: {{ tel.numero }}{% if not forloop.last %}<br>{% endif %}
+                    {{ tel.numero }} ({{ tel.get_etiqueta_display }}){% if not forloop.last %}<br>{% endif %}
                     {% empty %}
                     —
                     {% endfor %}
