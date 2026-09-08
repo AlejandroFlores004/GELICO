@@ -125,62 +125,6 @@
         <div class="divider my-0 opacity-40"></div>
       </li>
 
-      <!-- Movimientos -->
-      <li class="menu-title flex-row items-center gap-2 text-[11px] font-bold! uppercase tracking-wide text-base-content/60!">
-        <svg xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            stroke-linejoin="round"
-            stroke-linecap="round"
-            stroke-width="2"
-            fill="none"
-            stroke="currentColor"
-            class="inline-block size-4">
-          <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/>
-          <path d="M16 8h-6"/>
-          <path d="M16 12h-6"/>
-          <path d="M13 16h-3"/>
-        </svg>
-        <span>Movimientos</span>
-      </li>
-      <li>
-        <a href="{% url 'home_liquidaciones' %}" class="{% if request.resolver_match.url_name == 'home_liquidaciones' %}menu-active{% endif %}">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
-              stroke-width="2" fill="none" stroke="currentColor" class="inline-block size-4">
-            <circle cx="12" cy="12" r="9"/>
-            <path d="M12 6v2m0 8v2"/>
-            <path d="M9.5 15a2.5 2.5 0 0 0 2.5 2c1.5 0 2.5-.8 2.5-2s-1-1.6-2.5-2-2.5-.8-2.5-2 1-2 2.5-2a2.5 2.5 0 0 1 2.5 2"/>
-          </svg>
-          <span>Liquidaciones</span>
-        </a>
-      </li>
-      <li>
-        <a href="{% url 'home_asignaciones' %}" class="{% if request.resolver_match.url_name == 'home_asignaciones' %}menu-active{% endif %}">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
-              stroke-width="2" fill="none" stroke="currentColor" class="inline-block size-4">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="m17 11 2 2 4-4"/>
-          </svg>
-          <span>Asignaciones</span>
-        </a>
-      </li>
-      <li>
-        <a href="{% url 'home_transferencias' %}" class="{% if request.resolver_match.url_name == 'home_transferencias' %}menu-active{% endif %}">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
-              stroke-width="2" fill="none" stroke="currentColor" class="inline-block size-4">
-            <path d="M8 3 4 7l4 4"/>
-            <path d="M4 7h16"/>
-            <path d="m16 21 4-4-4-4"/>
-            <path d="M20 17H4"/>
-          </svg>
-          <span>Transferencias</span>
-        </a>
-      </li>
-
-      <li class="my-1">
-        <div class="divider my-0 opacity-40"></div>
-      </li>
-
       <!-- Sitio desarrollo -->
       <li>
         <a href="{% url 'admin:index' %}" class="{% if request.resolver_match.namespace == 'admin' %}menu-active{% endif %}">
