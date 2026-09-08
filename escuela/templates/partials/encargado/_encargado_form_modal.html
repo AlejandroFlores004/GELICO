@@ -34,12 +34,30 @@
                 </div>
 
                 <div class="form-control w-full">
-                    <label class="label" for="{{ form.telefono.id_for_label }}">
-                        <span class="label-text font-medium">Teléfono</span>
+                    <label class="label" for="{{ form.telefono_fijo.id_for_label }}">
+                        <span class="label-text font-medium">Teléfono Fijo</span>
                     </label>
-                    {{ form.telefono }}
-                    {% if form.telefono.errors %}<span class="text-error text-xs mt-1">{{ form.telefono.errors.0 }}</span>{% endif %}
+                    <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                        {{ form.telefono_fijo }}
+                        {{ form.etiqueta_fijo }}
+                    </div>
+                    {% if form.telefono_fijo.errors %}<span class="text-error text-xs mt-1">{{ form.telefono_fijo.errors.0 }}</span>{% endif %}
                 </div>
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.telefono_celular.id_for_label }}">
+                        <span class="label-text font-medium">Teléfono Celular</span>
+                    </label>
+                    <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                        {{ form.telefono_celular }}
+                        {{ form.etiqueta_celular }}
+                    </div>
+                    {% if form.telefono_celular.errors %}<span class="text-error text-xs mt-1">{{ form.telefono_celular.errors.0 }}</span>{% endif %}
+                </div>
+
+                {% if form.non_field_errors %}
+                <div class="text-error text-xs">{{ form.non_field_errors.0 }}</div>
+                {% endif %}
 
                 <div class="form-control w-full">
                     <label class="label" for="{{ form.email.id_for_label }}">
@@ -78,6 +96,15 @@
             var wrapper = document.currentScript.closest('#encargado-modal-wrapper');
             var dialog = wrapper.querySelector('#encargado-modal');
             dialog.showModal();
+
+            [
+                wrapper.querySelector('#{{ form.telefono_fijo.id_for_label }}'),
+                wrapper.querySelector('#{{ form.telefono_celular.id_for_label }}')
+            ].forEach(function (telInput) {
+                if (telInput) {
+                    IMask(telInput, { mask: '0000-0000' });
+                }
+            });
 
             wrapper.querySelectorAll('.django-select2').forEach(function (el) {
                 try {

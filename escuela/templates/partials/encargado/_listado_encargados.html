@@ -37,7 +37,16 @@
                                 <div class="text-xs text-base-content/60">Distrito {{ encargado.escuela.distrito.nombre }}</div>
                             </td>
                             <td>{{ encargado.nombre }} {{ encargado.apellido }}</td>
-                            <td>{{ encargado.telefono }}</td>
+                            <td>
+                                {% for tel in encargado.telefonos.all %}
+                                <div class="text-xs whitespace-nowrap">
+                                    <span class="font-medium">{{ tel.get_tipo_display }}:</span> {{ tel.numero }}
+                                    <span class="badge badge-ghost badge-xs">{{ tel.get_etiqueta_display }}</span>
+                                </div>
+                                {% empty %}
+                                <span class="text-base-content/40">—</span>
+                                {% endfor %}
+                            </td>
                             <td>{{ encargado.email }}</td>
                             <td>
                                 {% if encargado.estado %}
