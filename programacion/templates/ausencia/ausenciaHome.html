@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Ausencias
+{% endblock %}
+
+{% block extra_head %}
+    {{ form_media }}
+{% endblock %}
+
+{% block content %}
+<main class="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
+    <div class="flex items-center gap-4">
+        <div class="bg-primary text-primary-content rounded-2xl p-4 shadow-md shadow-primary/20">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-8 h-8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 3.6 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z" />
+            </svg>
+        </div>
+        <div>
+            <h1 class="text-4xl font-bold">Ausencias</h1>
+            <p class="text-base-content/70">Gestiona las ausencias registradas de los auxiliares.</p>
+        </div>
+    </div>
+
+    {% include "partials/ausencia/toolbar.html" %}
+    {% include "partials/ausencia/buscador.html" %}
+    <div id="ausencia-modal-wrapper"></div>
+    {% include "partials/ausencia/tabla.html" %}
+</main>
+{% endblock %}
