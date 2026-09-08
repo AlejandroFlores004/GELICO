@@ -1,6 +1,7 @@
 from django import forms
+from django_select2.forms import Select2Widget
 
-from .models import Auxiliar, Convocatoria
+from .models import Auxiliar, Ausencia, Convocatoria
 
 
 class AuxiliarForm(forms.ModelForm):
@@ -18,6 +19,28 @@ class AuxiliarForm(forms.ModelForm):
                 'inputmode': 'numeric',
             }),
             'institucion': forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Nombre de la institución'}),
+        }
+
+
+class AusenciaForm(forms.ModelForm):
+    class Meta:
+        model = Ausencia
+        fields = ['auxiliar', 'fecha', 'motivo']
+        widgets = {
+            'auxiliar': Select2Widget(attrs={
+                'data-placeholder': 'Seleccione un auxiliar',
+                'style': 'width: 100%; display: none !important;',
+                'class': 'select2-daisy',
+            }),
+            'fecha': forms.DateInput(format='%Y-%m-%d', attrs={
+                'class': 'input input-bordered w-full',
+                'type': 'date',
+            }),
+            'motivo': forms.Textarea(attrs={
+                'class': 'textarea textarea-bordered w-full',
+                'placeholder': 'Motivo de la ausencia',
+                'rows': 4,
+            }),
         }
 
 
