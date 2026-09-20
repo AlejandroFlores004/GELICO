@@ -2,7 +2,8 @@ from decimal import Decimal
 
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import DecimalField, F, Q, Sum
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
@@ -20,7 +21,14 @@ from .utils import a_decimal, a_entero, a_texto_codigo, indice_columna, indices_
 def _asignaciones_filtradas(request):
     filtro_form = FiltrarAsignacionesForm(request.GET or None)
 
-    asignaciones_list = Asignacion.objects.select_related('escuela', 'bono').order_by(
+    asignaciones_list = Asignacion.objects.select_related('escuela', 'bono').annotate(
+        total_recibido=Coalesce(
+            Sum('recibo__monto'), Decimal('0'),
+            output_field=DecimalField(max_digits=10, decimal_places=2),
+        )
+    ).annotate(
+        diferencia=F('valor') - F('total_recibido')
+    ).order_by(
         'escuela__nombre_corto', 'bono__nombre'
     )
 
@@ -129,12 +137,18 @@ def asignacion_imprimir(request):
 
 def asignacion_detalle(request, pk):
     instance = get_object_or_404(Asignacion, pk=pk)
-    recibos = instance.recibo_set.order_by('id').prefetch_related('abono_set')
+    recibos = list(instance.recibo_set.order_by('id').prefetch_related('abono_set'))
+
+    for recibo in recibos:
+        abonos = list(recibo.abono_set.all())
+        recibo.abonos_lista = abonos
+        recibo.total_abonado = sum((abono.monto for abono in abonos), Decimal('0'))
+        recibo.diferencia = recibo.monto - recibo.total_abonado
 
     return render(
         request,
         "partials/asignacion/_detalle.html",
-        {"recibos": recibos},
+        {"instance": instance, "recibos": recibos},
     )
 
 

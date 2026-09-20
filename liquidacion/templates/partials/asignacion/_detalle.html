@@ -1,38 +1,42 @@
-<div class="p-4 space-y-3 bg-base-200/40">
+<div class="space-y-3">
     {% if recibos %}
         {% for recibo in recibos %}
-        <div class="rounded-lg border border-base-300 bg-base-100 p-3">
-            <div class="flex items-center justify-between gap-3">
+        <div class="rounded-lg border border-base-300 bg-base-100 p-3 space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
                 <span class="text-sm font-medium">Recibo #{{ recibo.id }}</span>
-                <span class="badge badge-primary badge-outline">${{ recibo.monto|floatformat:2 }}</span>
+                <div class="flex flex-wrap items-center gap-4">
+                    <div class="text-right">
+                        <p class="text-[10px] uppercase tracking-wide text-base-content/50">Recibo</p>
+                        <p class="text-sm font-semibold">${{ recibo.monto|floatformat:2 }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] uppercase tracking-wide text-base-content/50">Abonado</p>
+                        <p class="text-sm font-semibold">${{ recibo.total_abonado|floatformat:2 }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] uppercase tracking-wide text-base-content/50">Pendiente</p>
+                        <p class="text-sm font-semibold {% if recibo.diferencia > 0 %}text-warning{% else %}text-success{% endif %}">
+                            ${{ recibo.diferencia|floatformat:2 }}
+                        </p>
+                    </div>
+                </div>
             </div>
 
-            {% with abonos=recibo.abono_set.all %}
-            {% if abonos %}
-            <div class="overflow-x-auto mt-2">
-                <table class="table table-xs">
-                    <thead>
-                        <tr>
-                            <th>Monto abono</th>
-                            <th>Requerimiento</th>
-                            <th>Estado</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for abono in abonos %}
-                        <tr>
-                            <td>${{ abono.monto|floatformat:2 }}</td>
-                            <td>{{ abono.requerimiento }}</td>
-                            <td><span class="badge badge-ghost badge-sm">{{ abono.estado }}</span></td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            {% if recibo.abonos_lista %}
+            <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {% for abono in recibo.abonos_lista %}
+                <div class="rounded-md border border-base-200 bg-base-200/50 px-3 py-2 space-y-1">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-sm font-semibold">${{ abono.monto|floatformat:2 }}</span>
+                        <span class="badge badge-ghost badge-sm">{{ abono.estado }}</span>
+                    </div>
+                    <p class="text-xs text-base-content/60 truncate">Req. {{ abono.requerimiento }}</p>
+                </div>
+                {% endfor %}
             </div>
             {% else %}
-            <p class="text-xs text-base-content/60 mt-2">Este recibo no tiene abonos registrados.</p>
+            <p class="text-xs text-base-content/60">Este recibo no tiene abonos registrados.</p>
             {% endif %}
-            {% endwith %}
         </div>
         {% endfor %}
     {% else %}
