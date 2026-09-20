@@ -6,11 +6,14 @@ description: Receta parametrizada para construir un módulo CRUD completo en GEL
 # GELICO — scaffold de un módulo CRUD
 
 Antes de usar esto, carga también `gelico-conventions` (stack, namespacing de
-templates, checklist de apps). Este skill es la receta operativa: dado un
-modelo, produce el mismo esqueleto de archivos que ya existe para
-`Auxiliar`/`Convocatoria` (programacion) y `Encargado` (escuela) — el patrón
-más limpio y actual de los dos es el de `convocatorias`; síguelo a él, no al
-de `auxiliar` (que dejó los partials sin namespacear).
+templates, checklist de apps). Este skill es puramente mecánico: dado un
+modelo **que el usuario ya definió o aprobó**, produce el mismo esqueleto de
+archivos que ya existe para `Auxiliar`/`Convocatoria` (programacion) y
+`Encargado` (escuela) — el patrón más limpio y actual de los dos es el de
+`convocatorias`; síguelo a él, no al de `auxiliar` (que dejó los partials sin
+namespacear). No uses este skill para decidir qué campos debe tener el
+modelo — eso es dominio, no scaffold; si el modelo aún no existe o no está
+claro, pregúntale al usuario primero.
 
 ## Parámetros a fijar antes de escribir código
 
