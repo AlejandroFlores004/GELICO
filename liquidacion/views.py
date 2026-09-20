@@ -127,12 +127,15 @@ def asignacion_imprimir(request):
     return response
 
 
-def home_recibos(request):
-    return render(request, "recibo/reciboHome.html")
+def asignacion_detalle(request, pk):
+    instance = get_object_or_404(Asignacion, pk=pk)
+    recibos = instance.recibo_set.order_by('id').prefetch_related('abono_set')
 
-
-def home_abonos(request):
-    return render(request, "abono/abonoHome.html")
+    return render(
+        request,
+        "partials/asignacion/_detalle.html",
+        {"recibos": recibos},
+    )
 
 
 def home_carga_excel(request):

@@ -1,0 +1,41 @@
+<div class="p-4 space-y-3 bg-base-200/40">
+    {% if recibos %}
+        {% for recibo in recibos %}
+        <div class="rounded-lg border border-base-300 bg-base-100 p-3">
+            <div class="flex items-center justify-between gap-3">
+                <span class="text-sm font-medium">Recibo #{{ recibo.id }}</span>
+                <span class="badge badge-primary badge-outline">${{ recibo.monto|floatformat:2 }}</span>
+            </div>
+
+            {% with abonos=recibo.abono_set.all %}
+            {% if abonos %}
+            <div class="overflow-x-auto mt-2">
+                <table class="table table-xs">
+                    <thead>
+                        <tr>
+                            <th>Monto abono</th>
+                            <th>Requerimiento</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for abono in abonos %}
+                        <tr>
+                            <td>${{ abono.monto|floatformat:2 }}</td>
+                            <td>{{ abono.requerimiento }}</td>
+                            <td><span class="badge badge-ghost badge-sm">{{ abono.estado }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-xs text-base-content/60 mt-2">Este recibo no tiene abonos registrados.</p>
+            {% endif %}
+            {% endwith %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <p class="text-sm text-base-content/60 py-2">Esta asignación todavía no tiene recibos registrados.</p>
+    {% endif %}
+</div>
