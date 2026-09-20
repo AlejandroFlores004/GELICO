@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Carga de Excel
+{% endblock %}
+
+{% block content %}
+<main class="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
+    <div class="flex items-center gap-4">
+        <div class="bg-primary text-primary-content rounded-2xl p-4 shadow-md shadow-primary/20">
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.75"
+                stroke="currentColor"
+                class="w-8 h-8"
+            >
+                <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 7.5m0 0L7.5 12m4.5-4.5v13.5"
+                />
+            </svg>
+        </div>
+        <div>
+            <h1 class="text-4xl font-bold">
+                Carga de Excel
+            </h1>
+            <p class="text-base-content/70">
+                Sube archivos de Excel para ingresar información al sistema de forma automática.
+            </p>
+        </div>
+    </div>
+
+    <div class="card bg-base-100 border border-base-300 shadow-sm">
+        <div class="card-body items-center text-center py-16">
+            <p class="text-lg text-base-content/60">Aquí va ir el apartado de Carga de Excel.</p>
+        </div>
+    </div>
+
+</main>
+{% endblock %}

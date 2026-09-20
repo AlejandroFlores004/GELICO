@@ -23,6 +23,7 @@ urlpatterns = [
     path('', include('main.urls')),
     path('escuela/', include('escuela.urls')),
     path('programacion/', include('programacion.urls')),
+    path('liquidacion/', include('liquidacion.urls')),
 ]
 
 if settings.DEBUG:
