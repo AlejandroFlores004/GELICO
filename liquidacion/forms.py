@@ -1,1 +1,69 @@
 from django import forms
+from django_select2.forms import Select2Widget
+
+from catalogo.models import Bono
+from escuela.models import Escuela
+from .models import Asignacion
+
+
+class FiltrarAsignacionesForm(forms.Form):
+    escuela = forms.ModelChoiceField(
+        queryset=Escuela.objects.all(),
+        widget=Select2Widget(attrs={
+            'data-placeholder': 'Todas las escuelas',
+            'style': 'width: 100%',
+            'class': 'select2-daisy',
+            'data-allow-clear': 'false',
+        }),
+        label='Escuela',
+        required=False,
+    )
+
+    bono = forms.ModelChoiceField(
+        queryset=Bono.objects.all(),
+        widget=Select2Widget(attrs={
+            'data-placeholder': 'Todos los bonos',
+            'style': 'width: 100%',
+            'class': 'select2-daisy',
+            'data-allow-clear': 'false',
+        }),
+        label='Bono',
+        required=False,
+    )
+
+
+class AsignacionForm(forms.ModelForm):
+    class Meta:
+        model = Asignacion
+        fields = ['escuela', 'bono', 'valor']
+        widgets = {
+            'escuela': Select2Widget(attrs={
+                'data-placeholder': 'Seleccione una escuela',
+                'style': 'width: 100%',
+                'class': 'select2-daisy',
+            }),
+            'bono': Select2Widget(attrs={
+                'data-placeholder': 'Seleccione un bono',
+                'style': 'width: 100%',
+                'class': 'select2-daisy',
+            }),
+            'valor': forms.NumberInput(attrs={
+                'class': 'input input-bordered w-full',
+                'step': '0.01',
+                'min': '0',
+            }),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        escuela = cleaned_data.get('escuela')
+        bono = cleaned_data.get('bono')
+
+        if escuela and bono:
+            duplicado = Asignacion.objects.filter(escuela=escuela, bono=bono)
+            if self.instance.pk:
+                duplicado = duplicado.exclude(pk=self.instance.pk)
+            if duplicado.exists():
+                self.add_error('bono', 'Ya existe una asignación para esta escuela y este bono.')
+
+        return cleaned_data

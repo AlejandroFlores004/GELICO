@@ -1,0 +1,96 @@
+<div id="asignacion-modal-wrapper">
+    <style>
+        /* Salvaguarda: a veces, al recargar el modal por un error de validación
+           con valores ya seleccionados, select2 no llega a ocultar el <select>
+           nativo (bug de timing con el swap de htmx). Esto lo oculta igual
+           en cuanto select2 ya le insertó su contenedor al lado. */
+        select.django-select2:has(+ .select2-container) {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+    </style>
+    <dialog id="asignacion-modal" class="modal">
+        <div class="modal-box max-w-lg rounded-2xl border border-base-300 shadow-2xl">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
+            </form>
+
+            <h3 class="font-bold text-xl">
+                {% if instance %}Editar Asignación{% else %}Agregar Asignación{% endif %}
+            </h3>
+
+            <form
+                hx-post="{% if instance %}{% url 'asignacion_editar' instance.pk %}{% else %}{% url 'asignacion_nueva' %}{% endif %}{% querystring %}"
+                hx-target="#asignacion-modal-wrapper"
+                hx-swap="outerHTML"
+                class="space-y-4 mt-4"
+            >
+                {% csrf_token %}
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.escuela.id_for_label }}">
+                        <span class="label-text font-medium">Escuela</span>
+                    </label>
+                    {{ form.escuela }}
+                    {% if form.escuela.errors %}<span class="text-error text-xs mt-1">{{ form.escuela.errors.0 }}</span>{% endif %}
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.bono.id_for_label }}">
+                        <span class="label-text font-medium">Bono</span>
+                    </label>
+                    {{ form.bono }}
+                    {% if form.bono.errors %}<span class="text-error text-xs mt-1">{{ form.bono.errors.0 }}</span>{% endif %}
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.valor.id_for_label }}">
+                        <span class="label-text font-medium">Valor</span>
+                    </label>
+                    {{ form.valor }}
+                    {% if form.valor.errors %}<span class="text-error text-xs mt-1">{{ form.valor.errors.0 }}</span>{% endif %}
+                </div>
+
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('asignacion-modal').close()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#asignacion-modal-wrapper');
+            var dialog = wrapper.querySelector('#asignacion-modal');
+            dialog.showModal();
+
+            wrapper.querySelectorAll('.django-select2').forEach(function (el) {
+                try {
+                    var $el = $(el);
+                    try { $el.select2('destroy'); } catch (ignored) { /* aún no inicializado */ }
+                    $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
+                } catch (err) {
+                    console.error('No se pudo inicializar select2', err);
+                }
+            });
+
+            dialog.addEventListener('close', function () {
+                wrapper.querySelectorAll('.django-select2.select2-hidden-accessible').forEach(function (el) {
+                    $(el).select2('destroy');
+                });
+                wrapper.innerHTML = '';
+            }, { once: true });
+        })();
+    </script>
+</div>

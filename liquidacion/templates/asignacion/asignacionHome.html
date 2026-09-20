@@ -4,6 +4,10 @@
     Asignaciones
 {% endblock %}
 
+{% block extra_head %}
+    {{ form_media }}
+{% endblock %}
+
 {% block content %}
 <main class="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
     <div class="flex items-center gap-4">
@@ -28,16 +32,18 @@
                 Asignaciones
             </h1>
             <p class="text-base-content/70">
-                Gestiona las asignaciones de bonos a las escuelas.
+                Gestiona las asignaciones de bonos a las escuelas. Útil para corregir casos puntuales cuando una carga de Excel no se guardó correctamente.
             </p>
         </div>
     </div>
 
-    <div class="card bg-base-100 border border-base-300 shadow-sm">
-        <div class="card-body items-center text-center py-16">
-            <p class="text-lg text-base-content/60">Aquí va ir el apartado de Asignaciones.</p>
-        </div>
-    </div>
+    {% include "partials/asignacion/_toolbar.html" %}
+
+    <div id="asignacion-modal-wrapper"></div>
+
+    {% include "partials/asignacion/_buscador.html" %}
+
+    {% include "partials/asignacion/_tabla.html" %}
 
 </main>
 {% endblock %}

@@ -1,17 +1,130 @@
 from decimal import Decimal
 
+from django.core.paginator import Paginator
 from django.db import transaction
-from django.shortcuts import render
+from django.db.models import Q
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, render
+from django.template.loader import render_to_string
+from django.utils import timezone
 from django.views.decorators.http import require_POST
+from weasyprint import HTML
 
 from catalogo.models import Bono
 from escuela.models import Escuela
+from .forms import AsignacionForm, FiltrarAsignacionesForm
 from .models import Abono, Asignacion, Recibo
 from .utils import a_decimal, a_entero, a_texto_codigo, indice_columna, indices_columna, leer_filas_excel
 
 
-def home_asignaciones(request):
-    return render(request, "asignacion/asignacionHome.html")
+def _asignaciones_filtradas(request):
+    filtro_form = FiltrarAsignacionesForm(request.GET or None)
+
+    asignaciones_list = Asignacion.objects.select_related('escuela', 'bono').order_by(
+        'escuela__nombre_corto', 'bono__nombre'
+    )
+
+    if filtro_form.is_valid():
+        escuela = filtro_form.cleaned_data.get('escuela')
+        bono = filtro_form.cleaned_data.get('bono')
+
+        if escuela:
+            asignaciones_list = asignaciones_list.filter(escuela=escuela)
+        if bono:
+            asignaciones_list = asignaciones_list.filter(bono=bono)
+
+    return filtro_form, asignaciones_list
+
+
+def _filtrar_asignaciones(request):
+    filtro_form, asignaciones_list = _asignaciones_filtradas(request)
+
+    paginator = Paginator(asignaciones_list, 20)
+    asignaciones = paginator.get_page(request.GET.get('page'))
+
+    return filtro_form, asignaciones
+
+
+def asignacionHomeView(request):
+    filtro_form, asignaciones = _filtrar_asignaciones(request)
+
+    return render(
+        request,
+        "asignacion/asignacionHome.html",
+        {
+            "asignaciones": asignaciones,
+            "filtro_form": filtro_form,
+            "form_media": filtro_form.media,
+        },
+    )
+
+
+def buscar_asignaciones(request):
+    _, asignaciones = _filtrar_asignaciones(request)
+
+    return render(
+        request,
+        "partials/asignacion/_tabla.html",
+        {"asignaciones": asignaciones},
+    )
+
+
+def asignacion_form(request, pk=None):
+    instance = get_object_or_404(Asignacion, pk=pk) if pk else None
+
+    if request.method == "POST":
+        form = AsignacionForm(request.POST, instance=instance, prefix="asignacion")
+        if form.is_valid():
+            form.save()
+            _, asignaciones = _filtrar_asignaciones(request)
+            return render(
+                request,
+                "partials/asignacion/_modal_form_success.html",
+                {"asignaciones": asignaciones},
+            )
+    else:
+        form = AsignacionForm(instance=instance, prefix="asignacion")
+
+    return render(
+        request,
+        "partials/asignacion/_modal_form.html",
+        {"form": form, "instance": instance},
+    )
+
+
+def asignacion_eliminar(request, pk):
+    instance = get_object_or_404(Asignacion, pk=pk)
+
+    if request.method == "POST":
+        instance.delete()
+        _, asignaciones = _filtrar_asignaciones(request)
+        return render(
+            request,
+            "partials/asignacion/_modal_form_success.html",
+            {"asignaciones": asignaciones},
+        )
+
+    return render(
+        request,
+        "partials/asignacion/_modal_delete.html",
+        {"instance": instance},
+    )
+
+
+def asignacion_imprimir(request):
+    _, asignaciones = _asignaciones_filtradas(request)
+    html_string = render_to_string(
+        "partials/asignacion/_reporte_pdf.html",
+        {"asignaciones": asignaciones, "fecha_generacion": timezone.localdate()},
+    )
+    pdf = HTML(
+        string=html_string,
+        base_url=request.build_absolute_uri("/"),
+    ).write_pdf()
+
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = 'inline; filename="asignaciones.pdf"'
+    return response
 
 
 def home_recibos(request):
@@ -33,7 +146,7 @@ def carga_bonos_preview(request):
     if not archivo or not archivo.name.lower().endswith((".xlsx", ".xls")):
         return render(
             request,
-            "partials/carga_excel/modal_bonos_preview.html",
+            "partials/carga_excel/_modal_bonos_preview.html",
             {"error": "Selecciona un archivo con formato .xlsx o .xls."},
         )
 
@@ -42,7 +155,7 @@ def carga_bonos_preview(request):
     except Exception:
         return render(
             request,
-            "partials/carga_excel/modal_bonos_preview.html",
+            "partials/carga_excel/_modal_bonos_preview.html",
             {"error": "No se pudo leer el archivo. Verifica que no esté dañado."},
         )
 
@@ -52,7 +165,7 @@ def carga_bonos_preview(request):
     if col_id is None or col_nombre is None:
         return render(
             request,
-            "partials/carga_excel/modal_bonos_preview.html",
+            "partials/carga_excel/_modal_bonos_preview.html",
             {"error": "El archivo debe tener las columnas \"id_bono\" y \"nombre_bono\" en la primera fila."},
         )
 
@@ -86,7 +199,7 @@ def carga_bonos_preview(request):
 
     return render(
         request,
-        "partials/carga_excel/modal_bonos_preview.html",
+        "partials/carga_excel/_modal_bonos_preview.html",
         {"bonos": bonos},
     )
 
@@ -122,7 +235,7 @@ def carga_bonos_confirmar(request):
 
     return render(
         request,
-        "partials/carga_excel/modal_bonos_success.html",
+        "partials/carga_excel/_modal_bonos_success.html",
         {"creados": creados, "omitidos": omitidos},
     )
 
@@ -252,7 +365,7 @@ def carga_recibos_procesar(request):
     if not archivo or not archivo.name.lower().endswith((".xlsx", ".xls")):
         return render(
             request,
-            "partials/carga_excel/modal_recibos_resultado.html",
+            "partials/carga_excel/_modal_recibos_resultado.html",
             {"error": "Selecciona un archivo con formato .xlsx o .xls."},
         )
 
@@ -261,6 +374,6 @@ def carga_recibos_procesar(request):
 
     return render(
         request,
-        "partials/carga_excel/modal_recibos_resultado.html",
+        "partials/carga_excel/_modal_recibos_resultado.html",
         resultado,
     )

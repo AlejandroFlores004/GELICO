@@ -2,7 +2,12 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('asignacion/', views.home_asignaciones, name='home_asignaciones'),
+    path('asignacion/', views.asignacionHomeView, name='home_asignaciones'),
+    path('asignacion/buscar/', views.buscar_asignaciones, name='buscar_asignaciones'),
+    path('asignacion/imprimir/', views.asignacion_imprimir, name='asignacion_imprimir'),
+    path('asignacion/nueva/', views.asignacion_form, name='asignacion_nueva'),
+    path('asignacion/<int:pk>/editar/', views.asignacion_form, name='asignacion_editar'),
+    path('asignacion/<int:pk>/eliminar/', views.asignacion_eliminar, name='asignacion_eliminar'),
     path('recibo/', views.home_recibos, name='home_recibos'),
     path('abono/', views.home_abonos, name='home_abonos'),
     path('carga-excel/', views.home_carga_excel, name='home_carga_excel'),
