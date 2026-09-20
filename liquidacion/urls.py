@@ -8,4 +8,5 @@ urlpatterns = [
     path('carga-excel/', views.home_carga_excel, name='home_carga_excel'),
     path('carga-excel/bonos/preview/', views.carga_bonos_preview, name='carga_bonos_preview'),
     path('carga-excel/bonos/confirmar/', views.carga_bonos_confirmar, name='carga_bonos_confirmar'),
+    path('carga-excel/recibos/procesar/', views.carga_recibos_procesar, name='carga_recibos_procesar'),
 ]

@@ -1,8 +1,13 @@
+from decimal import Decimal
+
+from django.db import transaction
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
 from catalogo.models import Bono
-from .utils import a_entero, indice_columna, leer_filas_excel
+from escuela.models import Escuela
+from .models import Abono, Asignacion, Recibo
+from .utils import a_decimal, a_entero, a_texto_codigo, indice_columna, indices_columna, leer_filas_excel
 
 
 def home_asignaciones(request):
@@ -119,4 +124,143 @@ def carga_bonos_confirmar(request):
         request,
         "partials/carga_excel/modal_bonos_success.html",
         {"creados": creados, "omitidos": omitidos},
+    )
+
+
+def _columnas_reporte_recibos(encabezados):
+    """Ubica las columnas del reporte transferido por recibo.
+
+    "monto" aparece dos veces en el archivo: la primera es el monto del
+    recibo y la última es el monto del abono de esa fila.
+    """
+    montos = indices_columna(encabezados, "monto")
+    indices = {
+        "codigo_entidad": indice_columna(encabezados, "codigo_entidad"),
+        "id_bono": indice_columna(encabezados, "id_bono"),
+        "monto_asignado": indice_columna(encabezados, "monto_asignado"),
+        "codigo_requerimiento": indice_columna(encabezados, "codigo_requerimiento"),
+        "estado_trans": indice_columna(encabezados, "estado_trans"),
+    }
+
+    if any(valor is None for valor in indices.values()) or len(montos) < 2:
+        return None
+
+    indices["monto_recibo"] = montos[0]
+    indices["monto_abono"] = montos[-1]
+    return indices
+
+
+def _procesar_reporte_recibos(archivo):
+    try:
+        encabezados, filas = leer_filas_excel(archivo)
+    except Exception:
+        return {"error": "No se pudo leer el archivo. Verifica que no esté dañado."}
+
+    indices = _columnas_reporte_recibos(encabezados)
+    if indices is None:
+        return {
+            "error": (
+                "El archivo debe tener las columnas \"codigo_entidad\", \"id_bono\", "
+                "\"monto_asignado\", \"codigo_requerimiento\", \"estado_trans\" y dos "
+                "columnas \"monto\" (una para el recibo y otra para el abono)."
+            )
+        }
+
+    escuelas = {str(e.codigo).strip(): e for e in Escuela.objects.all()}
+    bonos = {b.id_sistema: b for b in Bono.objects.exclude(id_sistema=None)}
+
+    asignaciones_cache = {}
+    recibos_cache = {}
+    maximo_indice = max(indices.values())
+
+    contadores = {
+        "asignaciones_creadas": 0,
+        "asignaciones_existentes": 0,
+        "recibos_creados": 0,
+        "recibos_existentes": 0,
+        "abonos_creados": 0,
+        "filas_omitidas_escuela": 0,
+        "filas_omitidas_bono": 0,
+        "filas_omitidas_datos": 0,
+    }
+
+    for fila in filas:
+        if not fila or all(valor in (None, "") for valor in fila):
+            continue
+        if len(fila) <= maximo_indice:
+            contadores["filas_omitidas_datos"] += 1
+            continue
+
+        escuela = escuelas.get(a_texto_codigo(fila[indices["codigo_entidad"]]))
+        if escuela is None:
+            contadores["filas_omitidas_escuela"] += 1
+            continue
+
+        bono = bonos.get(a_entero(fila[indices["id_bono"]]))
+        if bono is None:
+            contadores["filas_omitidas_bono"] += 1
+            continue
+
+        monto_recibo = a_decimal(fila[indices["monto_recibo"]])
+        monto_abono = a_decimal(fila[indices["monto_abono"]])
+        estado = a_entero(fila[indices["estado_trans"]])
+        requerimiento_val = fila[indices["codigo_requerimiento"]]
+        requerimiento = str(requerimiento_val).strip() if requerimiento_val not in (None, "") else ""
+
+        if monto_recibo is None or monto_abono is None or estado is None or not requerimiento:
+            contadores["filas_omitidas_datos"] += 1
+            continue
+
+        clave_asignacion = (escuela.id, bono.id)
+        if clave_asignacion not in asignaciones_cache:
+            asignacion = Asignacion.objects.filter(escuela=escuela, bono=bono).first()
+            if asignacion is None:
+                valor = a_decimal(fila[indices["monto_asignado"]]) or Decimal("0")
+                asignacion = Asignacion.objects.create(escuela=escuela, bono=bono, valor=valor)
+                contadores["asignaciones_creadas"] += 1
+            else:
+                contadores["asignaciones_existentes"] += 1
+            asignaciones_cache[clave_asignacion] = asignacion
+        asignacion = asignaciones_cache[clave_asignacion]
+
+        clave_recibo = (clave_asignacion, monto_recibo)
+        if clave_recibo not in recibos_cache:
+            recibo = Recibo.objects.filter(asignacion=asignacion, monto=monto_recibo).first()
+            if recibo is None:
+                recibo = Recibo.objects.create(asignacion=asignacion, monto=monto_recibo)
+                contadores["recibos_creados"] += 1
+            else:
+                contadores["recibos_existentes"] += 1
+            recibos_cache[clave_recibo] = recibo
+        recibo = recibos_cache[clave_recibo]
+
+        Abono.objects.create(
+            recibo=recibo,
+            monto=monto_abono,
+            requerimiento=requerimiento,
+            estado=estado,
+        )
+        contadores["abonos_creados"] += 1
+
+    return {"contadores": contadores}
+
+
+@require_POST
+def carga_recibos_procesar(request):
+    archivo = request.FILES.get("archivo")
+
+    if not archivo or not archivo.name.lower().endswith((".xlsx", ".xls")):
+        return render(
+            request,
+            "partials/carga_excel/modal_recibos_resultado.html",
+            {"error": "Selecciona un archivo con formato .xlsx o .xls."},
+        )
+
+    with transaction.atomic():
+        resultado = _procesar_reporte_recibos(archivo)
+
+    return render(
+        request,
+        "partials/carga_excel/modal_recibos_resultado.html",
+        resultado,
     )

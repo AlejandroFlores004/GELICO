@@ -103,27 +103,44 @@
                     </div>
                 </div>
 
-                <label class="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-base-300 bg-base-200/40 px-6 py-10 text-center cursor-pointer transition-colors hover:border-primary hover:bg-primary/5">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-9 h-9 text-base-content/40">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 7.5m0 0L7.5 12m4.5-4.5v13.5" />
-                    </svg>
-                    <span class="text-sm font-medium">
-                        Arrastra tu archivo aquí o <span class="text-primary">selecciona uno</span>
-                    </span>
-                    <span class="text-xs text-base-content/50">Archivos .xlsx o .xls</span>
-                    <input type="file" class="hidden" accept=".xlsx,.xls" />
-                </label>
+                <form
+                    hx-post="{% url 'carga_recibos_procesar' %}"
+                    hx-target="#recibos-modal-wrapper"
+                    hx-swap="outerHTML"
+                    hx-encoding="multipart/form-data"
+                    class="contents"
+                >
+                    {% csrf_token %}
 
-                <div class="card-actions justify-end items-center gap-2">
-                    <span class="badge badge-ghost badge-sm">Próximamente</span>
-                    <button class="btn btn-primary btn-sm" disabled>Subir archivo</button>
-                </div>
+                    <label class="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-base-300 bg-base-200/40 px-6 py-10 text-center cursor-pointer transition-colors hover:border-primary hover:bg-primary/5">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-9 h-9 text-base-content/40">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 7.5m0 0L7.5 12m4.5-4.5v13.5" />
+                        </svg>
+                        <span class="text-sm font-medium" data-nombre-archivo>
+                            Arrastra tu archivo aquí o <span class="text-primary">selecciona uno</span>
+                        </span>
+                        <span class="text-xs text-base-content/50">Archivos .xlsx o .xls</span>
+                        <input
+                            type="file"
+                            name="archivo"
+                            class="hidden"
+                            accept=".xlsx,.xls"
+                            required
+                            onchange="this.closest('form').querySelector('[data-nombre-archivo]').textContent = this.files[0] ? this.files[0].name : 'Arrastra tu archivo aquí o selecciona uno';"
+                        >
+                    </label>
+
+                    <div class="card-actions justify-end items-center gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm">Subir archivo</button>
+                    </div>
+                </form>
             </div>
         </div>
 
     </div>
 
     <div id="bonos-modal-wrapper"></div>
+    <div id="recibos-modal-wrapper"></div>
 
 </main>
 {% endblock %}

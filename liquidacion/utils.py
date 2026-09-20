@@ -1,3 +1,5 @@
+from decimal import Decimal, InvalidOperation
+
 import openpyxl
 import xlrd
 
@@ -39,8 +41,33 @@ def indice_columna(encabezados, nombre_buscado):
     return None
 
 
+def indices_columna(encabezados, nombre_buscado):
+    return [
+        i for i, encabezado in enumerate(encabezados)
+        if normalizar_encabezado(encabezado) == nombre_buscado
+    ]
+
+
 def a_entero(valor):
     try:
         return int(float(valor))
     except (TypeError, ValueError):
         return None
+
+
+def a_decimal(valor):
+    if valor in (None, ""):
+        return None
+    try:
+        return Decimal(str(valor)).quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def a_texto_codigo(valor):
+    """Normaliza un código (ej. codigo_entidad) que Excel puede entregar como
+    número (90046.0) o texto ("90046"), para poder compararlo de forma consistente."""
+    entero = a_entero(valor)
+    if entero is not None:
+        return str(entero)
+    return str(valor).strip() if valor not in (None, "") else ""

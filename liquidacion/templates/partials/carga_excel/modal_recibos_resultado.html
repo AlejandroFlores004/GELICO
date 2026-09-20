@@ -1,0 +1,86 @@
+<div id="recibos-modal-wrapper">
+    <dialog id="recibos-modal" class="modal">
+        <div class="modal-box max-w-lg rounded-2xl border border-base-300 shadow-2xl">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
+            </form>
+
+            {% if error %}
+                <h3 class="font-bold text-xl">No se pudo procesar el archivo</h3>
+                <div class="alert alert-error mt-4">
+                    <span>{{ error }}</span>
+                </div>
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('recibos-modal').close()">Cerrar</button>
+                </div>
+            {% else %}
+                <div class="flex flex-col items-center gap-3 py-2 text-center">
+                    <div class="bg-success/10 text-success rounded-full p-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-8 h-8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                    </div>
+                    <h3 class="font-bold text-xl">Carga completada</h3>
+                </div>
+
+                <div class="mt-4 overflow-hidden rounded-lg border border-base-300">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <td>Asignaciones nuevas</td>
+                                <td class="text-right font-semibold">{{ contadores.asignaciones_creadas }}</td>
+                            </tr>
+                            <tr>
+                                <td>Asignaciones ya existentes</td>
+                                <td class="text-right font-semibold">{{ contadores.asignaciones_existentes }}</td>
+                            </tr>
+                            <tr>
+                                <td>Recibos nuevos</td>
+                                <td class="text-right font-semibold">{{ contadores.recibos_creados }}</td>
+                            </tr>
+                            <tr>
+                                <td>Recibos ya existentes</td>
+                                <td class="text-right font-semibold">{{ contadores.recibos_existentes }}</td>
+                            </tr>
+                            <tr>
+                                <td>Abonos agregados</td>
+                                <td class="text-right font-semibold">{{ contadores.abonos_creados }}</td>
+                            </tr>
+                            <tr class="text-base-content/60">
+                                <td>Filas omitidas (escuela no encontrada)</td>
+                                <td class="text-right">{{ contadores.filas_omitidas_escuela }}</td>
+                            </tr>
+                            <tr class="text-base-content/60">
+                                <td>Filas omitidas (bono no registrado)</td>
+                                <td class="text-right">{{ contadores.filas_omitidas_bono }}</td>
+                            </tr>
+                            <tr class="text-base-content/60">
+                                <td>Filas omitidas (datos incompletos)</td>
+                                <td class="text-right">{{ contadores.filas_omitidas_datos }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="modal-action">
+                    <button type="button" class="btn btn-primary" onclick="document.getElementById('recibos-modal').close()">Listo</button>
+                </div>
+            {% endif %}
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#recibos-modal-wrapper');
+            var dialog = wrapper.querySelector('#recibos-modal');
+            dialog.showModal();
+
+            dialog.addEventListener('close', function () {
+                wrapper.innerHTML = '';
+            }, { once: true });
+        })();
+    </script>
+</div>
