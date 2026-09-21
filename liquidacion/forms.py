@@ -3,7 +3,7 @@ from django_select2.forms import Select2Widget
 
 from catalogo.models import Bono
 from escuela.models import Distrito, Escuela
-from .models import Abono, Asignacion, Observacion, Recibo
+from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Observacion, Recibo
 
 
 class FiltrarAsignacionesForm(forms.Form):
@@ -41,6 +41,13 @@ class FiltrarAsignacionesForm(forms.Form):
         }),
         label='Bono',
         required=False,
+    )
+
+    estado = forms.ChoiceField(
+        choices=[('', 'Todos los estados')] + ESTADO_LIQUIDACION_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={'class': 'select select-bordered w-full'}),
+        label='Estado',
     )
 
 

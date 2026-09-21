@@ -2,6 +2,13 @@ from django.db import models
 from catalogo.models import Bono
 from escuela.models import Escuela
 
+ESTADO_LIQUIDACION_CHOICES = [
+    ('liquidado', 'Liquidado'),
+    ('liquidado_sin_observaciones', 'Liquidado sin observaciones'),
+    ('no_liquidado', 'No liquidado con observaciones'),
+    ('sin_recibos', 'Sin recibos'),
+]
+
 # Create your models here.
 class Asignacion(models.Model):
     valor = models.DecimalField(max_digits=10, decimal_places=2)

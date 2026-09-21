@@ -28,6 +28,24 @@ def _cerrar_y_recargar(request, asignacion_pk):
     return redirect(url)
 
 
+def _estado_liquidacion(recibos):
+    """Calcula el estado de liquidación de una asignación según sus observaciones."""
+    if not recibos:
+        return 'sin_recibos'
+
+    observaciones = [obs for recibo in recibos for obs in recibo.observacion_set.all()]
+    if not observaciones:
+        return 'liquidado_sin_observaciones'
+    if all(obs.resuelta for obs in observaciones):
+        return 'liquidado'
+    return 'no_liquidado'
+
+
+def _asignar_estado_liquidacion(asignaciones):
+    for asignacion in asignaciones:
+        asignacion.estado_liquidacion = _estado_liquidacion(list(asignacion.recibo_set.all()))
+
+
 def _asignaciones_filtradas(request):
     filtro_form = FiltrarAsignacionesForm(request.GET or None)
 
@@ -36,7 +54,8 @@ def _asignaciones_filtradas(request):
             'escuela__encargado_set',
             queryset=Encargado.objects.filter(estado=True),
             to_attr='encargados_activos',
-        )
+        ),
+        'recibo_set__observacion_set',
     ).annotate(
         total_recibido=Coalesce(
             Sum('recibo__monto'), Decimal('0'),
@@ -52,6 +71,7 @@ def _asignaciones_filtradas(request):
         distrito = filtro_form.cleaned_data.get('distrito')
         escuela = filtro_form.cleaned_data.get('escuela')
         bono = filtro_form.cleaned_data.get('bono')
+        estado = filtro_form.cleaned_data.get('estado')
 
         if distrito:
             asignaciones_list = asignaciones_list.filter(escuela__distrito=distrito)
@@ -59,6 +79,13 @@ def _asignaciones_filtradas(request):
             asignaciones_list = asignaciones_list.filter(escuela=escuela)
         if bono:
             asignaciones_list = asignaciones_list.filter(bono=bono)
+        if estado:
+            # El estado se calcula a partir de las observaciones (no es un campo de BD),
+            # así que hay que evaluar el queryset y filtrar en Python.
+            asignaciones_list = [
+                asignacion for asignacion in asignaciones_list
+                if _estado_liquidacion(list(asignacion.recibo_set.all())) == estado
+            ]
 
     return filtro_form, asignaciones_list
 
@@ -68,6 +95,7 @@ def _filtrar_asignaciones(request):
 
     paginator = Paginator(asignaciones_list, 20)
     asignaciones = paginator.get_page(request.GET.get('page'))
+    _asignar_estado_liquidacion(asignaciones)
 
     return filtro_form, asignaciones
 
@@ -224,6 +252,8 @@ def asignacion_gestionar(request, pk):
         recibo.observaciones_lista = list(recibo.observacion_set.all())
         total_recibido += recibo.monto
 
+    estado_liquidacion = _estado_liquidacion(recibos)
+
     breadcrumbs = [
         {'name': 'Inicio', 'url': reverse('home')},
         {'name': 'Liquidación', 'url': reverse('home_asignaciones')},
@@ -236,6 +266,7 @@ def asignacion_gestionar(request, pk):
         {
             "breadcrumbs": breadcrumbs,
             "instance": instance,
+            "estado_liquidacion": estado_liquidacion,
             "recibos": recibos,
             "total_recibido": total_recibido,
             "diferencia": instance.valor - total_recibido,
