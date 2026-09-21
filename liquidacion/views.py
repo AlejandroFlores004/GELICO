@@ -49,9 +49,12 @@ def _asignaciones_filtradas(request):
     )
 
     if filtro_form.is_valid():
+        distrito = filtro_form.cleaned_data.get('distrito')
         escuela = filtro_form.cleaned_data.get('escuela')
         bono = filtro_form.cleaned_data.get('bono')
 
+        if distrito:
+            asignaciones_list = asignaciones_list.filter(escuela__distrito=distrito)
         if escuela:
             asignaciones_list = asignaciones_list.filter(escuela=escuela)
         if bono:
