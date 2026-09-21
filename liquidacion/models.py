@@ -33,6 +33,7 @@ class Abono(models.Model):
     requerimiento = models.CharField(max_length=255)
     estado = models.IntegerField()
     recibo = models.ForeignKey(Recibo, on_delete=models.CASCADE)
+    id_planilla_parcial = models.IntegerField()
 
     def __str__(self):
         return f"Abono: {self.recibo.asignacion.bono.nombre} - {self.monto}"

@@ -34,6 +34,12 @@
             >
                 {% csrf_token %}
 
+                {% if instance %}
+                <div class="bg-base-200 rounded-lg p-4 space-y-2 text-sm">
+                    <div class="flex justify-between gap-4"><span class="text-base-content/60">Escuela</span><span class="font-medium text-right">{{ instance.escuela.nombre_corto }}</span></div>
+                    <div class="flex justify-between gap-4"><span class="text-base-content/60">Bono</span><span class="font-medium text-right">{{ instance.bono.nombre }}</span></div>
+                </div>
+                {% else %}
                 <div class="form-control w-full">
                     <label class="label" for="{{ form.escuela.id_for_label }}">
                         <span class="label-text font-medium">Escuela</span>
@@ -49,6 +55,7 @@
                     {{ form.bono }}
                     {% if form.bono.errors %}<span class="text-error text-xs mt-1">{{ form.bono.errors.0 }}</span>{% endif %}
                 </div>
+                {% endif %}
 
                 <div class="form-control w-full">
                     <label class="label" for="{{ form.valor.id_for_label }}">

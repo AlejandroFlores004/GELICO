@@ -3,7 +3,7 @@ from django_select2.forms import Select2Widget
 
 from catalogo.models import Bono
 from escuela.models import Escuela
-from .models import Asignacion
+from .models import Abono, Asignacion, Observacion, Recibo
 
 
 class FiltrarAsignacionesForm(forms.Form):
@@ -67,3 +67,66 @@ class AsignacionForm(forms.ModelForm):
                 self.add_error('bono', 'Ya existe una asignación para esta escuela y este bono.')
 
         return cleaned_data
+
+
+class AsignacionValorForm(forms.ModelForm):
+    class Meta:
+        model = Asignacion
+        fields = ['valor']
+        widgets = {
+            'valor': forms.NumberInput(attrs={
+                'class': 'input input-bordered w-full',
+                'step': '0.01',
+                'min': '0',
+            }),
+        }
+
+
+class ReciboForm(forms.ModelForm):
+    class Meta:
+        model = Recibo
+        fields = ['monto']
+        widgets = {
+            'monto': forms.NumberInput(attrs={
+                'class': 'input input-bordered w-full',
+                'step': '0.01',
+                'min': '0',
+            }),
+        }
+
+
+class AbonoForm(forms.ModelForm):
+    class Meta:
+        model = Abono
+        fields = ['monto', 'requerimiento', 'estado', 'id_planilla_parcial']
+        widgets = {
+            'monto': forms.NumberInput(attrs={
+                'class': 'input input-bordered w-full',
+                'step': '0.01',
+                'min': '0',
+            }),
+            'requerimiento': forms.TextInput(attrs={
+                'class': 'input input-bordered w-full',
+            }),
+            'estado': forms.NumberInput(attrs={
+                'class': 'input input-bordered w-full',
+            }),
+            'id_planilla_parcial': forms.NumberInput(attrs={
+                'class': 'input input-bordered w-full',
+            }),
+        }
+
+
+class ObservacionForm(forms.ModelForm):
+    class Meta:
+        model = Observacion
+        fields = ['descripcion', 'resuelta']
+        widgets = {
+            'descripcion': forms.Textarea(attrs={
+                'class': 'textarea textarea-bordered w-full',
+                'rows': 3,
+            }),
+            'resuelta': forms.CheckboxInput(attrs={
+                'class': 'checkbox',
+            }),
+        }

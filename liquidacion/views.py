@@ -2,26 +2,42 @@ from decimal import Decimal
 
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import DecimalField, F, Q, Sum
+from django.db.models import DecimalField, F, Prefetch, Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django_htmx.http import HttpResponseClientRedirect
 from weasyprint import HTML
 
 from catalogo.models import Bono
-from escuela.models import Escuela
-from .forms import AsignacionForm, FiltrarAsignacionesForm
-from .models import Abono, Asignacion, Recibo
+from escuela.models import Encargado, Escuela
+from .forms import AbonoForm, AsignacionForm, AsignacionValorForm, FiltrarAsignacionesForm, ObservacionForm, ReciboForm
+from .models import Abono, Asignacion, Observacion, Recibo
 from .utils import a_decimal, a_entero, a_texto_codigo, indice_columna, indices_columna, leer_filas_excel
+
+
+def _cerrar_y_recargar(request, asignacion_pk):
+    """Cierra el modal actual y recarga la página de gestión de la asignación."""
+    url = reverse('asignacion_gestionar', args=[asignacion_pk])
+    if request.htmx:
+        return HttpResponseClientRedirect(url)
+    return redirect(url)
 
 
 def _asignaciones_filtradas(request):
     filtro_form = FiltrarAsignacionesForm(request.GET or None)
 
-    asignaciones_list = Asignacion.objects.select_related('escuela', 'bono').annotate(
+    asignaciones_list = Asignacion.objects.select_related('escuela', 'bono').prefetch_related(
+        Prefetch(
+            'escuela__encargado_set',
+            queryset=Encargado.objects.filter(estado=True),
+            to_attr='encargados_activos',
+        )
+    ).annotate(
         total_recibido=Coalesce(
             Sum('recibo__monto'), Decimal('0'),
             output_field=DecimalField(max_digits=10, decimal_places=2),
@@ -56,10 +72,16 @@ def _filtrar_asignaciones(request):
 def asignacionHomeView(request):
     filtro_form, asignaciones = _filtrar_asignaciones(request)
 
+    breadcrumbs = [
+        {'name': 'Inicio', 'url': reverse('home')},
+        {'name': 'Liquidación'},
+    ]
+
     return render(
         request,
         "asignacion/asignacionHome.html",
         {
+            "breadcrumbs": breadcrumbs,
             "asignaciones": asignaciones,
             "filtro_form": filtro_form,
             "form_media": filtro_form.media,
@@ -79,11 +101,14 @@ def buscar_asignaciones(request):
 
 def asignacion_form(request, pk=None):
     instance = get_object_or_404(Asignacion, pk=pk) if pk else None
+    form_class = AsignacionValorForm if instance else AsignacionForm
 
     if request.method == "POST":
-        form = AsignacionForm(request.POST, instance=instance, prefix="asignacion")
+        form = form_class(request.POST, instance=instance, prefix="asignacion")
         if form.is_valid():
-            form.save()
+            asignacion = form.save()
+            if instance:
+                return _cerrar_y_recargar(request, asignacion.pk)
             _, asignaciones = _filtrar_asignaciones(request)
             return render(
                 request,
@@ -91,7 +116,7 @@ def asignacion_form(request, pk=None):
                 {"asignaciones": asignaciones},
             )
     else:
-        form = AsignacionForm(instance=instance, prefix="asignacion")
+        form = form_class(instance=instance, prefix="asignacion")
 
     return render(
         request,
@@ -137,19 +162,253 @@ def asignacion_imprimir(request):
 
 def asignacion_detalle(request, pk):
     instance = get_object_or_404(Asignacion, pk=pk)
-    recibos = list(instance.recibo_set.order_by('id').prefetch_related('abono_set'))
+    recibos = list(
+        instance.recibo_set.order_by('id').prefetch_related('abono_set', 'observacion_set')
+    )
 
     for recibo in recibos:
         abonos = list(recibo.abono_set.all())
         recibo.abonos_lista = abonos
         recibo.total_abonado = sum((abono.monto for abono in abonos), Decimal('0'))
         recibo.diferencia = recibo.monto - recibo.total_abonado
+        recibo.observaciones_lista = list(recibo.observacion_set.all())
 
     return render(
         request,
         "partials/asignacion/_detalle.html",
         {"instance": instance, "recibos": recibos},
     )
+
+
+def recibo_abonos(request, pk):
+    recibo = get_object_or_404(Recibo, pk=pk)
+    abonos = list(recibo.abono_set.order_by('id'))
+    total_abonado = sum((abono.monto for abono in abonos), Decimal('0'))
+
+    return render(
+        request,
+        "partials/asignacion/_modal_abonos.html",
+        {
+            "recibo": recibo,
+            "abonos": abonos,
+            "total_abonado": total_abonado,
+            "diferencia": recibo.monto - total_abonado,
+        },
+    )
+
+
+def asignacion_gestionar(request, pk):
+    instance = get_object_or_404(
+        Asignacion.objects.select_related('escuela', 'bono').prefetch_related(
+            Prefetch(
+                'escuela__encargado_set',
+                queryset=Encargado.objects.filter(estado=True),
+                to_attr='encargados_activos',
+            )
+        ),
+        pk=pk,
+    )
+    recibos = list(
+        instance.recibo_set.order_by('id').prefetch_related('abono_set', 'observacion_set')
+    )
+
+    total_recibido = Decimal('0')
+    for recibo in recibos:
+        abonos = list(recibo.abono_set.all())
+        recibo.abonos_lista = abonos
+        recibo.total_abonado = sum((abono.monto for abono in abonos), Decimal('0'))
+        recibo.diferencia = recibo.monto - recibo.total_abonado
+        recibo.observaciones_lista = list(recibo.observacion_set.all())
+        total_recibido += recibo.monto
+
+    breadcrumbs = [
+        {'name': 'Inicio', 'url': reverse('home')},
+        {'name': 'Liquidación', 'url': reverse('home_asignaciones')},
+        {'name': f"{instance.escuela.nombre_corto} · {instance.bono.nombre}"},
+    ]
+
+    return render(
+        request,
+        "asignacion/asignacionGestionar.html",
+        {
+            "breadcrumbs": breadcrumbs,
+            "instance": instance,
+            "recibos": recibos,
+            "total_recibido": total_recibido,
+            "diferencia": instance.valor - total_recibido,
+        },
+    )
+
+
+def recibo_nuevo(request, asignacion_pk):
+    asignacion = get_object_or_404(Asignacion, pk=asignacion_pk)
+
+    if request.method == "POST":
+        form = ReciboForm(request.POST, prefix="recibo")
+        if form.is_valid():
+            recibo = form.save(commit=False)
+            recibo.asignacion = asignacion
+            recibo.save()
+            return _cerrar_y_recargar(request, asignacion.pk)
+    else:
+        form = ReciboForm(prefix="recibo")
+
+    return render(
+        request,
+        "partials/asignacion/_modal_recibo_form.html",
+        {"form": form, "instance": None, "asignacion": asignacion},
+    )
+
+
+def recibo_editar(request, pk):
+    instance = get_object_or_404(Recibo, pk=pk)
+
+    if request.method == "POST":
+        form = ReciboForm(request.POST, instance=instance, prefix="recibo")
+        if form.is_valid():
+            form.save()
+            return _cerrar_y_recargar(request, instance.asignacion_id)
+    else:
+        form = ReciboForm(instance=instance, prefix="recibo")
+
+    return render(
+        request,
+        "partials/asignacion/_modal_recibo_form.html",
+        {"form": form, "instance": instance, "asignacion": instance.asignacion},
+    )
+
+
+def recibo_eliminar(request, pk):
+    instance = get_object_or_404(Recibo, pk=pk)
+    asignacion_pk = instance.asignacion_id
+
+    if request.method == "POST":
+        instance.delete()
+        return _cerrar_y_recargar(request, asignacion_pk)
+
+    return render(
+        request,
+        "partials/asignacion/_modal_recibo_delete.html",
+        {"instance": instance},
+    )
+
+
+def abono_nuevo(request, recibo_pk):
+    recibo = get_object_or_404(Recibo, pk=recibo_pk)
+
+    if request.method == "POST":
+        form = AbonoForm(request.POST, prefix="abono")
+        if form.is_valid():
+            abono = form.save(commit=False)
+            abono.recibo = recibo
+            abono.save()
+            return _cerrar_y_recargar(request, recibo.asignacion_id)
+    else:
+        form = AbonoForm(prefix="abono")
+
+    return render(
+        request,
+        "partials/asignacion/_modal_abono_form.html",
+        {"form": form, "instance": None, "recibo": recibo},
+    )
+
+
+def abono_editar(request, pk):
+    instance = get_object_or_404(Abono, pk=pk)
+
+    if request.method == "POST":
+        form = AbonoForm(request.POST, instance=instance, prefix="abono")
+        if form.is_valid():
+            form.save()
+            return _cerrar_y_recargar(request, instance.recibo.asignacion_id)
+    else:
+        form = AbonoForm(instance=instance, prefix="abono")
+
+    return render(
+        request,
+        "partials/asignacion/_modal_abono_form.html",
+        {"form": form, "instance": instance, "recibo": instance.recibo},
+    )
+
+
+def abono_eliminar(request, pk):
+    instance = get_object_or_404(Abono, pk=pk)
+    asignacion_pk = instance.recibo.asignacion_id
+
+    if request.method == "POST":
+        instance.delete()
+        return _cerrar_y_recargar(request, asignacion_pk)
+
+    return render(
+        request,
+        "partials/asignacion/_modal_abono_delete.html",
+        {"instance": instance},
+    )
+
+
+def observacion_nueva(request, recibo_pk):
+    recibo = get_object_or_404(Recibo, pk=recibo_pk)
+
+    if request.method == "POST":
+        form = ObservacionForm(request.POST, prefix="observacion")
+        if form.is_valid():
+            observacion = form.save(commit=False)
+            observacion.recibo = recibo
+            observacion.save()
+            return _cerrar_y_recargar(request, recibo.asignacion_id)
+    else:
+        form = ObservacionForm(prefix="observacion")
+
+    return render(
+        request,
+        "partials/asignacion/_modal_observacion_form.html",
+        {"form": form, "instance": None, "recibo": recibo},
+    )
+
+
+def observacion_editar(request, pk):
+    instance = get_object_or_404(Observacion, pk=pk)
+
+    if request.method == "POST":
+        form = ObservacionForm(request.POST, instance=instance, prefix="observacion")
+        if form.is_valid():
+            form.save()
+            return _cerrar_y_recargar(request, instance.recibo.asignacion_id)
+    else:
+        form = ObservacionForm(instance=instance, prefix="observacion")
+
+    return render(
+        request,
+        "partials/asignacion/_modal_observacion_form.html",
+        {"form": form, "instance": instance, "recibo": instance.recibo},
+    )
+
+
+def observacion_eliminar(request, pk):
+    instance = get_object_or_404(Observacion, pk=pk)
+    asignacion_pk = instance.recibo.asignacion_id
+
+    if request.method == "POST":
+        instance.delete()
+        return _cerrar_y_recargar(request, asignacion_pk)
+
+    return render(
+        request,
+        "partials/asignacion/_modal_observacion_delete.html",
+        {"instance": instance},
+    )
+
+
+@require_POST
+def observacion_toggle(request, pk):
+    instance = get_object_or_404(Observacion, pk=pk)
+    instance.resuelta = not instance.resuelta
+    instance.save()
+
+    if request.GET.get('origen') == 'detalle':
+        return asignacion_detalle(request, instance.recibo.asignacion_id)
+
+    return _cerrar_y_recargar(request, instance.recibo.asignacion_id)
 
 
 def home_carga_excel(request):
@@ -270,6 +529,7 @@ def _columnas_reporte_recibos(encabezados):
         "monto_asignado": indice_columna(encabezados, "monto_asignado"),
         "codigo_requerimiento": indice_columna(encabezados, "codigo_requerimiento"),
         "estado_trans": indice_columna(encabezados, "estado_trans"),
+        "id_planilla_parcial": indice_columna(encabezados, "id_planilla_parcial"),
     }
 
     if any(valor is None for valor in indices.values()) or len(montos) < 2:
@@ -291,8 +551,9 @@ def _procesar_reporte_recibos(archivo):
         return {
             "error": (
                 "El archivo debe tener las columnas \"codigo_entidad\", \"id_bono\", "
-                "\"monto_asignado\", \"codigo_requerimiento\", \"estado_trans\" y dos "
-                "columnas \"monto\" (una para el recibo y otra para el abono)."
+                "\"monto_asignado\", \"codigo_requerimiento\", \"estado_trans\", "
+                "\"id_planilla_parcial\" y dos columnas \"monto\" (una para el recibo "
+                "y otra para el abono)."
             )
         }
 
@@ -301,6 +562,7 @@ def _procesar_reporte_recibos(archivo):
 
     asignaciones_cache = {}
     recibos_cache = {}
+    abonos_por_recibo = {}
     maximo_indice = max(indices.values())
 
     contadores = {
@@ -309,6 +571,7 @@ def _procesar_reporte_recibos(archivo):
         "recibos_creados": 0,
         "recibos_existentes": 0,
         "abonos_creados": 0,
+        "abonos_existentes": 0,
         "filas_omitidas_escuela": 0,
         "filas_omitidas_bono": 0,
         "filas_omitidas_datos": 0,
@@ -336,8 +599,15 @@ def _procesar_reporte_recibos(archivo):
         estado = a_entero(fila[indices["estado_trans"]])
         requerimiento_val = fila[indices["codigo_requerimiento"]]
         requerimiento = str(requerimiento_val).strip() if requerimiento_val not in (None, "") else ""
+        id_planilla_parcial = a_entero(fila[indices["id_planilla_parcial"]])
 
-        if monto_recibo is None or monto_abono is None or estado is None or not requerimiento:
+        if (
+            monto_recibo is None
+            or monto_abono is None
+            or estado is None
+            or not requerimiento
+            or id_planilla_parcial is None
+        ):
             contadores["filas_omitidas_datos"] += 1
             continue
 
@@ -364,12 +634,23 @@ def _procesar_reporte_recibos(archivo):
             recibos_cache[clave_recibo] = recibo
         recibo = recibos_cache[clave_recibo]
 
+        if recibo.id not in abonos_por_recibo:
+            abonos_por_recibo[recibo.id] = set(
+                Abono.objects.filter(recibo=recibo).values_list("id_planilla_parcial", flat=True)
+            )
+
+        if id_planilla_parcial in abonos_por_recibo[recibo.id]:
+            contadores["abonos_existentes"] += 1
+            continue
+
         Abono.objects.create(
             recibo=recibo,
             monto=monto_abono,
             requerimiento=requerimiento,
             estado=estado,
+            id_planilla_parcial=id_planilla_parcial,
         )
+        abonos_por_recibo[recibo.id].add(id_planilla_parcial)
         contadores["abonos_creados"] += 1
 
     return {"contadores": contadores}

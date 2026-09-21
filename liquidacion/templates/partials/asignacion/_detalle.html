@@ -1,12 +1,13 @@
-<div class="space-y-3">
+<div class="space-y-3 pt-1">
     {% if recibos %}
+        <p class="text-[11px] font-semibold uppercase tracking-wide text-base-content/50">Recibos de esta asignación</p>
         {% for recibo in recibos %}
-        <div class="rounded-lg border border-base-300 bg-base-100 p-3 space-y-2">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-                <span class="text-sm font-medium">Recibo #{{ recibo.id }}</span>
+        <div class="rounded-lg border border-base-300 overflow-hidden">
+            <div class="flex flex-wrap items-center justify-between gap-3 bg-base-200/60 px-4 py-2.5">
+                <span class="text-sm font-semibold">Recibo #{{ recibo.id }}</span>
                 <div class="flex flex-wrap items-center gap-4">
                     <div class="text-right">
-                        <p class="text-[10px] uppercase tracking-wide text-base-content/50">Recibo</p>
+                        <p class="text-[10px] uppercase tracking-wide text-base-content/50">Monto</p>
                         <p class="text-sm font-semibold">${{ recibo.monto|floatformat:2 }}</p>
                     </div>
                     <div class="text-right">
@@ -19,24 +20,47 @@
                             ${{ recibo.diferencia|floatformat:2 }}
                         </p>
                     </div>
+                    <button
+                        type="button"
+                        hx-get="{% url 'recibo_abonos' recibo.id %}"
+                        hx-target="#asignacion-modal-wrapper"
+                        hx-swap="outerHTML"
+                        class="btn btn-outline btn-xs gap-1.5"
+                    >
+                        Ver abonos
+                        <span class="badge badge-ghost badge-xs">{{ recibo.abonos_lista|length }}</span>
+                    </button>
                 </div>
             </div>
 
-            {% if recibo.abonos_lista %}
-            <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {% for abono in recibo.abonos_lista %}
-                <div class="rounded-md border border-base-200 bg-base-200/50 px-3 py-2 space-y-1">
-                    <div class="flex items-center justify-between gap-2">
-                        <span class="text-sm font-semibold">${{ abono.monto|floatformat:2 }}</span>
-                        <span class="badge badge-ghost badge-sm">{{ abono.estado }}</span>
+            <div class="p-3">
+                <p class="text-[10px] font-semibold uppercase tracking-wide text-base-content/50 mb-1.5">Observaciones</p>
+                {% if recibo.observaciones_lista %}
+                <div class="space-y-1.5">
+                    {% for observacion in recibo.observaciones_lista %}
+                    <div class="flex items-start justify-between gap-3 rounded-md border border-base-200 bg-base-200/40 px-3 py-2">
+                        <p class="text-sm text-base-content/80">{{ observacion.descripcion }}</p>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="badge badge-sm {% if observacion.resuelta %}badge-success{% else %}badge-warning{% endif %}">
+                                {% if observacion.resuelta %}Resuelta{% else %}Pendiente{% endif %}
+                            </span>
+                            <button
+                                type="button"
+                                hx-post="{% url 'observacion_toggle' observacion.id %}?origen=detalle"
+                                hx-target="closest .collapse-content"
+                                hx-swap="innerHTML"
+                                class="btn btn-outline btn-xs"
+                            >
+                                {% if observacion.resuelta %}Marcar pendiente{% else %}Resolver{% endif %}
+                            </button>
+                        </div>
                     </div>
-                    <p class="text-xs text-base-content/60 truncate">Req. {{ abono.requerimiento }}</p>
+                    {% endfor %}
                 </div>
-                {% endfor %}
+                {% else %}
+                <p class="text-xs text-base-content/60">Este recibo no tiene observaciones registradas.</p>
+                {% endif %}
             </div>
-            {% else %}
-            <p class="text-xs text-base-content/60">Este recibo no tiene abonos registrados.</p>
-            {% endif %}
         </div>
         {% endfor %}
     {% else %}
