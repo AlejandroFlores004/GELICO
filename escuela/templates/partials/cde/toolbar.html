@@ -1,0 +1,11 @@
+<div class="flex justify-start">
+    <button
+        hx-get="{% url 'cde_nuevo' %}"
+        hx-target="#cde-modal-wrapper"
+        hx-swap="outerHTML"
+        class="btn btn-primary gap-2"
+    >
+        <span aria-hidden="true">+</span>
+        Agregar CDE
+    </button>
+</div>
