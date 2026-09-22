@@ -1,67 +1,68 @@
 <div id="asignacion-modal-wrapper">
+    <style>
+        /* Salvaguarda: a veces, al recargar el modal por un error de validación
+           con valores ya seleccionados, select2 no llega a ocultar el <select>
+           nativo (bug de timing con el swap de htmx). Esto lo oculta igual
+           en cuanto select2 ya le insertó su contenedor al lado. */
+        select.django-select2:has(+ .select2-container) {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+    </style>
     <dialog id="asignacion-modal" class="modal">
-        <div class="modal-box">
+        <div class="modal-box max-w-lg rounded-2xl border border-base-300 shadow-2xl">
             <form method="dialog">
-                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
             </form>
 
-            <h3 class="font-bold text-lg">
-                {% if instance %}Editar Asignación{% else %}Nueva Asignación{% endif %}
+            <h3 class="font-bold text-xl">
+                {% if instance %}Editar Asignación{% else %}Agregar Asignación{% endif %}
             </h3>
 
             <form
-                hx-post="{% if instance %}{% url 'asignacion_editar' instance.pk %}{% else %}{% url 'asignacion_nueva' %}{% endif %}"
+                hx-post="{% if instance %}{% url 'asignacion_editar' instance.pk %}{% else %}{% url 'asignacion_nueva' %}{% endif %}{% querystring %}"
                 hx-target="#asignacion-modal-wrapper"
                 hx-swap="outerHTML"
                 class="space-y-4 mt-4"
             >
                 {% csrf_token %}
 
+                {% if instance %}
+                <div class="bg-base-200 rounded-lg p-4 space-y-2 text-sm">
+                    <div class="flex justify-between gap-4"><span class="text-base-content/60">Escuela</span><span class="font-medium text-right">{{ instance.escuela.nombre_corto }}</span></div>
+                    <div class="flex justify-between gap-4"><span class="text-base-content/60">Bono</span><span class="font-medium text-right">{{ instance.bono.nombre }}</span></div>
+                </div>
+                {% else %}
                 <div class="form-control w-full">
                     <label class="label" for="{{ form.escuela.id_for_label }}">
                         <span class="label-text font-medium">Escuela</span>
                     </label>
-                    <div class="w-full" id="asignacion-escuela-select-wrapper">
-                        {{ form.escuela }}
-                    </div>
-                    {% if instance %}
-                    <span class="text-xs text-base-content/60 mt-1">La escuela no se puede modificar en una asignación existente.</span>
-                    {% endif %}
-                    {% if form.escuela.errors %}
-                    <span class="text-error text-xs mt-1">{{ form.escuela.errors.0 }}</span>
-                    {% endif %}
+                    {{ form.escuela }}
+                    {% if form.escuela.errors %}<span class="text-error text-xs mt-1">{{ form.escuela.errors.0 }}</span>{% endif %}
                 </div>
 
                 <div class="form-control w-full">
                     <label class="label" for="{{ form.bono.id_for_label }}">
                         <span class="label-text font-medium">Bono</span>
                     </label>
-                    <div class="w-full" id="asignacion-bono-select-wrapper">
-                        {{ form.bono }}
-                    </div>
-                    {% if form.bono.errors %}
-                    <span class="text-error text-xs mt-1">{{ form.bono.errors.0 }}</span>
-                    {% endif %}
+                    {{ form.bono }}
+                    {% if form.bono.errors %}<span class="text-error text-xs mt-1">{{ form.bono.errors.0 }}</span>{% endif %}
                 </div>
+                {% endif %}
 
                 <div class="form-control w-full">
                     <label class="label" for="{{ form.valor.id_for_label }}">
                         <span class="label-text font-medium">Valor</span>
                     </label>
                     {{ form.valor }}
-                    {% if form.valor.errors %}
-                    <span class="text-error text-xs mt-1">{{ form.valor.errors.0 }}</span>
-                    {% endif %}
-                </div>
-
-                <div class="form-control w-full">
-                    <label class="label" for="{{ form.fecha.id_for_label }}">
-                        <span class="label-text font-medium">Fecha</span>
-                    </label>
-                    {{ form.fecha }}
-                    {% if form.fecha.errors %}
-                    <span class="text-error text-xs mt-1">{{ form.fecha.errors.0 }}</span>
-                    {% endif %}
+                    {% if form.valor.errors %}<span class="text-error text-xs mt-1">{{ form.valor.errors.0 }}</span>{% endif %}
                 </div>
 
                 <div class="modal-action">
@@ -84,9 +85,7 @@
             wrapper.querySelectorAll('.django-select2').forEach(function (el) {
                 try {
                     var $el = $(el);
-                    if ($el.hasClass('select2-hidden-accessible')) {
-                        $el.select2('destroy');
-                    }
+                    try { $el.select2('destroy'); } catch (ignored) { /* aún no inicializado */ }
                     $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
                 } catch (err) {
                     console.error('No se pudo inicializar select2', err);

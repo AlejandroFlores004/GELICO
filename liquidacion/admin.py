@@ -1,54 +1,54 @@
 from django.contrib import admin
-from .models import Asignacion, Transferencia, Recibo, Observacion
+from .models import Asignacion, Recibo, Abono, Observacion
 
 
 @admin.register(Asignacion)
 class AsignacionAdmin(admin.ModelAdmin):
-    list_display = ('escuela', 'bono', 'valor','fecha')
-    list_filter = ('escuela', 'bono')
-    search_fields = ('escuela__nombre', 'escuela__nombre_corto', 'bono__nombre', 'fecha')
-    ordering = ('escuela__nombre',)
+    list_display = ('bono', 'escuela', 'valor')
+    list_filter = ('bono', 'escuela')
+    search_fields = ('bono__nombre', 'escuela__nombre', 'escuela__nombre_corto')
+    ordering = ('bono',)
     fieldsets = (
         ('Información básica', {
-            'fields': ('valor', 'escuela', 'bono', 'fecha')
-        }),
-    )
-
-
-@admin.register(Transferencia)
-class TransferenciaAdmin(admin.ModelAdmin):
-    list_display = ('fecha', 'asignacion', 'monto')
-    list_filter = ('fecha', 'asignacion')
-    search_fields = ('asignacion__escuela__nombre', 'asignacion__bono__nombre')
-    ordering = ('-fecha',)
-    fieldsets = (
-        ('Información básica', {
-            'fields': ('fecha', 'asignacion', 'monto')
+            'fields': ('bono', 'escuela', 'valor')
         }),
     )
 
 
 @admin.register(Recibo)
 class ReciboAdmin(admin.ModelAdmin):
-    list_display = ('fecha', 'transferencia', 'monto')
-    list_filter = ('fecha', 'transferencia')
-    search_fields = ('transferencia__asignacion__escuela__nombre', 'transferencia__asignacion__bono__nombre')
-    ordering = ('-fecha',)
+    list_display = ('asignacion', 'monto')
+    list_filter = ('asignacion__bono',)
+    search_fields = ('asignacion__bono__nombre',)
+    ordering = ('-id',)
     fieldsets = (
         ('Información básica', {
-            'fields': ('fecha', 'transferencia', 'monto')
+            'fields': ('asignacion', 'monto')
+        }),
+    )
+
+
+@admin.register(Abono)
+class AbonoAdmin(admin.ModelAdmin):
+    list_display = ('recibo', 'monto', 'requerimiento', 'estado')
+    list_filter = ('estado', 'recibo__asignacion__bono')
+    search_fields = ('requerimiento', 'recibo__asignacion__bono__nombre')
+    ordering = ('-id',)
+    fieldsets = (
+        ('Información básica', {
+            'fields': ('recibo', 'monto', 'requerimiento', 'estado')
         }),
     )
 
 
 @admin.register(Observacion)
 class ObservacionAdmin(admin.ModelAdmin):
-    list_display = ('fecha', 'recibo', 'resuelto')
-    list_filter = ('resuelto', 'fecha')
-    search_fields = ('comentario', 'recibo__transferencia__asignacion__escuela__nombre')
-    ordering = ('-fecha',)
+    list_display = ('recibo', 'resuelta', 'descripcion')
+    list_filter = ('resuelta', 'recibo__asignacion__bono')
+    search_fields = ('descripcion', 'recibo__asignacion__bono__nombre')
+    ordering = ('-id',)
     fieldsets = (
         ('Información básica', {
-            'fields': ('fecha', 'recibo', 'comentario', 'resuelto')
+            'fields': ('recibo', 'descripcion', 'resuelta')
         }),
     )

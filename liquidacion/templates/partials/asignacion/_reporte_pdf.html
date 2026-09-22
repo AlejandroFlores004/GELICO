@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <title>Reporte de asignaciones</title>
+    <style>
+        @page { size: letter landscape; margin: 1.5cm; }
+        body { font-family: sans-serif; color: #222; font-size: 11px; }
+        h1 { margin: 0 0 4px; font-size: 22px; }
+        p { color: #666; margin: 0 0 18px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #eeeeee; text-align: left; }
+        th, td { border: 1px solid #cccccc; padding: 8px; }
+    </style>
+</head>
+<body>
+    <h1>Asignaciones</h1>
+    <p>Reporte generado el {{ fecha_generacion|date:"d/m/Y" }}</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Escuela</th>
+                <th>Bono</th>
+                <th>Valor</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for asignacion in asignaciones %}
+            <tr>
+                <td>{{ asignacion.escuela.nombre_corto }}</td>
+                <td>{{ asignacion.bono.nombre }}</td>
+                <td>${{ asignacion.valor|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3">No existen registros.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

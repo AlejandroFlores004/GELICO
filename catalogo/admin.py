@@ -4,11 +4,11 @@ from .models import Bono
 
 @admin.register(Bono)
 class BonoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'descripcion')
-    search_fields = ('nombre', 'descripcion')
+    list_display = ('nombre', 'id_sistema', 'descripcion')
+    search_fields = ('nombre', 'descripcion', 'id_sistema')
     ordering = ('nombre',)
     fieldsets = (
         ('Información básica', {
-            'fields': ('nombre', 'descripcion')
+            'fields': ('nombre', 'id_sistema', 'descripcion')
         }),
     )

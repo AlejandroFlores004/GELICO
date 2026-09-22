@@ -1,0 +1,74 @@
+<div id="asignacion-modal-wrapper">
+    <dialog id="asignacion-modal" class="modal">
+        <div class="modal-box rounded-2xl border border-base-300 shadow-2xl max-w-2xl">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
+            </form>
+            <h3 class="font-bold text-lg">Abonos del recibo #{{ recibo.id }}</h3>
+            <p class="text-base-content/70 text-sm mt-1">
+                {{ recibo.asignacion.escuela.nombre_corto }} · {{ recibo.asignacion.bono.nombre }}
+            </p>
+
+            <div class="flex flex-wrap items-center gap-6 bg-base-200 rounded-lg p-4 mt-4">
+                <div class="text-right">
+                    <p class="text-[11px] uppercase tracking-wide text-base-content/50">Monto</p>
+                    <p class="font-bold">${{ recibo.monto|floatformat:2 }}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[11px] uppercase tracking-wide text-base-content/50">Abonado</p>
+                    <p class="font-semibold">${{ total_abonado|floatformat:2 }}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[11px] uppercase tracking-wide text-base-content/50">Pendiente</p>
+                    <p class="font-semibold {% if diferencia > 0 %}text-warning{% else %}text-success{% endif %}">
+                        ${{ diferencia|floatformat:2 }}
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-5">
+                {% if abonos %}
+                <div class="overflow-x-auto">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Monto</th>
+                                <th>Requerimiento</th>
+                                <th>Planilla parcial</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for abono in abonos %}
+                            <tr>
+                                <td class="font-semibold">${{ abono.monto|floatformat:2 }}</td>
+                                <td>{{ abono.requerimiento }}</td>
+                                <td>#{{ abono.id_planilla_parcial }}</td>
+                                <td><span class="badge badge-ghost badge-sm">{{ abono.estado }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-sm text-base-content/60 py-2">Este recibo no tiene abonos registrados.</p>
+                {% endif %}
+            </div>
+
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="document.getElementById('asignacion-modal').close()">Cerrar</button>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#asignacion-modal-wrapper');
+            var dialog = wrapper.querySelector('#asignacion-modal');
+            dialog.showModal();
+            dialog.addEventListener('close', function () { wrapper.innerHTML = ''; }, { once: true });
+        })();
+    </script>
+</div>
