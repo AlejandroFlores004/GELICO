@@ -25,13 +25,12 @@
                                 <div class="min-w-0">
                                     <p class="font-semibold truncate">{{ asignacion.escuela.nombre_corto }}</p>
                                     {% with encargado=asignacion.escuela.encargados_activos.0 %}
-                                    <p class="text-xs text-base-content/60 truncate">
-                                        {% if encargado %}
-                                            Encargado: {{ encargado.nombre }} {{ encargado.apellido }}
-                                        {% else %}
-                                            Sin encargado asignado
-                                        {% endif %}
-                                    </p>
+                                    {% if encargado %}
+                                    <p class="text-xs text-base-content/60 truncate">Encargado: {{ encargado.nombre }} {{ encargado.apellido }}</p>
+                                    <p class="text-xs text-base-content/50 truncate">{{ encargado.telefono }} · {{ encargado.email }}</p>
+                                    {% else %}
+                                    <p class="text-xs text-base-content/60 truncate">Sin encargado asignado</p>
+                                    {% endif %}
                                     {% endwith %}
                                 </div>
                             </div>
