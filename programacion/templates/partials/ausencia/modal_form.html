@@ -6,7 +6,16 @@
             <form hx-post="{% if instance %}{% url 'ausencia_editar' instance.pk %}{% else %}{% url 'ausencia_nueva' %}{% endif %}{% querystring %}" hx-target="#ausencia-modal-wrapper" hx-swap="outerHTML" class="space-y-4 mt-4">
                 {% csrf_token %}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="form-control w-full"><label class="label" for="{{ form.auxiliar.id_for_label }}"><span class="label-text font-medium">Auxiliar</span></label>{{ form.auxiliar }}{% if form.auxiliar.errors %}<span class="text-error text-xs mt-1">{{ form.auxiliar.errors.0 }}</span>{% endif %}</div>
+                    <div class="form-control w-full">
+                        <label class="label" for="{{ form.auxiliar.id_for_label }}"><span class="label-text font-medium">Auxiliar</span></label>
+                        {% if auxiliar_seleccionado %}
+                            <div class="input input-bordered w-full flex items-center bg-base-200/60">{{ auxiliar_seleccionado.nombre }} {{ auxiliar_seleccionado.apellido }}</div>
+                            {{ form.auxiliar }}
+                        {% else %}
+                            {{ form.auxiliar }}
+                        {% endif %}
+                        {% if form.auxiliar.errors %}<span class="text-error text-xs mt-1">{{ form.auxiliar.errors.0 }}</span>{% endif %}
+                    </div>
                     <div class="form-control w-full"><label class="label" for="{{ form.fecha.id_for_label }}"><span class="label-text font-medium">Fecha</span></label>{{ form.fecha }}{% if form.fecha.errors %}<span class="text-error text-xs mt-1">{{ form.fecha.errors.0 }}</span>{% endif %}</div>
                 </div>
                 <div class="form-control w-full"><label class="label" for="{{ form.motivo.id_for_label }}"><span class="label-text font-medium">Motivo</span></label>{{ form.motivo }}{% if form.motivo.errors %}<span class="text-error text-xs mt-1">{{ form.motivo.errors.0 }}</span>{% endif %}</div>
