@@ -30,15 +30,12 @@ def _cerrar_y_recargar(request, asignacion_pk):
 
 def _estado_liquidacion(recibos):
     """Calcula el estado de liquidación de una asignación según sus observaciones."""
-    if not recibos:
-        return 'sin_recibos'
-
     observaciones = [obs for recibo in recibos for obs in recibo.observacion_set.all()]
     if not observaciones:
-        return 'liquidado_sin_observaciones'
+        return 'pendiente_observacion'
     if all(obs.resuelta for obs in observaciones):
         return 'liquidado'
-    return 'no_liquidado'
+    return 'liquidado_con_observaciones'
 
 
 def _asignar_estado_liquidacion(asignaciones):
