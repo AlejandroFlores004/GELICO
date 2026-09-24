@@ -4,9 +4,8 @@ from escuela.models import Escuela
 
 ESTADO_LIQUIDACION_CHOICES = [
     ('liquidado', 'Liquidado'),
-    ('liquidado_sin_observaciones', 'Liquidado sin observaciones'),
-    ('no_liquidado', 'No liquidado con observaciones'),
-    ('sin_recibos', 'Sin recibos'),
+    ('liquidado_con_observaciones', 'Liquidado con observaciones'),
+    ('pendiente_observacion', 'Pendiente de observación'),
 ]
 
 # Create your models here.
