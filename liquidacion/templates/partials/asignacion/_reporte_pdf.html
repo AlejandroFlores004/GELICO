@@ -24,13 +24,13 @@
         .fila-sub td { border: none; padding: 0; }
 
         /* Etiquetas tipo "COMPONENTE: valor" */
-        .campo { margin: 3px 0; font-size: 11px; }
-        .campo b { text-transform: uppercase; }
         .componente { margin-top: 8px; font-size: 11px; }
-        .sangria-1 { margin-left: 1.4cm; }
-        .sangria-2 { margin-left: 0.9cm; }
-        .sangria-3 { margin-left: 1.2cm; }
-        .seccion { margin-top: 14px; }
+        .seccion { margin-top: 16px; }
+
+        /* Bloque de campos alineados por los dos puntos */
+        table.campos { border-collapse: collapse; margin: 14px 0 10px; font-size: 11px; }
+        table.campos td { border: none; padding: 2px 0; vertical-align: top; }
+        table.campos td.etiqueta { width: 4.4cm; text-align: right; font-weight: bold; text-transform: uppercase; padding-right: 8px; white-space: nowrap; }
 
         /* Tablas */
         table.datos { width: 100%; border-collapse: collapse; margin-top: 4px; }
@@ -72,12 +72,11 @@
     <div class="componente"><b>COMPONENTE:</b> {{ instance.bono.nombre|upper }}</div>
 
     {# ---------- Datos de la escuela ---------- #}
-    <div class="seccion">
-        <div class="campo sangria-1"><b>Código:</b> {{ escuela.codigo }}</div>
-        <div class="campo sangria-2"><b>Entidad educativa:</b> {{ escuela.nombre|upper }}</div>
-        <div class="campo sangria-3"><b>Nombre corto:</b> {{ escuela.nombre_corto|upper }}</div>
-        <div class="campo sangria-3"><b>Estado:</b> {% if escuela.estado %}ACTIVA{% else %}INACTIVA{% endif %}</div>
-    </div>
+    <table class="campos">
+        <tr><td class="etiqueta">Código:</td><td>{{ escuela.codigo }}</td></tr>
+        <tr><td class="etiqueta">Entidad educativa:</td><td>{{ escuela.nombre|upper }}</td></tr>
+        <tr><td class="etiqueta">Estado:</td><td>{% if escuela.estado %}ACTIVA{% else %}INACTIVA{% endif %}</td></tr>
+    </table>
 
     <table class="datos">
         <thead>
@@ -122,10 +121,10 @@
     </table>
 
     {# ---------- Asignación ---------- #}
-    <div class="seccion">
-        <div class="campo sangria-1"><b>Bono:</b> {{ instance.bono.nombre|upper }}</div>
-        <div class="campo sangria-3"><b>Estado:</b> {{ estado_etiqueta }}</div>
-    </div>
+    <table class="campos" style="margin-top: 18px;">
+        <tr><td class="etiqueta">Bono:</td><td>{{ instance.bono.nombre|upper }}</td></tr>
+        <tr><td class="etiqueta">Estado:</td><td>{{ estado_etiqueta|upper }}</td></tr>
+    </table>
 
     <table class="datos">
         <thead>
@@ -147,9 +146,9 @@
     </table>
 
     {# ---------- Recibos ---------- #}
-    <div class="seccion">
-        <div class="campo sangria-1"><b>Recibos</b></div>
-    </div>
+    <table class="campos" style="margin-top: 18px;">
+        <tr><td class="etiqueta">Recibos:</td><td>{{ recibos|length }}</td></tr>
+    </table>
 
     {% for recibo in recibos %}
     <div class="bloque">
@@ -158,8 +157,8 @@
                 <tr>
                     <th style="width: 9%;">Nº</th>
                     <th>Observación</th>
-                    <th style="width: 15%;">Monto($)</th>
-                    <th style="width: 22%;">Estado</th>
+                    <th style="width: 13%;">Monto($)</th>
+                    <th style="width: 27%;">Estado</th>
                 </tr>
             </thead>
             <tbody>
