@@ -4,11 +4,11 @@ from . import views
 urlpatterns = [
     path('asignacion/', views.asignacionHomeView, name='home_asignaciones'),
     path('asignacion/buscar/', views.buscar_asignaciones, name='buscar_asignaciones'),
-    path('asignacion/imprimir/', views.asignacion_imprimir, name='asignacion_imprimir'),
     path('asignacion/nueva/', views.asignacion_form, name='asignacion_nueva'),
     path('asignacion/<int:pk>/editar/', views.asignacion_form, name='asignacion_editar'),
     path('asignacion/<int:pk>/eliminar/', views.asignacion_eliminar, name='asignacion_eliminar'),
     path('asignacion/<int:pk>/detalle/', views.asignacion_detalle, name='asignacion_detalle'),
+    path('asignacion/<int:pk>/imprimir/', views.asignacion_imprimir, name='asignacion_imprimir'),
     path('asignacion/<int:pk>/gestionar/', views.asignacion_gestionar, name='asignacion_gestionar'),
     path('recibo/<int:pk>/abonos/', views.recibo_abonos, name='recibo_abonos'),
     path('asignacion/<int:asignacion_pk>/recibo/nuevo/', views.recibo_nuevo, name='recibo_nuevo'),

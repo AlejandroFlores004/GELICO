@@ -29,6 +29,11 @@ class Recibo(models.Model):
     def __str__(self):
         return f"Recibo: {self.asignacion.bono.nombre} - {self.monto}"
 
+    @property
+    def numero(self):
+        """Número correlativo del recibo dentro de su asignación (1, 2, 3...)."""
+        return Recibo.objects.filter(asignacion_id=self.asignacion_id, id__lte=self.id).count()
+
     class Meta:
         verbose_name = "Recibo"
         verbose_name_plural = "Recibos"

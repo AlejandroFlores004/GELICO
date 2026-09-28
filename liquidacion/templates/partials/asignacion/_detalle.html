@@ -4,7 +4,7 @@
         {% for recibo in recibos %}
         <div class="rounded-lg border border-base-300 overflow-hidden">
             <div class="flex flex-wrap items-center justify-between gap-3 bg-base-200/60 px-4 py-2.5">
-                <span class="text-sm font-semibold">Recibo #{{ recibo.id }}</span>
+                <span class="text-sm font-semibold">Recibo #{{ forloop.counter }}</span>
                 <div class="flex flex-wrap items-center gap-4">
                     <div class="text-right">
                         <p class="text-[10px] uppercase tracking-wide text-base-content/50">Monto</p>
