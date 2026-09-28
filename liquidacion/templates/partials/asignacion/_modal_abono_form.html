@@ -8,7 +8,7 @@
             <h3 class="font-bold text-xl">
                 {% if instance %}Editar Abono{% else %}Agregar Abono{% endif %}
             </h3>
-            <p class="text-sm text-base-content/60 mt-1">Recibo #{{ recibo.id }} · ${{ recibo.monto|floatformat:2 }}</p>
+            <p class="text-sm text-base-content/60 mt-1">Recibo #{{ recibo.numero }} · ${{ recibo.monto|floatformat:2 }}</p>
 
             <form
                 hx-post="{% if instance %}{% url 'abono_editar' instance.pk %}{% else %}{% url 'abono_nuevo' recibo.pk %}{% endif %}"

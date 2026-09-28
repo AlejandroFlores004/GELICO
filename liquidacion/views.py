@@ -14,9 +14,9 @@ from django_htmx.http import HttpResponseClientRedirect
 from weasyprint import HTML
 
 from catalogo.models import Bono
-from escuela.models import Encargado, Escuela
+from escuela.models import CDE, Encargado, Escuela
 from .forms import AbonoForm, AsignacionForm, AsignacionValorForm, FiltrarAsignacionesForm, ObservacionForm, ReciboForm
-from .models import Abono, Asignacion, Observacion, Recibo
+from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Observacion, Recibo
 from .utils import a_decimal, a_entero, a_texto_codigo, indice_columna, indices_columna, leer_filas_excel
 
 
@@ -172,19 +172,55 @@ def asignacion_eliminar(request, pk):
     )
 
 
-def asignacion_imprimir(request):
-    _, asignaciones = _asignaciones_filtradas(request)
+def asignacion_imprimir(request, pk):
+    instance = get_object_or_404(
+        Asignacion.objects.select_related('escuela__distrito', 'bono').prefetch_related(
+            Prefetch(
+                'escuela__encargado_set',
+                queryset=Encargado.objects.filter(estado=True).order_by('apellido', 'nombre'),
+                to_attr='encargados_activos',
+            ),
+            Prefetch(
+                'escuela__cde_set',
+                queryset=CDE.objects.filter(estado=True).order_by('-FechaInicio'),
+                to_attr='cdes_activos',
+            ),
+        ),
+        pk=pk,
+    )
+    recibos = list(instance.recibo_set.order_by('id').prefetch_related('observacion_set'))
+
+    etiquetas_estado = dict(ESTADO_LIQUIDACION_CHOICES)
+    total_recibido = Decimal('0')
+    for recibo in recibos:
+        recibo.observaciones_lista = list(recibo.observacion_set.all())
+        recibo.estado_liquidacion = _estado_liquidacion([recibo])
+        recibo.estado_etiqueta = etiquetas_estado[recibo.estado_liquidacion]
+        total_recibido += recibo.monto
+
+    estado_liquidacion = _estado_liquidacion(recibos)
+
     html_string = render_to_string(
         "partials/asignacion/_reporte_pdf.html",
-        {"asignaciones": asignaciones, "fecha_generacion": timezone.localdate()},
+        {
+            "instance": instance,
+            "escuela": instance.escuela,
+            "recibos": recibos,
+            "total_recibido": total_recibido,
+            "diferencia": instance.valor - total_recibido,
+            "estado_liquidacion": estado_liquidacion,
+            "estado_etiqueta": etiquetas_estado[estado_liquidacion],
+            "fecha_generacion": timezone.localdate(),
+        },
     )
     pdf = HTML(
         string=html_string,
         base_url=request.build_absolute_uri("/"),
     ).write_pdf()
 
+    nombre_archivo = f"asignacion_{instance.escuela.codigo}_{instance.pk}.pdf"
     response = HttpResponse(pdf, content_type="application/pdf")
-    response["Content-Disposition"] = 'inline; filename="asignaciones.pdf"'
+    response["Content-Disposition"] = f'inline; filename="{nombre_archivo}"'
     return response
 
 
