@@ -14,10 +14,11 @@ from django.views.decorators.http import require_POST
 from django_htmx.http import HttpResponseClientRedirect
 from weasyprint import HTML
 
-from escuela.models import Encargado, Escuela
-from .forms import AbonoForm, AsignacionForm, AsignacionValorForm, BonoForm, FiltrarAsignacionesForm, ObservacionForm, ReciboForm
-from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Bono, Observacion, Recibo
-from .utils import a_decimal, a_entero, a_texto_codigo, extraer_anio, indice_columna, indices_columna, leer_filas_excel
+from catalogo.models import Bono
+from escuela.models import CDE, Encargado, Escuela
+from .forms import AbonoForm, AsignacionForm, AsignacionValorForm, FiltrarAsignacionesForm, ObservacionForm, ReciboForm
+from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Observacion, Recibo
+from .utils import a_decimal, a_entero, a_texto_codigo, indice_columna, indices_columna, leer_filas_excel
 
 
 def _cerrar_y_recargar(request, asignacion_pk):
@@ -191,6 +192,11 @@ def asignacion_imprimir(request, pk):
                 queryset=Encargado.objects.filter(estado=True).order_by('apellido', 'nombre'),
                 to_attr='encargados_activos',
             ),
+            Prefetch(
+                'escuela__cde_set',
+                queryset=CDE.objects.filter(estado=True).order_by('-FechaInicio'),
+                to_attr='cdes_activos',
+            ),
         ),
         pk=pk,
     )
@@ -206,8 +212,6 @@ def asignacion_imprimir(request, pk):
 
     estado_liquidacion = _estado_liquidacion(recibos)
 
-    nombre_reporte = f"{instance.escuela.codigo}_{slugify(instance.bono.nombre)}"
-
     html_string = render_to_string(
         "partials/asignacion/_reporte_pdf.html",
         {
@@ -219,8 +223,6 @@ def asignacion_imprimir(request, pk):
             "estado_liquidacion": estado_liquidacion,
             "estado_etiqueta": etiquetas_estado[estado_liquidacion],
             "fecha_generacion": timezone.localdate(),
-            "fecha_impresion": timezone.localtime(),
-            "nombre_reporte": nombre_reporte,
         },
     )
     pdf = HTML(
@@ -228,7 +230,7 @@ def asignacion_imprimir(request, pk):
         base_url=request.build_absolute_uri("/"),
     ).write_pdf()
 
-    nombre_archivo = f"{nombre_reporte}.pdf"
+    nombre_archivo = f"asignacion_{instance.escuela.codigo}_{instance.pk}.pdf"
     response = HttpResponse(pdf, content_type="application/pdf")
     response["Content-Disposition"] = f'inline; filename="{nombre_archivo}"'
     return response
