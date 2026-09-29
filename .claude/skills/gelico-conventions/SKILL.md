@@ -79,6 +79,12 @@ usuario; no los diseñes, completes ni "corrijas" por iniciativa propia.
 
 ## Frontend — Tailwind v4 + daisyUI + HTMX
 
+- El tema daisyUI del proyecto es un tema propio llamado `gelico` (definido
+  en `theme/static_src/src/styles.css`, `data-theme="gelico"` en
+  `base.html`/`login.html`), no los temas por defecto de daisyUI. Colores,
+  radios, tipografía y uso del logo están documentados en el skill
+  `gelico-brand` — cárgalo si vas a tocar `styles.css`, agregar un color
+  nuevo, o usar el logo en un template.
 - Cualquier clase Tailwind/daisyUI nueva que uses en un `.html`/`.py`/`.js`
   ya es detectada por el `@source` glob de `styles.css`; no hace falta
   tocar config para que se genere.
