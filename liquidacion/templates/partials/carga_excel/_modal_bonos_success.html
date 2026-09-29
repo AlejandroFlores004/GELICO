@@ -1,0 +1,38 @@
+<div id="bonos-modal-wrapper">
+    <dialog id="bonos-modal" class="modal">
+        <div class="modal-box max-w-lg rounded-2xl border border-base-300 shadow-2xl text-center">
+            <div class="flex flex-col items-center gap-3 py-4">
+                <div class="bg-success/10 text-success rounded-full p-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-8 h-8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                </div>
+                <h3 class="font-bold text-xl">Carga completada</h3>
+                <p class="text-base-content/70">
+                    Se agregaron <span class="font-semibold text-base-content">{{ creados }}</span> bono{{ creados|pluralize }} nuevo{{ creados|pluralize }} al catálogo.
+                    {% if omitidos %}
+                        <br>Se omitieron {{ omitidos }} por ya existir.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="modal-action justify-center">
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('bonos-modal').close()">Listo</button>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#bonos-modal-wrapper');
+            var dialog = wrapper.querySelector('#bonos-modal');
+            dialog.showModal();
+
+            dialog.addEventListener('close', function () {
+                wrapper.innerHTML = '';
+            }, { once: true });
+        })();
+    </script>
+</div>

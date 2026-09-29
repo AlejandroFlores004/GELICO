@@ -5,8 +5,8 @@ from django.template.loader import render_to_string
 from django.utils.dateparse import parse_date
 from weasyprint import HTML
 
-from .forms import AuxiliarForm, ConvocatoriaForm
-from .models import Auxiliar, Convocatoria
+from .forms import AuxiliarForm, AusenciaForm, ConvocatoriaForm
+from .models import Auxiliar, Ausencia, Convocatoria
 
 
 def _auxiliares_filtrados(request):
@@ -113,6 +113,73 @@ def auxiliar_imprimir(request):
 
     response = HttpResponse(pdf, content_type="application/pdf")
     response["Content-Disposition"] = 'inline; filename="auxiliares.pdf"'
+    return response
+
+
+def _ausencias_filtradas(request, paginar=True):
+    search = request.GET.get("q", "").strip()
+    fecha = request.GET.get("fecha", "").strip()
+    ausencias = Ausencia.objects.select_related('auxiliar').order_by('-fecha', 'auxiliar__apellido', 'auxiliar__nombre')
+    if search:
+        ausencias = ausencias.filter(
+            auxiliar__nombre__icontains=search
+        ) | ausencias.filter(
+            auxiliar__apellido__icontains=search
+        ) | ausencias.filter(
+            motivo__icontains=search
+        )
+    if fecha_date := parse_date(fecha):
+        ausencias = ausencias.filter(fecha=fecha_date)
+
+    if paginar:
+        paginator = Paginator(ausencias, 20)
+        ausencias = paginator.get_page(request.GET.get('page'))
+    return search, fecha, ausencias
+
+
+def ausenciaHomeView(request):
+    search, fecha, ausencias = _ausencias_filtradas(request)
+    return render(request, "ausencia/ausenciaHome.html", {
+        "ausencias": ausencias,
+        "search": search,
+        "fecha": fecha,
+        "form_media": AusenciaForm().media,
+    })
+
+
+def buscar_ausencias(request):
+    _, _, ausencias = _ausencias_filtradas(request)
+    return render(request, "partials/ausencia/tabla.html", {"ausencias": ausencias})
+
+
+def ausencia_form(request, pk=None):
+    instance = get_object_or_404(Ausencia, pk=pk) if pk else None
+    if request.method == "POST":
+        form = AusenciaForm(request.POST, instance=instance)
+        if form.is_valid():
+            form.save()
+            _, _, ausencias = _ausencias_filtradas(request)
+            return render(request, "partials/ausencia/modal_form_success.html", {"ausencias": ausencias})
+    else:
+        form = AusenciaForm(instance=instance)
+    return render(request, "partials/ausencia/modal_form.html", {"form": form, "instance": instance})
+
+
+def ausencia_eliminar(request, pk):
+    instance = get_object_or_404(Ausencia, pk=pk)
+    if request.method == "POST":
+        instance.delete()
+        _, _, ausencias = _ausencias_filtradas(request)
+        return render(request, "partials/ausencia/modal_form_success.html", {"ausencias": ausencias})
+    return render(request, "partials/ausencia/modal_delete.html", {"instance": instance})
+
+
+def ausencia_imprimir(request):
+    _, _, ausencias = _ausencias_filtradas(request, paginar=False)
+    html_string = render_to_string("partials/ausencia/reporte_pdf.html", {"ausencias": ausencias})
+    pdf = HTML(string=html_string, base_url=request.build_absolute_uri("/")).write_pdf()
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = 'inline; filename="ausencias.pdf"'
     return response
 
 

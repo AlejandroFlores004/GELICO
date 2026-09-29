@@ -1,0 +1,220 @@
+{% load liquidacion_extras %}{% load static %}<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <title>{{ nombre_reporte }}</title>
+    <style>
+        @page {
+            size: letter;
+            margin: 1.2cm 1.3cm 1.5cm;
+            @bottom-left { content: "Impreso el {{ fecha_impresion|date:'d/m/Y' }} a las {{ fecha_impresion|date:'h:i A' }}"; font-family: Arial, Helvetica, sans-serif; font-size: 7px; color: #555; }
+            @bottom-right { content: "Página " counter(page) " de " counter(pages); font-family: Arial, Helvetica, sans-serif; font-size: 8px; }
+        }
+        body { font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 10.5px; margin: 0; }
+
+        /* Encabezado */
+        .encabezado { width: 100%; border-collapse: collapse; }
+        .encabezado td { border: none; padding: 0; vertical-align: top; }
+        .logo { width: 2.2cm; height: 2cm; text-align: center; }
+        .logo img { max-width: 100%; max-height: 100%; }
+        .titulos { text-align: center; }
+        .titulos .t1 { font-size: 15px; font-weight: bold; }
+        .titulos .t2 { font-size: 14px; font-weight: bold; margin-top: 2px; }
+        .titulos .t3 { font-size: 13px; font-weight: bold; margin-top: 2px; }
+        .fila-sub { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 11px; }
+        .fila-sub td { border: none; padding: 0; }
+
+        /* Etiquetas tipo "COMPONENTE: valor" */
+        .componente { margin-top: 8px; font-size: 11px; }
+        .seccion { margin-top: 16px; }
+
+        /* Bloque de campos alineados por los dos puntos */
+        table.campos { border-collapse: collapse; margin: 14px 0 10px; font-size: 11px; }
+        table.campos td { border: none; padding: 2px 0; vertical-align: top; }
+        table.campos td.etiqueta { width: 4.4cm; text-align: right; font-weight: bold; text-transform: uppercase; padding-right: 8px; white-space: nowrap; }
+
+        /* Tablas */
+        table.datos { width: 100%; border-collapse: collapse; margin-top: 4px; }
+        table.datos th, table.datos td { border: 1px solid #000; padding: 3px 5px; vertical-align: top; }
+        table.datos th { font-weight: bold; text-align: center; }
+        table.datos th.izq { text-align: left; }
+        .num { text-align: right; white-space: nowrap; }
+        .centro { text-align: center; }
+        .fila-recibo td { font-weight: bold; background: #f2f2f2; }
+        .vacio { font-style: italic; color: #444; }
+
+        /* Recuadros de subtotal */
+        table.subtotal { width: 100%; border-collapse: collapse; border: 1.5px solid #000; border-top: none; }
+        table.subtotal td { padding: 4px 6px; font-weight: bold; }
+        table.subtotal.aparte { border-top: 1.5px solid #000; margin-top: 0; }
+        .bloque { page-break-inside: avoid; margin-top: 6px; }
+    </style>
+</head>
+<body>
+    <table class="encabezado">
+        <tr>
+            <td style="width: 2.6cm;"><div class="logo"><img src="{% static 'instituciones/ministerio-educacion-sello.png' %}" alt="Ministerio de Educación"></div></td>
+            <td class="titulos">
+                <div class="t1">MINISTERIO DE EDUCACION</div>
+                <div class="t2">GELICO - GESTIÓN DE LIQUIDACIONES Y CONVOCATORIAS</div>
+                <div class="t3">Reporte de liquidación por asignación</div>
+            </td>
+            <td style="width: 2.6cm;"></td>
+        </tr>
+    </table>
+    <table class="fila-sub">
+        <tr>
+            <td style="width: 2.6cm;"></td>
+            <td><b>Distrito:</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{ escuela.distrito.nombre|upper }}</td>
+            <td style="text-align: right;">{{ fecha_generacion|date:"d/m/Y" }}</td>
+        </tr>
+    </table>
+
+    <div class="componente"><b>COMPONENTE:</b> {{ instance.bono.nombre|upper }}</div>
+
+    {# ---------- Datos de la escuela ---------- #}
+    <table class="campos">
+        <tr><td class="etiqueta">Código:</td><td>{{ escuela.codigo }}</td></tr>
+        <tr><td class="etiqueta">Entidad educativa:</td><td>{{ escuela.nombre|upper }}</td></tr>
+        <tr><td class="etiqueta">Estado:</td><td>{% if escuela.estado %}ACTIVA{% else %}INACTIVA{% endif %}</td></tr>
+    </table>
+
+    <table class="datos">
+        <thead>
+            <tr>
+                <th class="izq" style="width: 34%;">Encargado</th>
+                <th style="width: 18%;">Teléfono</th>
+                <th>Correo electrónico</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for encargado in escuela.encargados_activos %}
+            <tr>
+                <td>{{ encargado.nombre|upper }} {{ encargado.apellido|upper }}</td>
+                <td class="centro">{{ encargado.telefono }}</td>
+                <td>{{ encargado.email }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="vacio">Sin encargado asignado</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <table class="datos" style="margin-top: 8px;">
+        <thead>
+            <tr>
+                <th class="izq">Modalidad</th>
+                <th style="width: 24%;">Fecha inicio</th>
+                <th style="width: 24%;">Fecha fin</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cde in escuela.cdes_activos %}
+            <tr>
+                <td>CDE</td>
+                <td class="centro">{{ cde.FechaInicio|date:"d/m/Y" }}</td>
+                <td class="centro">{{ cde.FechaFin|date:"d/m/Y" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="vacio">Sin CDE activo</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {# ---------- Asignación ---------- #}
+    <table class="campos" style="margin-top: 18px;">
+        <tr><td class="etiqueta">Bono:</td><td>{{ instance.bono.nombre|upper }}</td></tr>
+        <tr><td class="etiqueta">Estado:</td><td>{{ estado_etiqueta|upper }}</td></tr>
+    </table>
+
+    <table class="datos">
+        <thead>
+            <tr>
+                <th>Monto asignado($)</th>
+                <th>Monto recibido($)</th>
+                <th>Monto pendiente($)</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="num">{{ instance.valor|moneda }}</td>
+                <td class="num">{{ total_recibido|moneda }}</td>
+                <td class="num">{{ diferencia|moneda }}</td>
+                <td class="centro">{{ estado_etiqueta }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    {# ---------- Recibos ---------- #}
+    <table class="campos" style="margin-top: 18px;">
+        <tr><td class="etiqueta">Recibos:</td><td>{{ recibos|length }}</td></tr>
+    </table>
+
+    {% for recibo in recibos %}
+    <div class="bloque">
+        <table class="datos">
+            <thead>
+                <tr>
+                    <th style="width: 9%;">Nº</th>
+                    <th>Observación</th>
+                    <th style="width: 13%;">Monto($)</th>
+                    <th style="width: 27%;">Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="fila-recibo">
+                    <td class="centro">{{ forloop.counter }}</td>
+                    <td>RECIBO #{{ forloop.counter }}</td>
+                    <td class="num">{{ recibo.monto|moneda }}</td>
+                    <td class="centro">{{ recibo.estado_etiqueta }}</td>
+                </tr>
+                {% for observacion in recibo.observaciones_lista %}
+                <tr>
+                    <td class="centro">{{ forloop.parentloop.counter }}.{{ forloop.counter }}</td>
+                    <td>{{ observacion.descripcion|linebreaksbr }}</td>
+                    <td></td>
+                    <td class="centro">{% if observacion.resuelta %}Resuelta{% else %}Pendiente{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td></td><td class="vacio" colspan="3">Sin observaciones</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <table class="subtotal">
+            <tr>
+                <td style="width: 30%;">Nº Observaciones:&nbsp;&nbsp;&nbsp;{{ recibo.observaciones_lista|length }}</td>
+                <td style="text-align: right;">Sub total Recibo #{{ forloop.counter }}:</td>
+                <td class="num" style="width: 18%;">{{ recibo.monto|moneda }}</td>
+            </tr>
+        </table>
+    </div>
+    {% empty %}
+    <p class="vacio">Esta asignación no tiene recibos.</p>
+    {% endfor %}
+
+    <div class="bloque" style="margin-top: 10px;">
+        <table class="subtotal aparte">
+            <tr>
+                <td style="width: 30%;">Nº Recibos:&nbsp;&nbsp;&nbsp;{{ recibos|length }}</td>
+                <td style="text-align: right;">Total recibido:</td>
+                <td class="num" style="width: 18%;">{{ total_recibido|moneda }}</td>
+            </tr>
+        </table>
+        <table class="subtotal">
+            <tr>
+                <td style="width: 30%;"></td>
+                <td style="text-align: right;">Monto asignado:</td>
+                <td class="num" style="width: 18%;">{{ instance.valor|moneda }}</td>
+            </tr>
+        </table>
+        <table class="subtotal">
+            <tr>
+                <td style="width: 30%;"></td>
+                <td style="text-align: right;">Pendiente:</td>
+                <td class="num" style="width: 18%;">{{ diferencia|moneda }}</td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>

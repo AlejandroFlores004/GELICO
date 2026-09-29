@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}
+    CDE
+{% endblock %}
+
+{% block extra_head %}
+    {{ form_media }}
+{% endblock %}
+
+{% block content %}
+<main class="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
+    <div class="flex items-center gap-4">
+        <div class="bg-primary text-primary-content rounded-2xl p-4 shadow-md shadow-primary/20">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-8 h-8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3.75h10.5a2.25 2.25 0 012.25 2.25v12a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 18v-12a2.25 2.25 0 012.25-2.25zm1.5 5.25h7.5m-7.5 4.5h7.5m-4.5-9v10" />
+            </svg>
+        </div>
+        <div>
+            <h1 class="text-4xl font-bold">
+                CDE
+            </h1>
+            <p class="text-base-content/70">
+                Gestiona los periodos de CDE por escuela.
+            </p>
+        </div>
+    </div>
+
+    {% include "partials/cde/toolbar.html" %}
+
+    <div id="cde-modal-wrapper"></div>
+
+    {% include "partials/cde/buscador.html" %}
+
+    {% include "partials/cde/tabla.html" %}
+
+</main>
+{% endblock %}

@@ -1,15 +1,29 @@
 {% load tailwind_tags %}
 {% load static %}
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="es" data-theme="gelico">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script>
+      (function () {
+        try {
+          if (localStorage.getItem('gelico-sidebar-collapsed') === '1') {
+            document.documentElement.classList.add('sidebar-collapsed');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <title>{% block title %}GELICO{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     {% tailwind_css %}
-    <link rel="icon" type="image/svg+xml" href="{% static 'logo.svg' %}">
+    <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}">
+    <link rel="alternate icon" href="{% static 'favicon.ico' %}">
+    <link rel="apple-touch-icon" href="{% static 'brand/apple-touch-icon.png' %}">
+    <meta name="theme-color" content="#111E60">
     <script src="{% static 'admin/js/vendor/jquery/jquery.js' %}"></script>
-    <script src="{% static 'js/imask.min.js' %}"></script>
 
     {% block extra_head %}{% endblock %}
     <link rel="stylesheet" href="{% static 'css/select2-daisy.css' %}">
@@ -37,29 +51,59 @@
     <div class="drawer-content flex flex-col min-h-screen">
 
       <!-- Navbar -->
-      <nav class="navbar w-full bg-base-100 shadow-md">
-        <div class="flex-1 flex items-center">
+      <nav class="navbar sticky top-0 z-10 h-20 w-full gap-3 border-b border-base-300 bg-base-100/90 px-4 backdrop-blur lg:px-8">
+        <div class="flex flex-1 items-center gap-3">
           <label for="main-drawer" aria-label="open sidebar" class="btn btn-square btn-ghost lg:hidden">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
-                stroke-width="2" fill="none" stroke="currentColor" class="my-1.5 inline-block size-4">
-              <path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"></path>
-              <path d="M9 4v16"></path>
-              <path d="M14 10l2 2l-2 2"></path>
+                stroke-width="2" fill="none" stroke="currentColor" class="size-6">
+              <path d="M4 6h16M4 12h16M4 18h16"></path>
             </svg>
           </label>
-          <div class="px-4 font-bold"><a href="{% url 'home' %}">GELICO</a></div>
+          <a href="{% url 'home' %}" class="flex items-center gap-2 lg:hidden">
+            <img src="{% static 'brand/gelico-mark-primary.svg' %}" alt="" class="size-8"/>
+            <span class="text-xl font-extrabold tracking-tight text-primary">GELICO</span>
+          </a>
         </div>
-        <div class="flex-none flex items-center gap-2 px-4">
-          <span class="text-sm text-base-content/60">{{ request.user.username }}</span>
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('modal_logout').showModal()">
-            Cerrar Sesión
-          </button>
+
+        <div class="flex flex-none items-center">
+          <div class="dropdown dropdown-end">
+            <button type="button" tabindex="0" class="flex items-center gap-2.5 rounded-full py-1.5 pl-1.5 pr-2.5 transition-colors hover:bg-base-200">
+              <div class="avatar avatar-placeholder">
+                <div class="w-9 rounded-full bg-primary text-primary-content ring-2 ring-primary/15">
+                  <span class="text-sm font-semibold">{{ request.user.username|first|upper }}</span>
+                </div>
+              </div>
+              <div class="hidden leading-tight sm:block">
+                <p class="text-sm font-semibold">{{ request.user.get_full_name|default:request.user.username }}</p>
+                <p class="text-xs text-base-content/60">{{ request.user.username }}</p>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
+                  stroke-width="2" fill="none" stroke="currentColor" class="hidden size-4 shrink-0 text-base-content/40 sm:block">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <ul tabindex="0" class="dropdown-content menu z-30 mt-2 w-60 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg">
+              <li class="menu-title px-2.5 pt-1">
+                <span class="truncate">{{ request.user.get_full_name|default:request.user.username }}</span>
+              </li>
+              <li class="px-2.5 pb-2 -mt-1 text-xs text-base-content/60 truncate">{{ request.user.email|default:request.user.username }}</li>
+              <div class="divider my-0"></div>
+              <li>
+                <button type="button" class="text-error" onclick="document.getElementById('modal_logout').showModal()">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
+                      stroke-width="2" fill="none" stroke="currentColor" class="size-4">
+                    <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                  </svg>
+                  Cerrar sesión
+                </button>
+              </li>
+            </ul>
+          </div>
         </div>
       </nav>
 
-      
       <!-- Page content -->
-      <div class="p-4">
+      <div class="p-4 lg:p-6">
         {% include "partials/base/_breadcrumbs.html" %}
         {% block content %}{% endblock %}
       </div>

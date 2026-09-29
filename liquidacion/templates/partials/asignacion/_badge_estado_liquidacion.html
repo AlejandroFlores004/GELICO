@@ -1,0 +1,7 @@
+{% if estado == 'liquidado' %}
+<span class="badge badge-success gap-1">Liquidado</span>
+{% elif estado == 'liquidado_con_observaciones' %}
+<span class="badge badge-warning gap-1">Liquidado con observaciones</span>
+{% elif estado == 'pendiente_observacion' %}
+<span class="badge badge-ghost gap-1">Pendiente de observación</span>
+{% endif %}

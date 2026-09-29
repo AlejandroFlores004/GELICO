@@ -1,5 +1,7 @@
 @import "tailwindcss";
-@plugin "daisyui";
+@plugin "daisyui" {
+  themes: gelico --default;
+}
 
 /**
   * A catch-all path to Django template files, JavaScript, and Python files
@@ -9,3 +11,230 @@
   * the scope of this path.
   */
 @source "../../../**/*.{html,py,js}";
+
+/*
+ * Identidad visual GELICO — tema daisyUI "gelico".
+ * Paleta y radios documentados en la skill `gelico-brand`.
+ * Cambios aquí son la única fuente de verdad: no hardcodear colores/hex
+ * sueltos en templates, usa siempre las clases semánticas de daisyUI
+ * (btn-primary, badge-accent, bg-base-200, text-base-content/70, etc.).
+ */
+@plugin "daisyui/theme" {
+  name: "gelico";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  /* Superficies — grises con tinte azul-marino (misma familia que el
+     primario) en vez de grises neutros o blanco puro. base-300 se separó
+     más de base-200 a propósito: con menos diferencia los bordes quedaban
+     invisibles ("blanco sobre blanco"). */
+  --color-base-100: #FFFFFF;
+  --color-base-200: #EEF0F6;
+  --color-base-300: #D6DAE6;
+  --color-base-content: #161B2C;
+
+  /* Primario — navy institucional (color de marca/logo, fijo: no cambiar
+     sin actualizar también main/static/brand/*.svg y favicon.svg). Acciones
+     principales, enlaces, estado activo del sidebar. */
+  --color-primary: #111E60;
+  --color-primary-content: #FFFFFF;
+
+  /* Secundario y neutral son tonos más claros/oscuros del MISMO azul que el
+     primario (no un color nuevo) — así ninguna combinación choca entre sí. */
+  --color-secondary: #35437A;
+  --color-secondary-content: #FFFFFF;
+
+  /* Acento — dorado apagado, el complemento clásico del azul marino en
+     identidades institucionales/académicas. Uso puntual: destacar, badges
+     "Pronto". Es un dorado envejecido a propósito (no ámbar brillante) para
+     que no choque con el navy. No usar como color de botón por defecto. */
+  --color-accent: #8A6D3B;
+  --color-accent-content: #FFFFFF;
+
+  --color-neutral: #232A42;
+  --color-neutral-content: #FFFFFF;
+
+  /* Semánticos — versiones apagadas (no saturadas) de azul/verde/naranja/rojo
+     para que combinen con el resto de la paleta en vez de verse "de otro
+     sistema" cuando aparecen junto al navy y al dorado. */
+  --color-info: #2B5FA8;
+  --color-info-content: #FFFFFF;
+  --color-success: #2F7D52;
+  --color-success-content: #FFFFFF;
+  --color-warning: #A85D22;
+  --color-warning-content: #FFFFFF;
+  --color-error: #B3413A;
+  --color-error-content: #FFFFFF;
+
+  /* Radios — esquinas suaves y consistentes en cards/modales, campos/botones
+     y elementos pequeños (checkbox, badge, toggle). */
+  --radius-box: 0.75rem;
+  --radius-field: 0.5rem;
+  --radius-selector: 0.5rem;
+
+  --size-field: 0.25rem;
+  --size-selector: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+  }
+}
+
+/*
+ * Menú lateral (partials/base/_sidebar.html). Centraliza tamaño, espaciado y
+ * estado activo de los ítems para no repetir utilidades en cada <li>. Cada
+ * ítem tiene un "chip" de ícono (.gelico-sidebar-icon) — es lo que le da
+ * presencia: un cuadro con fondo propio en vez de un trazo suelto sobre
+ * blanco. El activo es una píldora navy sólida de ancho completo, no solo
+ * texto de color, para que se identifique de un vistazo.
+ */
+@layer components {
+  .gelico-sidebar > li > a {
+    position: relative;
+    gap: 0.75rem;
+    padding: 0.5rem 0.625rem;
+    border-radius: var(--radius-field);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: color-mix(in oklab, var(--color-base-content) 88%, transparent);
+    transition: color 0.15s ease, background-color 0.15s ease;
+  }
+
+  /* El chip: cuadro propio detrás del ícono, tono neutro apagado en reposo.
+     Es lo que separa "un trazo flotando sobre blanco" de un ícono con
+     presencia real. */
+  .gelico-sidebar-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    border-radius: var(--radius-field);
+    background-color: color-mix(in oklab, var(--color-base-content) 7%, transparent);
+    color: color-mix(in oklab, var(--color-primary) 85%, var(--color-base-content));
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .gelico-sidebar-icon > svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    stroke-width: 2;
+  }
+
+  .gelico-sidebar > li > a:not(.menu-active):hover {
+    background-color: color-mix(in oklab, var(--color-base-content) 6%, transparent);
+  }
+
+  .gelico-sidebar > li > a:not(.menu-active):hover .gelico-sidebar-icon {
+    background-color: color-mix(in oklab, var(--color-primary) 14%, transparent);
+  }
+
+  /* Activo: píldora navy de ancho completo — el mismo tratamiento fuerte
+     que ya usa daisyUI para .menu-active, pero con el chip de ícono en un
+     tono más claro sobre el navy para que no se "pierda" el cuadro. */
+  .gelico-sidebar > li > a.menu-active {
+    font-weight: 600;
+    background-color: var(--color-primary);
+    color: var(--color-primary-content);
+    box-shadow: none;
+  }
+
+  .gelico-sidebar > li > a.menu-active .gelico-sidebar-icon {
+    background-color: color-mix(in oklab, var(--color-primary-content) 18%, transparent);
+    color: var(--color-primary-content);
+  }
+
+  .gelico-sidebar > li.menu-title {
+    display: flex;
+    align-items: center;
+    margin-top: 0.5rem;
+    padding: 1rem 0.625rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--color-base-content) 45%, transparent);
+    border-top: 1px solid var(--color-base-300);
+  }
+
+  .gelico-sidebar > li.menu-title:first-child {
+    margin-top: 0;
+    padding-top: 0.25rem;
+    border-top: none;
+  }
+
+  /* Ancho propio (no la utilidad w-72 de Tailwind) para poder animarlo y
+     colapsarlo desde JS con una sola clase en <html>. */
+  .gelico-sidebar-aside {
+    width: 18rem;
+    transition: width 0.18s ease;
+  }
+
+  .gelico-sidebar-toggle svg {
+    transition: transform 0.18s ease;
+  }
+
+  .gelico-sidebar-logo-box {
+    transition: width 0.18s ease, height 0.18s ease;
+  }
+}
+
+/*
+ * Sidebar colapsado a riel de íconos — SOLO en desktop (lg+). En mobile el
+ * sidebar es el drawer overlay de daisyUI (w-72 completo siempre);
+ * colapsarlo ahí no tiene sentido y rompería el drawer. El botón que
+ * dispara esta clase ya está oculto en mobile (hidden lg:inline-flex), esto
+ * es el refuerzo por CSS. La clase la persiste JS en localStorage (ver
+ * <script> al final de _sidebar.html) para que sobreviva la recarga
+ * completa de página entre vistas (esto no es una SPA).
+ *
+ * Deliberadamente FUERA de @layer components: Tailwind v4 resuelve
+ * conflictos entre capas (@layer theme, base, components, utilities) por
+ * orden de capa, no por especificidad — un .badge de daisyUI (utilities)
+ * le gana a cualquier selector de components por más específico que sea.
+ * Una regla sin capa siempre tiene prioridad sobre cualquier @layer, así
+ * que esto SÍ logra ocultar los textos/badges al colapsar.
+ */
+@media (min-width: 1024px) {
+  html.sidebar-collapsed .gelico-sidebar-aside {
+    width: 6rem;
+  }
+
+  html.sidebar-collapsed .gelico-sidebar-label {
+    display: none;
+  }
+
+  html.sidebar-collapsed .gelico-sidebar-header {
+    padding-inline: 0.75rem;
+  }
+
+  html.sidebar-collapsed .gelico-sidebar-logo-box {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  html.sidebar-collapsed .gelico-sidebar > li > a {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  html.sidebar-collapsed .gelico-sidebar > li.menu-title {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  html.sidebar-collapsed .gelico-sidebar-toggle svg {
+    transform: rotate(180deg);
+  }
+}

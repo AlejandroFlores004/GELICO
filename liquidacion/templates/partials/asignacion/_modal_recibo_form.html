@@ -1,0 +1,47 @@
+<div id="asignacion-modal-wrapper">
+    <dialog id="asignacion-modal" class="modal">
+        <div class="modal-box max-w-md rounded-2xl border border-base-300 shadow-2xl">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
+            </form>
+
+            <h3 class="font-bold text-xl">
+                {% if instance %}Editar Recibo{% else %}Agregar Recibo{% endif %}
+            </h3>
+            <p class="text-sm text-base-content/60 mt-1">{{ asignacion.escuela.nombre_corto }} · {{ asignacion.bono.nombre }}</p>
+
+            <form
+                hx-post="{% if instance %}{% url 'recibo_editar' instance.pk %}{% else %}{% url 'recibo_nuevo' asignacion.pk %}{% endif %}"
+                hx-target="#asignacion-modal-wrapper"
+                hx-swap="outerHTML"
+                class="space-y-4 mt-4"
+            >
+                {% csrf_token %}
+
+                <div class="form-control w-full">
+                    <label class="label" for="{{ form.monto.id_for_label }}">
+                        <span class="label-text font-medium">Monto</span>
+                    </label>
+                    {{ form.monto }}
+                    {% if form.monto.errors %}<span class="text-error text-xs mt-1">{{ form.monto.errors.0 }}</span>{% endif %}
+                </div>
+
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('asignacion-modal').close()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#asignacion-modal-wrapper');
+            var dialog = wrapper.querySelector('#asignacion-modal');
+            dialog.showModal();
+            dialog.addEventListener('close', function () { wrapper.innerHTML = ''; }, { once: true });
+        })();
+    </script>
+</div>

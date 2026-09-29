@@ -1,0 +1,102 @@
+<div id="bonos-modal-wrapper">
+    <dialog id="bonos-modal" class="modal">
+        <div class="modal-box max-w-3xl rounded-2xl border border-base-300 shadow-2xl">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
+            </form>
+
+            <h3 class="font-bold text-xl">Bonos encontrados en el archivo</h3>
+
+            {% if error %}
+                <div class="alert alert-error mt-4">
+                    <span>{{ error }}</span>
+                </div>
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('bonos-modal').close()">Cerrar</button>
+                </div>
+            {% elif bonos %}
+                <p class="text-sm text-base-content/70 mt-1">
+                    Selecciona los bonos que quieres agregar al catálogo. Los que ya existen no se pueden volver a agregar.
+                </p>
+
+                <form
+                    hx-post="{% url 'carga_bonos_confirmar' %}"
+                    hx-target="#bonos-modal-wrapper"
+                    hx-swap="outerHTML"
+                    class="mt-4 space-y-4"
+                >
+                    {% csrf_token %}
+
+                    <div class="max-h-96 overflow-y-auto rounded-lg border border-base-300">
+                        <table class="table table-sm">
+                            <thead class="sticky top-0 bg-base-200">
+                                <tr>
+                                    <th class="w-10"></th>
+                                    <th>ID</th>
+                                    <th>Nombre</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for bono in bonos %}
+                                <tr>
+                                    <td>
+                                        <input
+                                            type="checkbox"
+                                            name="seleccion_{{ forloop.counter0 }}"
+                                            class="checkbox checkbox-sm"
+                                            {% if bono.ya_existe %}disabled{% else %}checked{% endif %}
+                                        >
+                                    </td>
+                                    <td>
+                                        {{ bono.id_bono }}
+                                        <input type="hidden" name="id_bono_{{ forloop.counter0 }}" value="{{ bono.id_bono }}">
+                                    </td>
+                                    <td>
+                                        {{ bono.nombre_bono }}
+                                        <input type="hidden" name="nombre_bono_{{ forloop.counter0 }}" value="{{ bono.nombre_bono }}">
+                                    </td>
+                                    <td>
+                                        {% if bono.ya_existe %}
+                                            <span class="badge badge-ghost badge-sm">Ya existe</span>
+                                        {% else %}
+                                            <span class="badge badge-success badge-outline badge-sm">Nuevo</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="modal-action">
+                        <button type="button" class="btn btn-ghost" onclick="document.getElementById('bonos-modal').close()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Agregar seleccionados</button>
+                    </div>
+                </form>
+            {% else %}
+                <div class="alert alert-warning mt-4">
+                    <span>No se encontraron bonos en el archivo. Verifica que tenga las columnas "id_bono" y "nombre_bono".</span>
+                </div>
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('bonos-modal').close()">Cerrar</button>
+                </div>
+            {% endif %}
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#bonos-modal-wrapper');
+            var dialog = wrapper.querySelector('#bonos-modal');
+            dialog.showModal();
+
+            dialog.addEventListener('close', function () {
+                wrapper.innerHTML = '';
+            }, { once: true });
+        })();
+    </script>
+</div>
