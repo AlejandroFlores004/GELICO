@@ -232,7 +232,10 @@ swap:
 ```
 
 **`reporte_pdf.html`** — HTML plano (sin `base.html`, WeasyPrint no ejecuta
-JS/htmx) con tabla de `features` y `fecha_generacion`.
+JS/htmx) con tabla de `features` y `fecha_generacion`. Si el reporte debe
+llevar el sello del Ministerio de Educación en el encabezado (como
+`liquidacion/asignacion`), ver la sección correspondiente en `gelico-brand`
+— no reinventes el recorte del logo ni cambies el que ya existe.
 
 ## 7. Sidebar
 
