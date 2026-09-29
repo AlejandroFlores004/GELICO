@@ -1,11 +1,28 @@
 <div id="encargado-modal-wrapper">
+    <style>
+        /* Salvaguarda: a veces, al recargar el modal por un error de validación
+           con valores ya seleccionados, select2 no llega a ocultar el <select>
+           nativo (bug de timing con el swap de htmx). Esto lo oculta igual
+           en cuanto select2 ya le insertó su contenedor al lado. */
+        select.django-select2:has(+ .select2-container) {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+    </style>
     <dialog id="encargado-modal" class="modal">
-        <div class="modal-box">
+        <div class="modal-box max-w-lg rounded-2xl border border-base-300 shadow-2xl">
             <form method="dialog">
-                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
             </form>
 
-            <h3 class="font-bold text-lg">
+            <h3 class="font-bold text-xl">
                 {% if cambiar %}Cambiar Encargado{% elif instance %}Editar Encargado{% else %}Nuevo Encargado{% endif %}
             </h3>
 
@@ -16,6 +33,12 @@
                 class="space-y-4 mt-4"
             >
                 {% csrf_token %}
+
+                {% if form.errors or formset.total_error_count %}
+                <div role="alert" class="alert alert-error alert-soft text-sm">
+                    No se pudo guardar. Revisa los campos marcados en rojo.
+                </div>
+                {% endif %}
 
                 <div class="form-control w-full">
                     <label class="label" for="{{ form.nombre.id_for_label }}">
@@ -42,17 +65,19 @@
 
                     <div id="telefonos-container" class="space-y-2">
                         {% for tel_form in formset %}
-                        <div class="telefono-row grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2">
+                        <div class="telefono-row grid grid-cols-[1fr_auto_auto] items-center gap-2{% if tel_form.DELETE.value %} hidden{% endif %}"
+                             {% if tel_form.instance.pk %}data-guardado="1"{% endif %}>
                             {{ tel_form.id }}
+                            <span class="hidden">{{ tel_form.DELETE }}</span>
                             {{ tel_form.numero }}
                             {{ tel_form.etiqueta }}
-                            {% if tel_form.instance.pk %}
-                            <label class="label cursor-pointer gap-1 justify-start sm:justify-center">
-                                {{ tel_form.DELETE }}
-                                <span class="label-text text-xs">Quitar</span>
-                            </label>
-                            {% endif %}
-                            {% if tel_form.numero.errors %}<span class="text-error text-xs">{{ tel_form.numero.errors.0 }}</span>{% endif %}
+                            {% include "partials/encargado/_telefono_quitar_btn.html" %}
+                            <span class="telefono-error col-span-3 text-error text-xs{% if not tel_form.errors %} hidden{% endif %}">
+                                {% if tel_form.numero.errors %}{{ tel_form.numero.errors.0 }}
+                                {% elif tel_form.etiqueta.errors %}{{ tel_form.etiqueta.errors.0 }}
+                                {% elif tel_form.errors %}Este teléfono fue modificado o eliminado mientras editabas. Cierra el formulario y vuelve a abrirlo.
+                                {% endif %}
+                            </span>
                         </div>
                         {% endfor %}
                     </div>
@@ -65,9 +90,11 @@
                     </button>
 
                     <template id="telefono-empty-form">
-                        <div class="telefono-row grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2">
+                        <div class="telefono-row grid grid-cols-[1fr_auto_auto] items-center gap-2">
                             {{ formset.empty_form.numero }}
                             {{ formset.empty_form.etiqueta }}
+                            {% include "partials/encargado/_telefono_quitar_btn.html" %}
+                            <span class="telefono-error col-span-3 text-error text-xs hidden"></span>
                         </div>
                     </template>
 
@@ -122,45 +149,124 @@
             var totalFormsInput = wrapper.querySelector('#id_telefonos-TOTAL_FORMS');
             var emptyFormTemplate = wrapper.querySelector('#telefono-empty-form').innerHTML;
 
-            function aplicarMascara(input) {
-                if (input) {
-                    IMask(input, { mask: '0000-0000' });
+            // Select2 primero: si algo de los teléfonos falla, el select igual queda bonito.
+            wrapper.querySelectorAll('.django-select2').forEach(function (el) {
+                try {
+                    var $el = $(el);
+                    try { $el.select2('destroy'); } catch (ignored) { /* aún no inicializado */ }
+                    $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
+                } catch (err) {
+                    console.error('No se pudo inicializar select2', err);
                 }
+            });
+
+            function aplicarMascara(input) {
+                if (!input) return;
+                if (typeof IMask === 'undefined') {
+                    console.error('IMask no está cargado (revisar js/imask.min.js en base.html)');
+                    return;
+                }
+                // "P" = primer dígito: solo 2 (fijo), 6 o 7 (celular)
+                IMask(input, { mask: 'P000-0000', definitions: { P: /[267]/ } });
             }
 
             telefonosContainer.querySelectorAll('.telefono-input').forEach(aplicarMascara);
 
-            wrapper.querySelector('#add-telefono-btn').addEventListener('click', function () {
+            function filasVisibles() {
+                return Array.prototype.filter.call(
+                    telefonosContainer.querySelectorAll('.telefono-row'),
+                    function (fila) { return !fila.classList.contains('hidden'); }
+                );
+            }
+
+            function agregarFila(enfocar) {
                 var index = parseInt(totalFormsInput.value, 10);
                 var html = emptyFormTemplate.replace(/__prefix__/g, index);
                 telefonosContainer.insertAdjacentHTML('beforeend', html);
                 totalFormsInput.value = index + 1;
 
                 var filas = telefonosContainer.querySelectorAll('.telefono-row');
-                aplicarMascara(filas[filas.length - 1].querySelector('.telefono-input'));
-            });
+                var nuevoInput = filas[filas.length - 1].querySelector('.telefono-input');
+                aplicarMascara(nuevoInput);
+                if (enfocar && nuevoInput) nuevoInput.focus();
+            }
 
-            // Se difiere un tick (requestAnimationFrame) para que el navegador termine
-            // de pintar el <dialog> recién abierto antes de que select2 mida/manipule
-            // el <select>. Inicializarlo en el mismo tick que showModal() es lo que
-            // provoca que a veces no llegue a ocultar el <select> original.
-            requestAnimationFrame(function () {
-                wrapper.querySelectorAll('.django-select2').forEach(function (el) {
-                    try {
-                        var $el = $(el);
-                        if ($el.data('select2')) {
-                            $el.select2('destroy');
-                        }
-                        // Por si quedó un contenedor visual huérfano de una inicialización previa/duplicada
-                        $el.siblings('.select2-container').remove();
-                        $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
-                        // Evita que el auto-init global de django_select2.js (si carga tarde)
-                        // vuelva a inicializar este mismo campo por encima.
-                        $el.removeClass('django-select2');
-                    } catch (err) {
-                        console.error('No se pudo inicializar select2', err);
+            // Renumera las filas para que los índices del formset queden seguidos
+            // (0, 1, 2...). Las filas ya guardadas van primero, así que su índice no cambia.
+            function renumerarFilas() {
+                var filas = telefonosContainer.querySelectorAll('.telefono-row');
+                filas.forEach(function (fila, i) {
+                    fila.querySelectorAll('[name^="telefonos-"], [id^="id_telefonos-"]').forEach(function (campo) {
+                        if (campo.name) campo.name = campo.name.replace(/^telefonos-\d+-/, 'telefonos-' + i + '-');
+                        if (campo.id) campo.id = campo.id.replace(/^id_telefonos-\d+-/, 'id_telefonos-' + i + '-');
+                    });
+                });
+                totalFormsInput.value = filas.length;
+            }
+
+            // Marca en rojo los números repetidos (solo entre filas visibles).
+            // El servidor también lo valida; esto es para avisar antes de guardar.
+            function validarDuplicados() {
+                var vistos = {};
+                filasVisibles().forEach(function (fila) {
+                    var input = fila.querySelector('.telefono-input');
+                    var error = fila.querySelector('.telefono-error');
+                    var numero = input.value.trim();
+                    var repetido = numero !== '' && vistos[numero];
+                    vistos[numero] = true;
+
+                    input.classList.toggle('input-error', !!repetido);
+                    input.setCustomValidity(repetido ? 'Este número ya fue ingresado.' : '');
+                    if (repetido) {
+                        error.textContent = 'Este número ya fue ingresado.';
+                        error.dataset.duplicado = '1';
+                        error.classList.remove('hidden');
+                    } else if (error.dataset.duplicado) {
+                        // Solo se limpia el mensaje si lo puso esta validación
+                        // (no se borran los errores que vinieron del servidor).
+                        error.textContent = '';
+                        delete error.dataset.duplicado;
+                        error.classList.add('hidden');
                     }
                 });
+            }
+
+            wrapper.querySelector('#add-telefono-btn').addEventListener('click', function () {
+                agregarFila(true);
+            });
+
+            telefonosContainer.addEventListener('input', function (evt) {
+                if (evt.target.classList.contains('telefono-input')) validarDuplicados();
+            });
+
+            // ✕ de cada fila:
+            //  - número ya guardado: se marca DELETE y se oculta (se borra al Guardar).
+            //  - número nuevo: se quita la fila y se renumeran las demás.
+            telefonosContainer.addEventListener('click', function (evt) {
+                var btn = evt.target.closest('.quitar-telefono-btn');
+                if (!btn) return;
+                var fila = btn.closest('.telefono-row');
+
+                if (fila.dataset.guardado) {
+                    fila.querySelector('input[name$="-DELETE"]').checked = true;
+                    fila.querySelector('.telefono-input').setCustomValidity('');
+                    fila.classList.add('hidden');
+                } else {
+                    fila.remove();
+                    renumerarFilas();
+                }
+
+                // Siempre queda al menos una fila visible para escribir.
+                if (filasVisibles().length === 0) agregarFila(true);
+                validarDuplicados();
+            });
+
+            validarDuplicados();
+
+            // htmx cancela el envío si algún campo no cumple su "pattern", pero no
+            // avisa. Con reportValidity() el navegador muestra el mensaje en el campo.
+            wrapper.querySelector('form[hx-post]').addEventListener('htmx:validation:halted', function (evt) {
+                evt.target.reportValidity();
             });
 
             dialog.addEventListener('close', function () {

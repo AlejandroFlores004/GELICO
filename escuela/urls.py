@@ -16,4 +16,11 @@ urlpatterns = [
     path('cde/nuevo/', views.cde_form, name='cde_nuevo'),
     path('cde/<int:pk>/editar/', views.cde_form, name='cde_editar'),
     path('cde/<int:pk>/eliminar/', views.cde_eliminar, name='cde_eliminar'),
+
+    path('', views.home_escuelas, name='home_escuelas'),
+    path('buscar/', views.buscar_escuelas, name='escuela_buscar'),
+    path('nueva/', views.escuela_form, name='escuela_nueva'),
+    path('<int:pk>/editar/', views.escuela_form, name='escuela_editar'),
+    path('<int:pk>/toggle/', views.escuela_toggle_estado, name='escuela_toggle'),
+    path('imprimir/', views.escuela_imprimir, name='escuela_imprimir'),
 ]
