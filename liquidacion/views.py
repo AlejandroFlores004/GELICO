@@ -87,8 +87,16 @@ def _asignaciones_filtradas(request):
     return filtro_form, asignaciones_list
 
 
+def _hay_filtros(filtro_form):
+    return filtro_form.is_valid() and any(filtro_form.cleaned_data.values())
+
+
 def _filtrar_asignaciones(request):
     filtro_form, asignaciones_list = _asignaciones_filtradas(request)
+
+    # Sin filtros no se lista nada: la página arranca solo con el buscador.
+    if not _hay_filtros(filtro_form):
+        return filtro_form, None
 
     paginator = Paginator(asignaciones_list, 20)
     asignaciones = paginator.get_page(request.GET.get('page'))
@@ -263,7 +271,7 @@ def recibo_abonos(request, pk):
 
 def asignacion_gestionar(request, pk):
     instance = get_object_or_404(
-        Asignacion.objects.select_related('escuela', 'bono').prefetch_related(
+        Asignacion.objects.select_related('escuela__distrito', 'bono').prefetch_related(
             Prefetch(
                 'escuela__encargado_set',
                 queryset=Encargado.objects.filter(estado=True),
@@ -283,9 +291,8 @@ def asignacion_gestionar(request, pk):
         recibo.total_abonado = sum((abono.monto for abono in abonos), Decimal('0'))
         recibo.diferencia = recibo.monto - recibo.total_abonado
         recibo.observaciones_lista = list(recibo.observacion_set.all())
+        recibo.estado_liquidacion = _estado_liquidacion([recibo])
         total_recibido += recibo.monto
-
-    estado_liquidacion = _estado_liquidacion(recibos)
 
     breadcrumbs = [
         {'name': 'Inicio', 'url': reverse('home')},
@@ -299,7 +306,6 @@ def asignacion_gestionar(request, pk):
         {
             "breadcrumbs": breadcrumbs,
             "instance": instance,
-            "estado_liquidacion": estado_liquidacion,
             "recibos": recibos,
             "total_recibido": total_recibido,
             "diferencia": instance.valor - total_recibido,

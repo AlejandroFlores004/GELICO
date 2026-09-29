@@ -1,8 +1,22 @@
 <div id="listado-asignaciones"{% if oob %} hx-swap-oob="true"{% endif %} class="card bg-base-100 shadow-xl border border-base-300">
     <div class="card-body">
+        {% if asignaciones is None %}
+        <div class="flex flex-col items-center text-center gap-3 py-12 px-4">
+            <div class="bg-base-200 text-base-content/40 rounded-full p-5">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+                </svg>
+            </div>
+            <h2 class="text-lg font-semibold">Aún no has buscado nada</h2>
+            <p class="text-sm text-base-content/60 max-w-md">
+                Selecciona una escuela, distrito, bono o estado en el buscador de arriba y presiona
+                <span class="font-medium text-base-content">Buscar</span> para ver sus asignaciones.
+            </p>
+        </div>
+        {% else %}
         <div class="flex items-center justify-between gap-3 pb-4 border-b border-base-200">
-            <h2 class="card-title m-0">Asignaciones</h2>
-            <div class="badge badge-outline">{{ asignaciones.paginator.count }} registros</div>
+            <h2 class="card-title m-0">Resultados</h2>
+            <div class="badge badge-primary badge-outline">{{ asignaciones.paginator.count }} encontrada{{ asignaciones.paginator.count|pluralize }}</div>
         </div>
 
         <div class="space-y-3 pt-4">
@@ -80,7 +94,10 @@
                 </div>
             </details>
             {% empty %}
-            <div class="text-center text-base-content/60 py-10">No existen registros.</div>
+            <div class="flex flex-col items-center text-center gap-2 py-10">
+                <p class="font-medium">Sin coincidencias</p>
+                <p class="text-sm text-base-content/60">No hay asignaciones con esos filtros. Prueba con otra combinación.</p>
+            </div>
             {% endfor %}
         </div>
 
@@ -98,6 +115,7 @@
                 {% else %}<button class="join-item btn btn-sm btn-disabled">»</button>{% endif %}
             </div>
         </div>
+        {% endif %}
         {% endif %}
     </div>
 </div>
