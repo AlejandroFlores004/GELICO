@@ -45,15 +45,17 @@
       </li>
       <li>
         <a href="#" class="pointer-events-none opacity-50">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
-              stroke-width="2" fill="none" stroke="currentColor">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-          <span>CDE</span>
-          <span class="badge badge-accent badge-soft badge-sm ml-auto">Pronto</span>
+          <span class="gelico-sidebar-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
+                stroke-width="2" fill="none" stroke="currentColor">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </span>
+          <span class="gelico-sidebar-label">CDE</span>
+          <span class="gelico-sidebar-label badge badge-accent badge-soft badge-sm ml-auto">Pronto</span>
         </a>
       </li>
 
@@ -104,14 +106,16 @@
         </a>
       </li>
       <li>
-        <a href="{% url 'home_ausencias' %}" class="{% if url_name == 'home_ausencias' %}menu-active{% endif %}">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
-              stroke-width="2" fill="none" stroke="currentColor">
-            <path d="M12 9v4"/>
-            <path d="M12 17h.01"/>
-            <path d="M10.3 3.6 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z"/>
-          </svg>
-          <span>Ausencias</span>
+        <a href="{% url 'home_ausencias' %}" class="{% if url_name == 'home_ausencias' %}menu-active{% endif %}" title="Ausencias">
+          <span class="gelico-sidebar-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
+                stroke-width="2" fill="none" stroke="currentColor">
+              <path d="M12 9v4"/>
+              <path d="M12 17h.01"/>
+              <path d="M10.3 3.6 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z"/>
+            </svg>
+          </span>
+          <span class="gelico-sidebar-label">Ausencias</span>
         </a>
       </li>
 

@@ -92,71 +92,149 @@
 
 /*
  * Menú lateral (partials/base/_sidebar.html). Centraliza tamaño, espaciado y
- * estado activo de los ítems para no repetir utilidades en cada <li>.
+ * estado activo de los ítems para no repetir utilidades en cada <li>. Cada
+ * ítem tiene un "chip" de ícono (.gelico-sidebar-icon) — es lo que le da
+ * presencia: un cuadro con fondo propio en vez de un trazo suelto sobre
+ * blanco. El activo es una píldora navy sólida de ancho completo, no solo
+ * texto de color, para que se identifique de un vistazo.
  */
 @layer components {
-  .gelico-sidebar {
-    --menu-active-bg: color-mix(in oklab, var(--color-primary) 12%, transparent);
-    --menu-active-fg: var(--color-primary);
-  }
-
   .gelico-sidebar > li > a {
     position: relative;
     gap: 0.75rem;
-    padding: 0.625rem 0.875rem;
+    padding: 0.5rem 0.625rem;
+    border-radius: var(--radius-field);
     font-size: 0.9375rem;
     font-weight: 500;
     color: color-mix(in oklab, var(--color-base-content) 88%, transparent);
     transition: color 0.15s ease, background-color 0.15s ease;
   }
 
-  /* El ícono hereda el color del link (currentColor) — sin opacity aparte,
-     que antes se sumaba al color ya atenuado del texto y lo dejaba casi
-     invisible. El tamaño se subió de 1.25rem a 1.5rem: a 20px el trazo se
-     perdía, sobre todo en los íconos con más detalle (Ausencias, CDE). */
-  .gelico-sidebar > li > a > svg {
-    width: 1.5rem;
-    height: 1.5rem;
+  /* El chip: cuadro propio detrás del ícono, tono neutro apagado en reposo.
+     Es lo que separa "un trazo flotando sobre blanco" de un ícono con
+     presencia real. */
+  .gelico-sidebar-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
     flex-shrink: 0;
-    stroke-width: 1.85;
+    border-radius: var(--radius-field);
+    background-color: color-mix(in oklab, var(--color-base-content) 7%, transparent);
+    color: color-mix(in oklab, var(--color-primary) 85%, var(--color-base-content));
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .gelico-sidebar-icon > svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    stroke-width: 2;
   }
 
   .gelico-sidebar > li > a:not(.menu-active):hover {
-    color: var(--color-base-content);
     background-color: color-mix(in oklab, var(--color-base-content) 6%, transparent);
   }
 
+  .gelico-sidebar > li > a:not(.menu-active):hover .gelico-sidebar-icon {
+    background-color: color-mix(in oklab, var(--color-primary) 14%, transparent);
+  }
+
+  /* Activo: píldora navy de ancho completo — el mismo tratamiento fuerte
+     que ya usa daisyUI para .menu-active, pero con el chip de ícono en un
+     tono más claro sobre el navy para que no se "pierda" el cuadro. */
   .gelico-sidebar > li > a.menu-active {
     font-weight: 600;
-    color: var(--menu-active-fg);
+    background-color: var(--color-primary);
+    color: var(--color-primary-content);
     box-shadow: none;
   }
 
-  .gelico-sidebar > li > a.menu-active > svg {
-    stroke-width: 2.1;
-  }
-
-  .gelico-sidebar > li > a.menu-active::before {
-    content: "";
-    position: absolute;
-    inset-inline-start: -0.75rem;
-    top: 0.5rem;
-    bottom: 0.5rem;
-    width: 4px;
-    border-radius: 0 9999px 9999px 0;
-    background-color: var(--color-primary);
+  .gelico-sidebar > li > a.menu-active .gelico-sidebar-icon {
+    background-color: color-mix(in oklab, var(--color-primary-content) 18%, transparent);
+    color: var(--color-primary-content);
   }
 
   .gelico-sidebar > li.menu-title {
-    padding: 1.25rem 0.875rem 0.5rem;
-    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    margin-top: 0.5rem;
+    padding: 1rem 0.625rem 0.5rem;
+    font-size: 0.6875rem;
     font-weight: 700;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: color-mix(in oklab, var(--color-base-content) 50%, transparent);
+    color: color-mix(in oklab, var(--color-base-content) 45%, transparent);
+    border-top: 1px solid var(--color-base-300);
   }
 
   .gelico-sidebar > li.menu-title:first-child {
+    margin-top: 0;
     padding-top: 0.25rem;
+    border-top: none;
+  }
+
+  /* Ancho propio (no la utilidad w-72 de Tailwind) para poder animarlo y
+     colapsarlo desde JS con una sola clase en <html>. */
+  .gelico-sidebar-aside {
+    width: 18rem;
+    transition: width 0.18s ease;
+  }
+
+  .gelico-sidebar-toggle svg {
+    transition: transform 0.18s ease;
+  }
+
+  .gelico-sidebar-logo-box {
+    transition: width 0.18s ease, height 0.18s ease;
+  }
+}
+
+/*
+ * Sidebar colapsado a riel de íconos — SOLO en desktop (lg+). En mobile el
+ * sidebar es el drawer overlay de daisyUI (w-72 completo siempre);
+ * colapsarlo ahí no tiene sentido y rompería el drawer. El botón que
+ * dispara esta clase ya está oculto en mobile (hidden lg:inline-flex), esto
+ * es el refuerzo por CSS. La clase la persiste JS en localStorage (ver
+ * <script> al final de _sidebar.html) para que sobreviva la recarga
+ * completa de página entre vistas (esto no es una SPA).
+ *
+ * Deliberadamente FUERA de @layer components: Tailwind v4 resuelve
+ * conflictos entre capas (@layer theme, base, components, utilities) por
+ * orden de capa, no por especificidad — un .badge de daisyUI (utilities)
+ * le gana a cualquier selector de components por más específico que sea.
+ * Una regla sin capa siempre tiene prioridad sobre cualquier @layer, así
+ * que esto SÍ logra ocultar los textos/badges al colapsar.
+ */
+@media (min-width: 1024px) {
+  html.sidebar-collapsed .gelico-sidebar-aside {
+    width: 6rem;
+  }
+
+  html.sidebar-collapsed .gelico-sidebar-label {
+    display: none;
+  }
+
+  html.sidebar-collapsed .gelico-sidebar-header {
+    padding-inline: 0.75rem;
+  }
+
+  html.sidebar-collapsed .gelico-sidebar-logo-box {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  html.sidebar-collapsed .gelico-sidebar > li > a {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  html.sidebar-collapsed .gelico-sidebar > li.menu-title {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  html.sidebar-collapsed .gelico-sidebar-toggle svg {
+    transform: rotate(180deg);
   }
 }
