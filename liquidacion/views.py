@@ -614,7 +614,7 @@ def _columnas_reporte_recibos(encabezados):
         "codigo_entidad": indice_columna(encabezados, "codigo_entidad"),
         "id_bono": indice_columna(encabezados, "id_bono"),
         "monto_asignado": indice_columna(encabezados, "monto_asignado"),
-        "codigo_requerimiento": indice_columna(encabezados, "codigo_requerimiento"),
+        "no_requerimiento": indice_columna(encabezados, "no_requerimiento"),
         "estado_trans": indice_columna(encabezados, "estado_trans"),
         "id_planilla_parcial": indice_columna(encabezados, "id_planilla_parcial"),
     }
@@ -638,7 +638,7 @@ def _procesar_reporte_recibos(archivo):
         return {
             "error": (
                 "El archivo debe tener las columnas \"codigo_entidad\", \"id_bono\", "
-                "\"monto_asignado\", \"codigo_requerimiento\", \"estado_trans\", "
+                "\"monto_asignado\", \"no_requerimiento\", \"estado_trans\", "
                 "\"id_planilla_parcial\" y dos columnas \"monto\" (una para el recibo "
                 "y otra para el abono)."
             )
@@ -684,7 +684,7 @@ def _procesar_reporte_recibos(archivo):
         monto_recibo = a_decimal(fila[indices["monto_recibo"]])
         monto_abono = a_decimal(fila[indices["monto_abono"]])
         estado = a_entero(fila[indices["estado_trans"]])
-        requerimiento_val = fila[indices["codigo_requerimiento"]]
+        requerimiento_val = fila[indices["no_requerimiento"]]
         requerimiento = str(requerimiento_val).strip() if requerimiento_val not in (None, "") else ""
         id_planilla_parcial = a_entero(fila[indices["id_planilla_parcial"]])
 
