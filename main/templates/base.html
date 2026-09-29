@@ -28,29 +28,44 @@
     <div class="drawer-content flex flex-col min-h-screen">
 
       <!-- Navbar -->
-      <nav class="navbar w-full bg-base-100 shadow-md">
-        <div class="flex-1 flex items-center">
+      <nav class="navbar sticky top-0 z-10 h-20 w-full gap-3 border-b border-base-300 bg-base-100/90 px-4 backdrop-blur lg:px-8">
+        <div class="flex flex-1 items-center gap-3">
           <label for="main-drawer" aria-label="open sidebar" class="btn btn-square btn-ghost lg:hidden">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
-                stroke-width="2" fill="none" stroke="currentColor" class="my-1.5 inline-block size-4">
-              <path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"></path>
-              <path d="M9 4v16"></path>
-              <path d="M14 10l2 2l-2 2"></path>
+                stroke-width="2" fill="none" stroke="currentColor" class="size-6">
+              <path d="M4 6h16M4 12h16M4 18h16"></path>
             </svg>
           </label>
-          <div class="px-4 font-bold"><a href="{% url 'home' %}">GELICO</a></div>
+          <a href="{% url 'home' %}" class="flex items-center gap-2 lg:hidden">
+            <img src="{% static 'brand/gelico-mark-primary.svg' %}" alt="" class="size-8"/>
+            <span class="text-xl font-extrabold tracking-tight text-primary">GELICO</span>
+          </a>
         </div>
-        <div class="flex-none flex items-center gap-2 px-4">
-          <span class="text-sm text-base-content/60">{{ request.user.username }}</span>
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('modal_logout').showModal()">
-            Cerrar Sesión
+        <div class="flex flex-none items-center gap-3">
+          <div class="flex items-center gap-3">
+            <div class="avatar avatar-placeholder">
+              <div class="w-10 rounded-full bg-primary text-primary-content">
+                <span class="text-base font-semibold">{{ request.user.username|first|upper }}</span>
+              </div>
+            </div>
+            <div class="hidden leading-tight sm:block">
+              <p class="text-sm font-semibold">{{ request.user.get_full_name|default:request.user.username }}</p>
+              <p class="text-xs text-base-content/60">{{ request.user.username }}</p>
+            </div>
+          </div>
+          <div class="hidden h-8 w-px bg-base-300 sm:block"></div>
+          <button class="btn btn-ghost gap-2" onclick="document.getElementById('modal_logout').showModal()" aria-label="Cerrar Sesión">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
+                stroke-width="2" fill="none" stroke="currentColor" class="size-5">
+              <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            </svg>
+            <span class="hidden md:inline">Cerrar Sesión</span>
           </button>
         </div>
       </nav>
 
-      
       <!-- Page content -->
-      <div class="p-4">
+      <div class="p-4 lg:p-6">
         {% include "partials/base/_breadcrumbs.html" %}
         {% block content %}{% endblock %}
       </div>
