@@ -1,115 +1,108 @@
-<div id="listado-escuelas" {% if oob %} hx-swap-oob="true" {% endif %} class="space-y-6">
-
-    <div class="card bg-base-100 shadow-xl border border-base-300">
-        <div class="card-body p-0">
-
-            <div class="flex justify-end p-4 pb-0">
-                <a href="{% url 'escuela_imprimir' %}{% querystring %}" target="_blank"
-                    class="btn btn-ghost btn-sm gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                        stroke="currentColor" class="w-4 h-4">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
-                    </svg>
-                    Imprimir
-                </a>
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Código</th>
-                            <th>Nombre</th>
-                            <th>Nombre Corto</th>
-                            <th>Distrito</th>
-                            <th>Estado</th>
-                            <th class="text-right">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-
-                        {% for escuela in escuelas %}
-                        <tr class="hover">
-                            <td>{{ escuela.codigo }}</td>
-                            <td class="font-medium">{{ escuela.nombre }}</td>
-                            <td>{{ escuela.nombre_corto }}</td>
-                            <td>{{ escuela.distrito.nombre }}</td>
-                            <td>
-                                {% if escuela.estado %}
-                                <span class="badge badge-success gap-1">Activo</span>
-                                {% else %}
-                                <span class="badge badge-ghost gap-1">Inactivo</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="flex justify-end gap-2">
-                                    <button hx-get="{% url 'escuela_editar' escuela.pk %}"
-                                        hx-target="#escuela-modal-wrapper" hx-swap="outerHTML"
-                                        class="btn btn-ghost btn-sm btn-square" title="Editar">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                            stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M19.5 13.5v4.875c0 .621-.504 1.125-1.125 1.125H5.625a1.125 1.125 0 01-1.125-1.125V6.375c0-.621.504-1.125 1.125-1.125h4.875" />
-                                        </svg>
-                                    </button>
-
-                                    <button hx-get="{% url 'escuela_toggle' escuela.pk %}"
-                                        hx-target="#escuela-modal-wrapper" hx-swap="outerHTML"
-                                        class="btn btn-ghost btn-sm btn-square"
-                                        title="{% if escuela.estado %}Desactivar{% else %}Activar{% endif %}">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                            stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M8.25 9V5.25A2.25 2.25 0 0110.5 3h6a2.25 2.25 0 012.25 2.25v13.5A2.25 2.25 0 0116.5 21h-6a2.25 2.25 0 01-2.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3H15" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="6" class="text-center text-base-content/60 py-6">No hay escuelas registradas.
-                            </td>
-                        </tr>
-                        {% endfor %}
-
-                    </tbody>
-                </table>
-            </div>
-
-            {% if escuelas.paginator.num_pages > 1 %}
-            <div class="flex justify-center py-4">
-                <div class="join">
-                    {% if escuelas.has_previous %}
-                    <a href="{% url 'home_escuelas' %}{% querystring page=escuelas.previous_page_number %}"
-                        hx-get="{% url 'escuela_buscar' %}{% querystring page=escuelas.previous_page_number %}"
-                        hx-target="#listado-escuelas" hx-swap="outerHTML" class="join-item btn btn-sm">«</a>
-                    {% else %}
-                    <button class="join-item btn btn-sm btn-disabled">«</button>
-                    {% endif %}
-
-                    {% for numero in escuelas.paginator.page_range %}
-                    <a href="{% url 'home_escuelas' %}{% querystring page=numero %}"
-                        hx-get="{% url 'escuela_buscar' %}{% querystring page=numero %}"
-                        hx-target="#listado-escuelas" hx-swap="outerHTML"
-                        class="join-item btn btn-sm {% if numero == escuelas.number %}btn-active{% endif %}">{{ numero }}</a>
-                    {% endfor %}
-
-                    {% if escuelas.has_next %}
-                    <a href="{% url 'home_escuelas' %}{% querystring page=escuelas.next_page_number %}"
-                        hx-get="{% url 'escuela_buscar' %}{% querystring page=escuelas.next_page_number %}"
-                        hx-target="#listado-escuelas" hx-swap="outerHTML" class="join-item btn btn-sm">»</a>
-                    {% else %}
-                    <button class="join-item btn btn-sm btn-disabled">»</button>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-
+<div id="listado-escuelas"{% if oob %} hx-swap-oob="true"{% endif %} class="card bg-base-100 shadow-xl border border-base-300">
+    <div class="card-body">
+        {% if escuelas is None %}
+        <div class="flex justify-end">
+            {% include "partials/escuela/_imprimir_menu.html" %}
         </div>
-    </div>
+        <div class="flex flex-col items-center text-center gap-3 py-12 px-4">
+            <div class="bg-base-200 text-base-content/40 rounded-full p-5">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+                </svg>
+            </div>
+            <h2 class="text-lg font-semibold">Aún no has buscado nada</h2>
+            <p class="text-sm text-base-content/60 max-w-md">
+                Selecciona una escuela, distrito o estado en el buscador de arriba y presiona
+                <span class="font-medium text-base-content">Buscar</span> para ver las escuelas.
+            </p>
+        </div>
+        {% else %}
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-base-200">
+            <div class="flex items-center gap-3">
+                <h2 class="card-title m-0">Resultados</h2>
+                <div class="badge badge-primary badge-outline">{{ escuelas.paginator.count }} encontrada{{ escuelas.paginator.count|pluralize }}</div>
+            </div>
+            {% include "partials/escuela/_imprimir_menu.html" %}
+        </div>
 
+        <div class="space-y-3 pt-4">
+            {% for escuela in escuelas %}
+            <details class="collapse collapse-arrow bg-base-100 border border-base-300 rounded-box">
+                <summary class="collapse-title">
+                    <div class="flex flex-wrap items-start justify-between gap-3 pr-8">
+                        <div class="flex items-start gap-3 min-w-0">
+                            <span class="badge badge-outline font-mono shrink-0">{{ escuela.codigo }}</span>
+                            <div class="min-w-0">
+                                <p class="font-semibold truncate">{{ escuela.nombre_corto }}</p>
+                                <p class="text-xs text-base-content/60 truncate">{{ escuela.nombre }} · Distrito {{ escuela.distrito.nombre }}</p>
+                                {% with encargado=escuela.encargados_activos.0 %}
+                                {% if encargado %}
+                                <p class="text-xs text-base-content/50 truncate">Encargado: {{ encargado.nombre }} {{ encargado.apellido }}</p>
+                                {% else %}
+                                <p class="text-xs text-warning truncate">Sin encargado asignado</p>
+                                {% endif %}
+                                {% endwith %}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2" onclick="event.stopPropagation()">
+                            {% if escuela.estado %}
+                            <span class="badge badge-success badge-soft">Activa</span>
+                            {% else %}
+                            <span class="badge badge-ghost">Inactiva</span>
+                            {% endif %}
+                            <a href="{% url 'escuela_gestionar' escuela.pk %}" class="btn btn-ghost btn-sm btn-square" title="Gestionar" aria-label="Gestionar escuela">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 13.5v4.875c0 .621-.504 1.125-1.125 1.125H5.625a1.125 1.125 0 01-1.125-1.125V6.375c0-.621.504-1.125 1.125-1.125h4.875" />
+                                </svg>
+                            </a>
+                            <a href="{% url 'escuela_imprimir_ficha' escuela.pk %}" target="_blank" class="btn btn-ghost btn-sm btn-square" title="Imprimir ficha" aria-label="Imprimir ficha de la escuela">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5z" />
+                                </svg>
+                            </a>
+                            <button hx-get="{% url 'escuela_toggle' escuela.pk %}{% querystring %}" hx-target="#escuela-modal-wrapper" hx-swap="outerHTML"
+                                class="btn btn-ghost btn-sm btn-square" title="{% if escuela.estado %}Desactivar{% else %}Activar{% endif %}"
+                                aria-label="{% if escuela.estado %}Desactivar{% else %}Activar{% endif %} escuela">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </summary>
+                <div
+                    class="collapse-content"
+                    hx-get="{% url 'escuela_detalle' escuela.pk %}"
+                    hx-trigger="toggle once from:closest details"
+                    hx-swap="innerHTML"
+                >
+                    <p class="text-sm text-base-content/60 py-2">Cargando…</p>
+                </div>
+            </details>
+            {% empty %}
+            <div class="flex flex-col items-center text-center gap-2 py-10">
+                <p class="font-medium">Sin coincidencias</p>
+                <p class="text-sm text-base-content/60">No hay escuelas con esos filtros. Prueba con otra combinación.</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if escuelas.paginator.num_pages > 1 %}
+        <div class="flex justify-center pt-4">
+            <div class="join">
+                {% if escuelas.has_previous %}
+                <a href="{% url 'home_escuelas' %}{% querystring page=escuelas.previous_page_number %}" hx-get="{% url 'escuela_buscar' %}{% querystring page=escuelas.previous_page_number %}" hx-target="#listado-escuelas" hx-swap="outerHTML" class="join-item btn btn-sm">«</a>
+                {% else %}<button class="join-item btn btn-sm btn-disabled">«</button>{% endif %}
+                {% for numero in escuelas.paginator.page_range %}
+                <a href="{% url 'home_escuelas' %}{% querystring page=numero %}" hx-get="{% url 'escuela_buscar' %}{% querystring page=numero %}" hx-target="#listado-escuelas" hx-swap="outerHTML" class="join-item btn btn-sm {% if numero == escuelas.number %}btn-active{% endif %}">{{ numero }}</a>
+                {% endfor %}
+                {% if escuelas.has_next %}
+                <a href="{% url 'home_escuelas' %}{% querystring page=escuelas.next_page_number %}" hx-get="{% url 'escuela_buscar' %}{% querystring page=escuelas.next_page_number %}" hx-target="#listado-escuelas" hx-swap="outerHTML" class="join-item btn btn-sm">»</a>
+                {% else %}<button class="join-item btn btn-sm btn-disabled">»</button>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
 </div>

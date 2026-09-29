@@ -30,7 +30,7 @@
       <!-- Escuelas -->
       <li class="menu-title"><span class="gelico-sidebar-label">Escuelas</span></li>
       <li>
-        <a href="{% url 'home_escuelas' %}" class="{% if url_name == 'home_escuelas' %}menu-active{% endif %}" title="Escuelas">
+        <a href="{% url 'home_escuelas' %}" class="{% if url_name == 'home_escuelas' or url_name == 'escuela_gestionar' %}menu-active{% endif %}" title="Escuelas">
           <span class="gelico-sidebar-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
                 stroke-width="2" fill="none" stroke="currentColor">
@@ -39,33 +39,6 @@
             </svg>
           </span>
           <span class="gelico-sidebar-label">Escuelas</span>
-        </a>
-      </li>
-      <li>
-        <a href="{% url 'home_encargados' %}" class="{% if url_name == 'home_encargados' %}menu-active{% endif %}" title="Encargados">
-          <span class="gelico-sidebar-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
-                stroke-width="2" fill="none" stroke="currentColor">
-              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-          </span>
-          <span class="gelico-sidebar-label">Encargados</span>
-        </a>
-      </li>
-      <li>
-        <a href="#" class="pointer-events-none opacity-50">
-          <span class="gelico-sidebar-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
-                stroke-width="2" fill="none" stroke="currentColor">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-          </span>
-          <span class="gelico-sidebar-label">CDE</span>
-          <span class="gelico-sidebar-label badge badge-accent badge-soft badge-sm ml-auto">Pronto</span>
         </a>
       </li>
 

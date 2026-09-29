@@ -1,6 +1,6 @@
 <div id="escuela-modal-wrapper">
     <dialog id="escuela-modal" class="modal">
-        <div class="modal-box">
+        <div class="modal-box max-w-md rounded-2xl border border-base-300 shadow-2xl">
             <form method="dialog">
                 <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
             </form>
@@ -15,7 +15,7 @@
             </p>
 
             <form
-                hx-post="{% url 'escuela_toggle' escuela.pk %}"
+                hx-post="{% url 'escuela_toggle' escuela.pk %}{% querystring %}"
                 hx-target="#escuela-modal-wrapper"
                 hx-swap="outerHTML"
             >
