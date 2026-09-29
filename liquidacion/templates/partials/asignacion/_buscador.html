@@ -1,31 +1,38 @@
-<div class="card bg-base-100 shadow-xl">
-    <div class="card-body">
-        <h2 class="card-title gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-primary">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
-            Buscar Asignaciones
-        </h2>
-        <div class="divider my-1"></div>
+<div class="card bg-base-100 shadow-xl border border-base-300">
+    <div class="card-body gap-5">
+        <div class="flex items-start gap-3">
+            <div class="bg-primary/10 text-primary rounded-xl p-2.5 shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+            </div>
+            <div>
+                <h2 class="card-title m-0">Buscar asignaciones</h2>
+                <p class="text-sm text-base-content/60">
+                    Elige al menos un filtro para ver las asignaciones que coinciden.
+                </p>
+            </div>
+        </div>
+
         <form
             hx-get="{% url 'buscar_asignaciones' %}"
             hx-target="#listado-asignaciones"
             hx-swap="outerHTML"
             hx-indicator="#asignacion-search-spinner"
-            class="space-y-4"
+            class="space-y-5"
         >
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="form-control w-full md:col-span-2">
+                    <label class="label" for="{{ filtro_form.escuela.id_for_label }}">
+                        <span class="label-text font-medium">Escuela</span>
+                    </label>
+                    {{ filtro_form.escuela }}
+                </div>
                 <div class="form-control w-full">
                     <label class="label" for="{{ filtro_form.distrito.id_for_label }}">
                         <span class="label-text font-medium">Distrito</span>
                     </label>
                     {{ filtro_form.distrito }}
-                </div>
-                <div class="form-control w-full">
-                    <label class="label" for="{{ filtro_form.escuela.id_for_label }}">
-                        <span class="label-text font-medium">Escuela</span>
-                    </label>
-                    {{ filtro_form.escuela }}
                 </div>
                 <div class="form-control w-full">
                     <label class="label" for="{{ filtro_form.bono.id_for_label }}">
@@ -40,9 +47,15 @@
                     {{ filtro_form.estado }}
                 </div>
             </div>
-            <div class="card-actions justify-end">
-                <a href="{% url 'home_asignaciones' %}" class="btn btn-ghost gap-2">Limpiar</a>
-                <button type="submit" class="btn btn-primary gap-2">
+
+            <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4 border-t border-base-200">
+                <a href="{% url 'home_asignaciones' %}" class="btn btn-ghost gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Limpiar
+                </a>
+                <button type="submit" class="btn btn-primary gap-2 sm:min-w-36">
                     <span id="asignacion-search-spinner" class="htmx-indicator loading loading-spinner loading-sm"></span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />

@@ -44,9 +44,15 @@ class FiltrarAsignacionesForm(forms.Form):
     )
 
     estado = forms.ChoiceField(
-        choices=[('', 'Todos los estados')] + ESTADO_LIQUIDACION_CHOICES,
+        choices=[('', '')] + ESTADO_LIQUIDACION_CHOICES,
         required=False,
-        widget=forms.Select(attrs={'class': 'select select-bordered w-full'}),
+        widget=Select2Widget(attrs={
+            'data-placeholder': 'Todos los estados',
+            'style': 'width: 100%',
+            'class': 'select2-daisy',
+            'data-allow-clear': 'false',
+            'data-minimum-results-for-search': 'Infinity',
+        }),
         label='Estado',
     )
 
