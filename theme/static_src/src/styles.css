@@ -81,3 +81,64 @@
     font-family: var(--font-sans);
   }
 }
+
+/*
+ * Menú lateral (partials/base/_sidebar.html). Centraliza tamaño, espaciado y
+ * estado activo de los ítems para no repetir utilidades en cada <li>.
+ */
+@layer components {
+  .gelico-sidebar {
+    --menu-active-bg: color-mix(in oklab, var(--color-primary) 12%, transparent);
+    --menu-active-fg: var(--color-primary);
+  }
+
+  .gelico-sidebar > li > a {
+    position: relative;
+    gap: 0.75rem;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: color-mix(in oklab, var(--color-base-content) 80%, transparent);
+  }
+
+  .gelico-sidebar > li > a > svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
+    opacity: 0.75;
+  }
+
+  .gelico-sidebar > li > a.menu-active {
+    font-weight: 600;
+    color: var(--menu-active-fg);
+    box-shadow: none;
+  }
+
+  .gelico-sidebar > li > a.menu-active > svg {
+    opacity: 1;
+  }
+
+  .gelico-sidebar > li > a.menu-active::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: -0.75rem;
+    top: 0.5rem;
+    bottom: 0.5rem;
+    width: 4px;
+    border-radius: 0 9999px 9999px 0;
+    background-color: var(--color-primary);
+  }
+
+  .gelico-sidebar > li.menu-title {
+    padding: 1.25rem 0.875rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--color-base-content) 50%, transparent);
+  }
+
+  .gelico-sidebar > li.menu-title:first-child {
+    padding-top: 0.25rem;
+  }
+}
