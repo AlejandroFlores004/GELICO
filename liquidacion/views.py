@@ -212,6 +212,8 @@ def asignacion_imprimir(request, pk):
 
     estado_liquidacion = _estado_liquidacion(recibos)
 
+    nombre_reporte = f"{instance.escuela.codigo}_{slugify(instance.bono.nombre)}"
+
     html_string = render_to_string(
         "partials/asignacion/_reporte_pdf.html",
         {
@@ -223,6 +225,8 @@ def asignacion_imprimir(request, pk):
             "estado_liquidacion": estado_liquidacion,
             "estado_etiqueta": etiquetas_estado[estado_liquidacion],
             "fecha_generacion": timezone.localdate(),
+            "fecha_impresion": timezone.localtime(),
+            "nombre_reporte": nombre_reporte,
         },
     )
     pdf = HTML(
@@ -230,7 +234,7 @@ def asignacion_imprimir(request, pk):
         base_url=request.build_absolute_uri("/"),
     ).write_pdf()
 
-    nombre_archivo = f"asignacion_{instance.escuela.codigo}_{instance.pk}.pdf"
+    nombre_archivo = f"{nombre_reporte}.pdf"
     response = HttpResponse(pdf, content_type="application/pdf")
     response["Content-Disposition"] = f'inline; filename="{nombre_archivo}"'
     return response
