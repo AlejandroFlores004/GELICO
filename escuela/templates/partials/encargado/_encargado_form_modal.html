@@ -122,7 +122,7 @@
                     <div class="w-full" id="encargado-escuela-select-wrapper">
                         {{ form.escuela }}
                     </div>
-                    {% if instance or cambiar %}
+                    {% if instance or cambiar or escuela_gestion %}
                     <span class="text-xs text-base-content/60 mt-1">La escuela no se puede modificar acá.</span>
                     {% endif %}
                     {% if form.escuela.errors %}<span class="text-error text-xs mt-1">{{ form.escuela.errors.0 }}</span>{% endif %}

@@ -13,11 +13,18 @@
             >
                 {% csrf_token %}
                 {% for field in form %}
+                {% if escuela_gestion and field.name == 'escuela' %}
+                <div class="bg-base-200 rounded-lg p-4 text-sm flex justify-between gap-4">
+                    <span class="text-base-content/60">Escuela</span>
+                    <span class="font-medium text-right">{{ escuela_gestion.codigo }} · {{ escuela_gestion.nombre_corto }}</span>
+                </div>
+                {% else %}
                 <div class="form-control w-full">
                     <label class="label" for="{{ field.id_for_label }}"><span class="label-text font-medium">{{ field.label }}</span></label>
                     {{ field }}
                     {% if field.errors %}<span class="text-error text-xs mt-1">{{ field.errors.0 }}</span>{% endif %}
                 </div>
+                {% endif %}
                 {% endfor %}
                 <div class="modal-action">
                     <button type="button" class="btn btn-ghost" onclick="document.getElementById('cde-modal').close()">Cancelar</button>

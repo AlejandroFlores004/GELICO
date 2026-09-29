@@ -1,16 +1,31 @@
 <div id="escuela-modal-wrapper">
+    <style>
+        /* Salvaguarda: oculta el <select> nativo en cuanto select2 ya le
+           insertó su contenedor al lado (bug de timing con el swap de htmx). */
+        select.django-select2:has(+ .select2-container) {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+    </style>
     <dialog id="escuela-modal" class="modal">
-        <div class="modal-box">
+        <div class="modal-box max-w-lg rounded-2xl border border-base-300 shadow-2xl">
             <form method="dialog">
-                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
             </form>
 
-            <h3 class="font-bold text-lg">
+            <h3 class="font-bold text-xl">
                 {% if instance %}Editar Escuela{% else %}Nueva Escuela{% endif %}
             </h3>
 
             <form
-                hx-post="{% if instance %}{% url 'escuela_editar' instance.pk %}{% else %}{% url 'escuela_nueva' %}{% endif %}"
+                hx-post="{% if instance %}{% url 'escuela_editar' instance.pk %}{% else %}{% url 'escuela_nueva' %}{% endif %}{% querystring %}"
                 hx-target="#escuela-modal-wrapper"
                 hx-swap="outerHTML"
                 class="space-y-4 mt-4"
@@ -68,27 +83,14 @@
             var dialog = wrapper.querySelector('#escuela-modal');
             dialog.showModal();
 
-            // Se difiere un tick (requestAnimationFrame) para que el navegador termine
-            // de pintar el <dialog> recién abierto antes de que select2 mida/manipule
-            // el <select>. Inicializarlo en el mismo tick que showModal() es lo que
-            // provoca que a veces no llegue a ocultar el <select> original.
-            requestAnimationFrame(function () {
-                wrapper.querySelectorAll('.django-select2').forEach(function (el) {
-                    try {
-                        var $el = $(el);
-                        if ($el.data('select2')) {
-                            $el.select2('destroy');
-                        }
-                        // Por si quedó un contenedor visual huérfano de una inicialización previa/duplicada
-                        $el.siblings('.select2-container').remove();
-                        $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
-                        // Evita que el auto-init global de django_select2.js (si carga tarde)
-                        // vuelva a inicializar este mismo campo por encima.
-                        $el.removeClass('django-select2');
-                    } catch (err) {
-                        console.error('No se pudo inicializar select2', err);
-                    }
-                });
+            wrapper.querySelectorAll('.django-select2').forEach(function (el) {
+                try {
+                    var $el = $(el);
+                    try { $el.select2('destroy'); } catch (ignored) { /* aún no inicializado */ }
+                    $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
+                } catch (err) {
+                    console.error('No se pudo inicializar select2', err);
+                }
             });
 
             dialog.addEventListener('close', function () {

@@ -1,14 +1,38 @@
+from urllib.parse import urlparse
+
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from django_htmx.http import HttpResponseClientRedirect
 from weasyprint import HTML
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.shortcuts import render, get_object_or_404
-from django.urls import reverse
+from django.urls import Resolver404, resolve, reverse
 from . import forms
 from .models import Encargado, CDE, Escuela
+
+
+def _escuela_en_gestion(request):
+    """Si la petición htmx viene de la página "Gestionar" de una escuela,
+    devuelve esa escuela. Así los modales de encargado y CDE saben que deben
+    usar esa escuela y recargar esa página al guardar."""
+    url_actual = request.htmx.current_url if request.htmx else None
+    if not url_actual:
+        return None
+    try:
+        coincidencia = resolve(urlparse(url_actual).path)
+    except Resolver404:
+        return None
+    if coincidencia.url_name != 'escuela_gestionar':
+        return None
+    return Escuela.objects.filter(pk=coincidencia.kwargs['pk']).first()
+
+
+def _recargar_gestion(escuela):
+    """Cierra el modal y recarga la página "Gestionar" de la escuela."""
+    return HttpResponseClientRedirect(reverse('escuela_gestionar', args=[escuela.pk]))
 
 def _encargados_filtrados(request):
     # exactamente el cuerpo que ya tenías en _filtrar_encargados, PERO sin el Paginator
@@ -98,8 +122,13 @@ def encargado_form(request, pk=None):
     #Si pk es None, se crea un nuevo encargado, si no, se edita el encargado 
     # con ese pk.
     instance = get_object_or_404(Encargado, pk=pk) if pk else None
+    escuela_gestion = _escuela_en_gestion(request)
+    # Desde "Gestionar escuela" el encargado nuevo ya va con esa escuela fija
+    initial = {'escuela': escuela_gestion.pk} if escuela_gestion and not instance else None
     if request.method == 'POST':
-        form = forms.EncargadoForm(request.POST, instance=instance, prefix='encargado')
+        form = forms.EncargadoForm(request.POST, instance=instance, prefix='encargado', initial=initial)
+        if escuela_gestion:
+            form.fields['escuela'].disabled = True
         formset = forms.TelefonoFormSet(request.POST, instance=instance, prefix='telefonos')
         if form.is_valid() and formset.is_valid():
             es_nuevo = instance is None
@@ -112,6 +141,8 @@ def encargado_form(request, pk=None):
                 Encargado.objects.filter(
                     escuela=encargado.escuela, estado=True
                 ).exclude(pk=encargado.pk).update(estado=False)
+            if escuela_gestion:
+                return _recargar_gestion(escuela_gestion)
             _, encargados = _filtrar_encargados(request)
             return render(
                 request,
@@ -121,13 +152,15 @@ def encargado_form(request, pk=None):
     else:
         #Primera vez que se carga el formulario, se crea el formulario
         # con la instancia del encargado
-        form = forms.EncargadoForm(instance=instance, prefix='encargado')
+        form = forms.EncargadoForm(instance=instance, prefix='encargado', initial=initial)
+        if escuela_gestion:
+            form.fields['escuela'].disabled = True
         formset = forms.TelefonoFormSet(instance=instance, prefix='telefonos')
 
     return render(
          request,
        'partials/encargado/_encargado_form_modal.html',
-         {'form': form, 'formset': formset, 'instance': instance}
+         {'form': form, 'formset': formset, 'instance': instance, 'escuela_gestion': escuela_gestion}
      )
 
 # Cambiar Encargado: Crea un nuevo encargado y desactiva el anterior.
@@ -148,6 +181,9 @@ def encargado_cambiar(request, pk):
             formset.save()
             activo.estado = False #El anterior encargado pasa a inactivo
             activo.save() # El anterior pasa a inactivo
+            escuela_gestion = _escuela_en_gestion(request)
+            if escuela_gestion:
+                return _recargar_gestion(escuela_gestion)
             _, encargados = _filtrar_encargados(request)
             return render(request, 'partials/encargado/_encargado_form_success.html',
                           {'encargados': encargados}
@@ -175,7 +211,11 @@ def encargado_toggle_estado(request, pk):
             Encargado.objects.filter(
                 escuela=encargado.escuela, estado=True
             ).exclude(pk=encargado.pk).update(estado=False)
-            
+
+        escuela_gestion = _escuela_en_gestion(request)
+        if escuela_gestion:
+            return _recargar_gestion(escuela_gestion)
+
         _, encargados = _filtrar_encargados(request)
         
         return render( request,
@@ -261,11 +301,18 @@ def buscar_cdes(request):
 
 def cde_form(request, pk=None):
     instance = get_object_or_404(CDE, pk=pk) if pk else None
+    escuela_gestion = _escuela_en_gestion(request)
+    # Desde "Gestionar escuela" el CDE nuevo ya va con esa escuela fija
+    initial = {'escuela': escuela_gestion.pk} if escuela_gestion and not instance else None
 
     if request.method == 'POST':
-        form = forms.CDEForm(request.POST, instance=instance)
+        form = forms.CDEForm(request.POST, instance=instance, initial=initial)
+        if escuela_gestion:
+            form.fields['escuela'].disabled = True
         if form.is_valid():
             form.save()
+            if escuela_gestion:
+                return _recargar_gestion(escuela_gestion)
             _, _, _, _, cdes = _filtrar_cdes(request)
             return render(
                 request,
@@ -273,12 +320,14 @@ def cde_form(request, pk=None):
                 {'cdes': cdes},
             )
     else:
-        form = forms.CDEForm(instance=instance)
+        form = forms.CDEForm(instance=instance, initial=initial)
+        if escuela_gestion:
+            form.fields['escuela'].disabled = True
 
     return render(
         request,
         'partials/cde/modal_form.html',
-        {'form': form, 'instance': instance},
+        {'form': form, 'instance': instance, 'escuela_gestion': escuela_gestion},
     )
 
 
@@ -287,6 +336,9 @@ def cde_eliminar(request, pk):
 
     if request.method == 'POST':
         instance.delete()
+        escuela_gestion = _escuela_en_gestion(request)
+        if escuela_gestion:
+            return _recargar_gestion(escuela_gestion)
         _, _, _, _, cdes = _filtrar_cdes(request)
         return render(
             request,
@@ -323,10 +375,13 @@ def _escuelas_filtradas(request):
     escuelas_list = Escuela.objects.select_related('distrito').order_by('codigo')
 
     if filtro_form.is_valid():
+        escuela = filtro_form.cleaned_data.get('escuela')
         distrito = filtro_form.cleaned_data.get('distrito')
         estado = filtro_form.cleaned_data.get('estado')
         texto = filtro_form.cleaned_data.get('texto')
 
+        if escuela:
+            escuelas_list = escuelas_list.filter(pk=escuela.pk)
         if distrito:
             escuelas_list = escuelas_list.filter(distrito=distrito)
         if estado:
@@ -341,33 +396,125 @@ def _escuelas_filtradas(request):
     return filtro_form, escuelas_list
 
 
+def _con_encargado_y_cde(escuelas):
+    # Encargado activo (con sus teléfonos) y CDE activos de cada escuela, sin N+1
+    return escuelas.prefetch_related(
+        Prefetch(
+            'encargado_set',
+            queryset=Encargado.objects.filter(estado=True).prefetch_related('telefonos'),
+            to_attr='encargados_activos',
+        ),
+        Prefetch(
+            'cde_set',
+            queryset=CDE.objects.filter(estado=True).order_by('-FechaInicio'),
+            to_attr='cdes_activos',
+        ),
+    )
+
+
+def _hay_filtros(filtro_form):
+    return filtro_form.is_valid() and any(filtro_form.cleaned_data.values())
+
+
 def _filtrar_escuelas(request):
     filtro_form, escuelas_list = _escuelas_filtradas(request)
 
-    paginator = Paginator(escuelas_list, 20)
+    # Sin filtros no se lista nada: la página arranca solo con el buscador.
+    if not _hay_filtros(filtro_form):
+        return filtro_form, None
+
+    paginator = Paginator(_con_encargado_y_cde(escuelas_list), 20)
     escuelas = paginator.get_page(request.GET.get('page'))
 
     return filtro_form, escuelas
 
 
-def escuela_imprimir(request):
-    _, escuelas = _escuelas_filtradas(request)
-
+def _respuesta_pdf(request, template, contexto, nombre_archivo):
     html_string = render_to_string(
-        'partials/escuela/_escuela_reporte_pdf.html',
-        {'escuelas': escuelas, 'fecha_generacion': timezone.localdate()}
+        template,
+        {'fecha_generacion': timezone.localdate(), 'fecha_impresion': timezone.localtime(), **contexto}
     )
     pdf = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
 
     response = HttpResponse(pdf, content_type='application/pdf')
-    response['Content-Disposition'] = 'inline; filename="Escuelas.pdf"'
+    response['Content-Disposition'] = f'inline; filename="{nombre_archivo}"'
     return response
+
+
+# --- Imprimir: reportes individuales, con los filtros del buscador ---
+
+def escuela_imprimir(request):
+    _, escuelas = _escuelas_filtradas(request)
+    return _respuesta_pdf(
+        request, 'partials/escuela/_escuela_reporte_pdf.html',
+        {'escuelas': escuelas}, 'Escuelas.pdf'
+    )
+
+
+def escuela_imprimir_encargados(request):
+    _, escuelas = _escuelas_filtradas(request)
+    # ?anteriores=1 agrega los encargados inactivos (debajo del activo de cada escuela)
+    con_anteriores = request.GET.get('anteriores') == '1'
+
+    encargados = Encargado.objects.filter(
+        escuela__in=escuelas
+    ).select_related('escuela', 'escuela__distrito').prefetch_related(
+        'telefonos'
+    ).order_by('escuela__codigo', '-estado', 'apellido')
+    if not con_anteriores:
+        encargados = encargados.filter(estado=True)
+
+    return _respuesta_pdf(
+        request, 'partials/encargado/_encargado_reporte_pdf.html',
+        {'encargados': encargados},
+        'Encargados_con_anteriores.pdf' if con_anteriores else 'Encargados.pdf'
+    )
+
+
+def escuela_imprimir_cde(request):
+    _, escuelas = _escuelas_filtradas(request)
+    cdes = CDE.objects.filter(
+        escuela__in=escuelas
+    ).select_related('escuela', 'escuela__distrito').order_by('escuela__codigo', '-FechaInicio')
+    return _respuesta_pdf(
+        request, 'partials/cde/reporte_pdf.html',
+        {'cdes': cdes}, 'CDE.pdf'
+    )
+
+
+# --- Imprimir: reporte general (escuela + encargado + CDE en una sola hoja) ---
+
+def escuela_imprimir_general(request):
+    _, escuelas = _escuelas_filtradas(request)
+    return _respuesta_pdf(
+        request, 'partials/escuela/_escuela_reporte_general_pdf.html',
+        {'escuelas': _con_encargado_y_cde(escuelas)}, 'Reporte_general_escuelas.pdf'
+    )
+
+
+# --- Imprimir: ficha de una sola escuela ---
+
+def escuela_imprimir_ficha(request, pk):
+    escuela = get_object_or_404(Escuela.objects.select_related('distrito'), pk=pk)
+    encargados = list(
+        escuela.encargado_set.prefetch_related('telefonos').order_by('-estado', '-pk')
+    )
+    return _respuesta_pdf(
+        request, 'partials/escuela/_escuela_ficha_pdf.html',
+        {
+            'escuela': escuela,
+            'encargado_activo': next((e for e in encargados if e.estado), None),
+            'encargados_anteriores': [e for e in encargados if not e.estado],
+            'cdes': escuela.cde_set.order_by('-FechaInicio'),
+        },
+        f'Ficha_{escuela.codigo}.pdf'
+    )
 
 
 def home_escuelas(request):
     breadcrumbs = [
         {'name': 'Inicio', 'url': reverse('home')},
-        {'name': 'Escuelas', 'url': reverse('home_escuelas')},
+        {'name': 'Escuelas'},
     ]
 
     filtro_form, escuelas = _filtrar_escuelas(request)
@@ -393,13 +540,66 @@ def buscar_escuelas(request):
     )
 
 
+# Contenido que se despliega al abrir una escuela en el listado
+def escuela_detalle(request, pk):
+    escuela = get_object_or_404(Escuela, pk=pk)
+    encargados = list(
+        escuela.encargado_set.prefetch_related('telefonos').order_by('-estado', '-pk')
+    )
+
+    return render(
+        request,
+        'partials/escuela/_detalle.html',
+        {
+            'escuela': escuela,
+            'encargado_activo': next((e for e in encargados if e.estado), None),
+            'total_anteriores': sum(1 for e in encargados if not e.estado),
+            'cdes': escuela.cde_set.order_by('-FechaInicio'),
+        }
+    )
+
+
+# Página completa de una escuela: datos, encargado (y anteriores) y CDE
+def escuela_gestionar(request, pk):
+    escuela = get_object_or_404(Escuela.objects.select_related('distrito'), pk=pk)
+    encargados = list(
+        escuela.encargado_set.prefetch_related('telefonos').order_by('-estado', '-pk')
+    )
+
+    breadcrumbs = [
+        {'name': 'Inicio', 'url': reverse('home')},
+        {'name': 'Escuelas', 'url': reverse('home_escuelas')},
+        {'name': f"{escuela.codigo} · {escuela.nombre_corto}"},
+    ]
+
+    return render(
+        request,
+        'escuela/escuelaGestionar.html',
+        {
+            'breadcrumbs': breadcrumbs,
+            'escuela': escuela,
+            'encargado_activo': next((e for e in encargados if e.estado), None),
+            'encargados_anteriores': [e for e in encargados if not e.estado],
+            'cdes': escuela.cde_set.order_by('-FechaInicio'),
+            # JS/CSS de select2 que usan los modales de escuela y encargado
+            'form_media': forms.EscuelaForm().media,
+        }
+    )
+
+
 #Sirve para crear y Editar
 def escuela_form(request, pk=None):
     instance = get_object_or_404(Escuela, pk=pk) if pk else None
     if request.method == 'POST':
         form = forms.EscuelaForm(request.POST, instance=instance, prefix='escuela')
         if form.is_valid():
-            form.save()
+            escuela = form.save()
+            # Escuela nueva: se abre su página para agregarle encargado y CDE
+            if instance is None:
+                return _recargar_gestion(escuela)
+            escuela_gestion = _escuela_en_gestion(request)
+            if escuela_gestion:
+                return _recargar_gestion(escuela_gestion)
             _, escuelas = _filtrar_escuelas(request)
             return render(
                 request,
@@ -422,6 +622,10 @@ def escuela_toggle_estado(request, pk):
     if request.method == 'POST':
         escuela.estado = not escuela.estado
         escuela.save()
+
+        escuela_gestion = _escuela_en_gestion(request)
+        if escuela_gestion:
+            return _recargar_gestion(escuela_gestion)
 
         _, escuelas = _filtrar_escuelas(request)
 

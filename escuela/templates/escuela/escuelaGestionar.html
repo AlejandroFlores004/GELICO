@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Gestionar escuela
+{% endblock %}
+
+{% block extra_head %}
+    {{ form_media }}
+{% endblock %}
+
+{% block content %}
+<main class="p-6 lg:p-8 space-y-6 max-w-5xl mx-auto" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+
+    <div id="escuela-modal-wrapper"></div>
+    <div id="encargado-modal-wrapper"></div>
+    <div id="cde-modal-wrapper"></div>
+
+    <a href="{% url 'home_escuelas' %}" class="btn btn-ghost btn-sm gap-2 -ml-3">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+        Volver a Escuelas
+    </a>
+
+    {# ── Encabezado de la escuela ── #}
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div class="min-w-0 space-y-2">
+                    <div class="flex flex-wrap items-center gap-2 text-sm text-base-content/60">
+                        <span class="badge badge-outline font-mono">{{ escuela.codigo }}</span>
+                        <span>Distrito {{ escuela.distrito.nombre }}</span>
+                        {% if escuela.estado %}
+                        <span class="badge badge-success badge-soft">Activa</span>
+                        {% else %}
+                        <span class="badge badge-ghost">Inactiva</span>
+                        {% endif %}
+                    </div>
+                    <h1 class="text-2xl font-bold leading-tight break-words">{{ escuela.nombre }}</h1>
+                    <p class="text-sm text-base-content/60">Nombre corto: {{ escuela.nombre_corto }}</p>
+                </div>
+                <div class="flex flex-wrap gap-2 shrink-0 self-start">
+                    <button hx-get="{% url 'escuela_editar' escuela.pk %}" hx-target="#escuela-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                        </svg>
+                        Editar
+                    </button>
+                    <button hx-get="{% url 'escuela_toggle' escuela.pk %}" hx-target="#escuela-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
+                        </svg>
+                        {% if escuela.estado %}Desactivar{% else %}Activar{% endif %}
+                    </button>
+                    <a href="{% url 'escuela_imprimir_ficha' escuela.pk %}" target="_blank" class="btn btn-outline btn-sm gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5z" />
+                        </svg>
+                        Imprimir ficha
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Encargado ── #}
+    <div class="space-y-4">
+        <div class="flex items-center justify-between gap-3">
+            <div>
+                <h2 class="text-xl font-bold">Encargado</h2>
+                <p class="text-sm text-base-content/60">Responsable actual de la escuela.</p>
+            </div>
+            {% if not encargado_activo %}
+            <button hx-get="{% url 'encargado_nuevo' %}" hx-target="#encargado-modal-wrapper" hx-swap="outerHTML" class="btn btn-primary btn-sm gap-2 whitespace-nowrap">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Agregar encargado
+            </button>
+            {% endif %}
+        </div>
+
+        {% if encargado_activo %}
+        <div class="card bg-base-100 shadow-md border border-base-300">
+            <div class="card-body gap-4">
+                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div class="flex items-start gap-3 min-w-0">
+                        <div class="avatar avatar-placeholder shrink-0">
+                            <div class="w-11 rounded-full bg-primary/10 text-primary">
+                                <span class="font-semibold">{{ encargado_activo.nombre|first|upper }}{{ encargado_activo.apellido|first|upper }}</span>
+                            </div>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-lg font-semibold">{{ encargado_activo.nombre }} {{ encargado_activo.apellido }}</p>
+                            <p class="text-sm text-base-content/60 break-all">{{ encargado_activo.email }}</p>
+                            <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                                {% for tel in encargado_activo.telefonos.all %}
+                                <span class="text-sm whitespace-nowrap">
+                                    {{ tel.numero }}
+                                    <span class="badge badge-ghost badge-xs">{{ tel.get_etiqueta_display }}</span>
+                                </span>
+                                {% empty %}
+                                <span class="text-sm text-base-content/40">Sin teléfonos</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-1 shrink-0 self-start">
+                        <button hx-get="{% url 'encargado_editar' encargado_activo.pk %}" hx-target="#encargado-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm gap-2" title="Editar encargado">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                            </svg>
+                            Editar
+                        </button>
+                        <button hx-get="{% url 'encargado_cambiar' encargado_activo.pk %}" hx-target="#encargado-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm gap-2" title="Reemplazar por un encargado nuevo">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                            </svg>
+                            Cambiar
+                        </button>
+                        <button hx-get="{% url 'encargado_toggle' encargado_activo.pk %}" hx-target="#encargado-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm gap-2 text-error" title="Desactivar encargado">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
+                            </svg>
+                            Desactivar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="flex flex-col items-center text-center gap-2 py-10 border border-dashed border-base-300 rounded-box">
+            <p class="font-medium">Esta escuela no tiene encargado activo</p>
+            <p class="text-sm text-base-content/60">Usa <span class="font-medium text-base-content">Agregar encargado</span> para registrarlo.</p>
+        </div>
+        {% endif %}
+
+        {% if encargados_anteriores %}
+        <details class="collapse collapse-arrow bg-base-100 border border-base-300 rounded-box">
+            <summary class="collapse-title text-sm font-medium">
+                Ver encargados anteriores
+                <span class="text-base-content/50">({{ encargados_anteriores|length }})</span>
+            </summary>
+            <div class="collapse-content">
+                <ul class="divide-y divide-base-200">
+                    {% for encargado in encargados_anteriores %}
+                    <li class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3">
+                        <div class="min-w-0">
+                            <p class="font-medium">{{ encargado.nombre }} {{ encargado.apellido }}</p>
+                            <p class="text-xs text-base-content/60 break-all">
+                                {{ encargado.email }}
+                                {% for tel in encargado.telefonos.all %} · {{ tel.numero }}{% endfor %}
+                            </p>
+                        </div>
+                        <button hx-get="{% url 'encargado_toggle' encargado.pk %}" hx-target="#encargado-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-xs gap-1 self-start sm:self-auto" title="Volver a activar este encargado">
+                            Reactivar
+                        </button>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </details>
+        {% endif %}
+    </div>
+
+    {# ── CDE ── #}
+    <div class="space-y-4">
+        <div class="flex items-center justify-between gap-3">
+            <div>
+                <h2 class="text-xl font-bold">CDE</h2>
+                <p class="text-sm text-base-content/60">{{ cdes|length }} periodo{{ cdes|length|pluralize }} registrado{{ cdes|length|pluralize }}</p>
+            </div>
+            <button hx-get="{% url 'cde_nuevo' %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" class="btn btn-primary btn-sm gap-2 whitespace-nowrap">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Agregar CDE
+            </button>
+        </div>
+
+        {% if cdes %}
+        <div class="card bg-base-100 shadow-md border border-base-300">
+            <div class="overflow-x-auto">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Fecha inicio</th>
+                            <th>Fecha fin</th>
+                            <th>Estado</th>
+                            <th><span class="sr-only">Acciones</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cde in cdes %}
+                        <tr class="hover:bg-base-200/50">
+                            <td>{{ cde.FechaInicio|date:"d/m/Y" }}</td>
+                            <td>{{ cde.FechaFin|date:"d/m/Y" }}</td>
+                            <td>
+                                {% if cde.estado %}
+                                <span class="badge badge-success badge-soft badge-sm">Activo</span>
+                                {% else %}
+                                <span class="badge badge-ghost badge-sm">Inactivo</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="flex justify-end gap-1">
+                                    <button hx-get="{% url 'cde_editar' cde.pk %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm btn-square" title="Editar CDE" aria-label="Editar CDE">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                                        </svg>
+                                    </button>
+                                    <button hx-get="{% url 'cde_eliminar' cde.pk %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm btn-square text-error" title="Eliminar CDE" aria-label="Eliminar CDE">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="flex flex-col items-center text-center gap-2 py-10 border border-dashed border-base-300 rounded-box">
+            <p class="font-medium">Todavía no hay periodos de CDE</p>
+            <p class="text-sm text-base-content/60">Usa <span class="font-medium text-base-content">Agregar CDE</span> para registrar el primero.</p>
+        </div>
+        {% endif %}
+    </div>
+</main>
+{% endblock %}

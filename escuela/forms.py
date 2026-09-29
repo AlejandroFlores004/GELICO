@@ -259,6 +259,18 @@ class CDEForm(forms.ModelForm):
 
 #Formulario para filtrar/Buscar escuelas en el listado
 class FiltrarEscuelasForm(forms.Form):
+    escuela = forms.ModelChoiceField(
+        queryset=Escuela.objects.select_related('distrito').order_by('nombre_corto'),
+        widget=Select2Widget(attrs={
+            'data-placeholder': 'Todas las escuelas',
+            'style': 'width: 100%',
+            'class': 'select2-daisy',
+            'data-allow-clear': 'false',
+        }),
+        label='Escuela',
+        required=False,
+    )
+
     distrito = forms.ModelChoiceField(
         queryset=Distrito.objects.all(),
         widget=Select2Widget(attrs={
