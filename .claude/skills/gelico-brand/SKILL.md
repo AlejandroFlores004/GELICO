@@ -1,6 +1,6 @@
 ---
 name: gelico-brand
-description: Identidad visual de GELICO — paleta de colores y radios del tema daisyUI "gelico", tipografía, y uso correcto del isotipo/wordmark/favicon. Usar siempre que se toque styles.css, se agregue una clase de color nueva, se use el logo en un template, o un colaborador pregunte "qué color uso para X" / "cómo pongo el logo".
+description: Identidad visual de GELICO — paleta de colores y radios del tema daisyUI "gelico", tipografía, uso correcto del isotipo/wordmark/favicon de GELICO, y del sello del Ministerio de Educación en reportes PDF. Usar siempre que se toque styles.css, se agregue una clase de color nueva, se use un logo en un template, se trabaje en el encabezado de un reporte/PDF, o un colaborador pregunte "qué color uso para X" / "cómo pongo el logo".
 ---
 
 # GELICO — identidad visual
@@ -113,6 +113,44 @@ Todo vive en `main/static/brand/` (fuente única) + `main/static/favicon.*`:
   (casos ya resueltos), usa `gelico-mark.svg` con `class="text-white"` (o el
   color que corresponda) en vez de crear un archivo nuevo — es exactamente
   para eso que existe en `currentColor`.
+
+## Logo del Ministerio de Educación (sello institucional externo)
+
+GELICO opera para el Ministerio de Educación, y sus reportes impresos llevan
+el sello oficial. Esto **no** es un asset de marca de GELICO — es un símbolo
+de una institución externa (el Escudo de El Salvador usado por el
+Ministerio), así que sus reglas de uso son distintas a las del isotipo
+propio:
+
+| Archivo | Qué es | Cuándo usarlo |
+|---|---|---|
+| `main/static/instituciones/ministerio-educacion-sello.png` | Solo el escudo circular (sin el texto "MINISTERIO DE EDUCACIÓN"), recortado a cuadrado, fondo transparente | Espacios pequeños/cuadrados en encabezados de reporte — es el que ya está en uso en `liquidacion/templates/partials/asignacion/_reporte_pdf.html`, dentro del `<div class="logo">`. |
+| `main/static/instituciones/ministerio-educacion.png` | Logo completo tal como lo entregó el usuario (escudo + línea + "MINISTERIO DE EDUCACIÓN"), fondo transparente, proporción ancha (~2.47:1) | Encabezados con espacio horizontal de sobra (portadas, pies de página anchos). No lo fuerces dentro de una caja cuadrada — se ve aplastado; para eso está la versión recortada. |
+
+### Reglas de uso — distintas a las del logo de GELICO
+
+- **No lo recolorees, no le cambies el trazo ni lo "limpies"** — a diferencia
+  del isotipo de GELICO, este es un símbolo oficial de una institución
+  externa; su forma y color (`#111E60` aprox., ya es prácticamente el mismo
+  navy que `--color-primary` — coincidencia útil, no la fuerces si cambia) no
+  son una decisión de diseño de este proyecto.
+- Solo existen estas dos variantes (completo y sello recortado). Si un
+  reporte nuevo necesita otro recorte/tamaño, pide el archivo original al
+  usuario (`~/Downloads/logo_ministerio_educación.png` en su momento) en vez
+  de regenerarlo a partir de estos dos — recortar sobre un recorte pierde
+  calidad.
+- Es exclusivo de **reportes/documentos impresos** (PDF vía WeasyPrint) por
+  ahora. No lo agregues a la UI en pantalla (sidebar, navbar, login) salvo
+  que el usuario lo pida explícitamente — ahí el logo que corresponde es el
+  de GELICO.
+- Para usarlo en un reporte PDF nuevo: el template necesita
+  `{% load static %}` (los reportes no extienden `base.html`, así que no lo
+  heredan) y luego `<img src="{% static 'instituciones/ministerio-educacion-sello.png' %}" alt="Ministerio de Educación">`
+  dentro de un contenedor con tamaño fijo (ver `.logo`/`.logo img` en
+  `_reporte_pdf.html` de `liquidacion` como referencia). La vista que arma el
+  PDF debe pasar `base_url=request.build_absolute_uri('/')` a `HTML(...)`
+  (ya es el patrón establecido, ver `gelico-crud-scaffold`) para que
+  WeasyPrint pueda resolver la ruta `/static/...`.
 
 ## Si necesitas cambiar la identidad
 
