@@ -73,13 +73,76 @@ Tailwind encima salvo un caso muy puntual que daisyUI no cubra.
 
 ## Sidebar
 
-El menú lateral tiene su propia clase de componente, `.gelico-sidebar`
-(definida en `styles.css`, `@layer components`), que centraliza el estado
-activo (barra lateral de color + texto en `primary`), tamaño de íconos y
-`menu-title`. No repliques ese estilo con utilidades sueltas en un `<li>`
-nuevo — usa la misma estructura que ya existe en
-`partials/base/_sidebar.html` (`<ul class="menu gelico-sidebar ...">`, cada
-link con `svg` + `span`, `class="menu-active"` cuando corresponde).
+El menú lateral (`partials/base/_sidebar.html`) tiene su propio sistema de
+componentes en `styles.css`. No repliques nada de esto con utilidades
+sueltas en un `<li>` nuevo — copia la estructura de un ítem existente.
+
+**Estructura de un ítem de menú** (la sigue todo `<li>` del `<ul class="menu
+gelico-sidebar ...">`):
+
+```html
+<li>
+  <a href="{% url '...' %}" class="{% if url_name == '...' %}menu-active{% endif %}" title="Texto">
+    <span class="gelico-sidebar-icon">
+      <svg ...>...</svg>
+    </span>
+    <span class="gelico-sidebar-label">Texto</span>
+    <span class="gelico-sidebar-label badge badge-accent badge-soft badge-sm ml-auto">Pronto</span> <!-- solo si aplica -->
+  </a>
+</li>
+```
+
+- `.gelico-sidebar-icon` es el "chip": un cuadro de 2rem con fondo propio
+  detrás del ícono — es lo que le da presencia (antes el ícono flotaba
+  suelto sobre blanco). No pongas el `<svg>` directo dentro del `<a>` sin
+  este wrapper.
+- `.gelico-sidebar-label` marca **todo texto/badge que debe desaparecer
+  cuando el sidebar está colapsado** (ver más abajo): el label del ítem, el
+  badge "Pronto", el texto de `menu-title`. Si agregas un ítem nuevo y
+  olvidas esta clase en el texto, ese texto se queda visible atropellando
+  el riel de íconos al colapsar.
+- `.menu-active` ya no es solo texto de color — pinta toda la fila como una
+  píldora navy sólida (`background-color: var(--color-primary)`) con el
+  chip de ícono en un tono más claro encima. Es automático, no hay que
+  agregar nada más que la clase.
+- `menu-title` (los separadores "ESCUELAS", "PROGRAMACIÓN", etc.) también
+  envuelve su texto en `<span class="gelico-sidebar-label">` por el mismo
+  motivo — el `<li>` en sí se queda (da el borde superior que separa
+  secciones), solo el texto se oculta.
+
+**Sidebar colapsable (desktop).** Hay un botón (`#sidebar-collapse-toggle`,
+en el header del sidebar) que alterna la clase `sidebar-collapsed` en
+`<html>` y la persiste en `localStorage` (`gelico-sidebar-collapsed`) — hace
+falta JS porque esto es multi-página con recarga completa, no una SPA; el
+`<script>` inline en `base.html` (antes de que cargue el CSS) aplica la
+clase en el próximo `<head>` para que no haya parpadeo del sidebar
+expandido. Todo el comportamiento de "qué se oculta/encoge al colapsar"
+vive en un bloque `@media (min-width: 1024px) { html.sidebar-collapsed ... }`
+en `styles.css`, **fuera de `@layer components` a propósito**: Tailwind v4
+resuelve conflictos entre capas por orden de capa antes que por
+especificidad, así que una regla de `components` nunca le gana a un
+`.badge` de daisyUI (que cae en una capa posterior) aunque el selector sea
+más específico — por eso ese bloque está sin capa (el CSS sin `@layer`
+siempre gana). Si necesitas ocultar/ajustar algo más al colapsar, agrégalo
+ahí, no dentro de `@layer components`, o simplemente no se aplicará.
+Solo aplica en `lg:` (1024px+): en mobile el sidebar sigue siendo el drawer
+overlay completo de daisyUI, colapsarlo ahí no tiene sentido.
+
+## Usuario en sesión — dropdown en el navbar, no en el sidebar
+
+La identidad de sesión (avatar + nombre + "Cerrar sesión") vive **solo** en
+el navbar (`base.html`), arriba a la derecha, como un `dropdown
+dropdown-end` de daisyUI: un botón con avatar/nombre/chevron que al hacer
+foco despliega una tarjeta (`dropdown-content`) con nombre, email y el
+botón de logout — que dispara el mismo `modal_logout` de siempre
+(`partials/base/_logout.html`), no cierra sesión directo desde el dropdown.
+Es 100% CSS de daisyUI (`:focus`/`:focus-within`), sin JS propio.
+
+El sidebar **no** tiene ni debe tener un bloque de usuario — ya se probó
+esa ubicación y se decidió que el navbar se ve mejor y es más convencional
+(patrón estándar de dashboard: identidad de sesión arriba a la derecha). Si
+en el futuro alguien pide "mover el usuario al sidebar" de nuevo, confirma
+primero — ya se revirtió una vez.
 
 ## Logo — assets y cuándo usar cada uno
 

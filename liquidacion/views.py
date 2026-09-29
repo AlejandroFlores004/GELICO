@@ -490,7 +490,16 @@ def observacion_toggle(request, pk):
 
 
 def home_carga_excel(request):
-    return render(request, "carga_excel/cargaExcelHome.html")
+    breadcrumbs = [
+        {'name': 'Inicio', 'url': reverse('home')},
+        {'name': 'Carga de documentos Excel'},
+    ]
+
+    return render(
+        request,
+        "carga_excel/cargaExcelHome.html",
+        {"breadcrumbs": breadcrumbs},
+    )
 
 
 @require_POST
