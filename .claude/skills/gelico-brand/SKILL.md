@@ -23,13 +23,19 @@ la excepción está más abajo ("Cuándo SÍ hardcodear").
 
 | Token daisyUI | Hex | Uso |
 |---|---|---|
-| `primary` | `#4F46E5` (indigo) | Acción principal: botones primarios, enlaces, ítem activo del sidebar, foco de formularios. Es el color del isotipo — no lo cambies sin actualizar también el logo. |
-| `secondary` | `#0D9488` (teal) | Acciones alternas que no deben competir con la primaria (p. ej. un segundo botón junto a "Guardar"), estados "en curso". |
-| `accent` | `#F59E0B` (ámbar) | Uso puntual y escaso: destacar un dato, badges tipo "Pronto"/"Nuevo". **Nunca** como color de botón por defecto — satura la vista si se repite. |
-| `neutral` | `#374151` | Superficies oscuras puntuales (footer, tooltips oscuros). Poco uso en esta app. |
-| `info` / `success` / `warning` / `error` | azul / verde / ámbar oscuro / rojo | **Solo** para estado semántico real (alertas, validación, badges de estado). No los uses como decoración. |
-| `base-100/200/300` | blancos y grises con tinte azulado | Fondos: `base-100` contenido/cards, `base-200` fondo de página/sidebar, `base-300` bordes/dividers. Se eligió un blanco no puro (`#FFFFFF`/`#F3F4F8`) para que el panel no "brille" en sesiones largas. |
-| `base-content` | `#1E2233` | Texto por defecto. Es gris muy oscuro, no negro puro — mismo motivo: menos fatiga visual con alto contraste sostenido. |
+| `primary` | `#111E60` (navy institucional) | Color de marca fijo — es el color del logo, elegido explícitamente por el usuario. Acción principal: botones primarios, enlaces, ítem activo del sidebar, foco de formularios. No lo cambies sin que te lo pidan; si cambia, actualiza también el logo (ver más abajo). |
+| `secondary` | `#35437A` | Mismo matiz que `primary`, más claro. Acciones alternas que no deben competir con la primaria (p. ej. un segundo botón junto a "Guardar"). Se eligió del mismo azul a propósito — un color de otra familia (teal, verde) generaba choque visual junto al navy. |
+| `accent` | `#8A6D3B` (dorado envejecido) | El complemento clásico del azul marino en identidades institucionales/académicas. Uso puntual y escaso: destacar un dato, badges tipo "Pronto"/"Nuevo". Es un dorado apagado, no ámbar brillante — con un dorado saturado el contraste entre colores se sentía "demasiado". **Nunca** como color de botón por defecto. |
+| `neutral` | `#232A42` | Superficies oscuras puntuales (footer, tooltips oscuros), mismo matiz navy oscurecido. Poco uso en esta app. |
+| `info` / `success` / `warning` / `error` | azul / verde / naranja quemado / rojo ladrillo, todos apagados (no saturados) | **Solo** para estado semántico real (alertas, validación, badges de estado). Se desaturaron a propósito para que convivan con el navy y el dorado sin verse "de otro sistema". No los uses como decoración. |
+| `base-100/200/300` | `#FFFFFF` / `#EEF0F6` / `#D6DAE6` | Fondos: `base-100` contenido/cards, `base-200` fondo de página/sidebar, `base-300` bordes/dividers. `base-300` se separó deliberadamente más de `base-200` — con menos diferencia los bordes de las cards quedaban invisibles ("blanco sobre blanco"). Si en algún componente nuevo el borde se ve invisible otra vez, es señal de que se está usando `base-200` en vez de `base-300` para el borde. |
+| `base-content` | `#161B2C` | Texto por defecto. Gris-navy muy oscuro, no negro puro — menos fatiga visual con alto contraste sostenido, y mismo matiz que el resto de la paleta. |
+
+Estos colores están relacionados a propósito (variaciones del mismo azul +
+un solo acento cálido + semánticos desaturados) para lograr contraste
+suficiente entre superficie y contenido sin que los colores "choquen" entre
+sí. Si agregas un color nuevo, deriva del navy o mantenlo igual de apagado
+que el resto — no metas un tono saturado/brillante suelto.
 
 Usa siempre las clases semánticas de daisyUI/Tailwind que ya se usan en el
 proyecto: `btn btn-primary`, `btn btn-secondary`, `badge badge-accent`,
@@ -65,6 +71,16 @@ toggles). Estos ya están seteados por daisyUI a través de sus propias clases
 (`card`, `btn`, `input-bordered`, `badge`, etc.) — no agregues `rounded-*` de
 Tailwind encima salvo un caso muy puntual que daisyUI no cubra.
 
+## Sidebar
+
+El menú lateral tiene su propia clase de componente, `.gelico-sidebar`
+(definida en `styles.css`, `@layer components`), que centraliza el estado
+activo (barra lateral de color + texto en `primary`), tamaño de íconos y
+`menu-title`. No repliques ese estilo con utilidades sueltas en un `<li>`
+nuevo — usa la misma estructura que ya existe en
+`partials/base/_sidebar.html` (`<ul class="menu gelico-sidebar ...">`, cada
+link con `svg` + `span`, `class="menu-active"` cuando corresponde).
+
 ## Logo — assets y cuándo usar cada uno
 
 Todo vive en `main/static/brand/` (fuente única) + `main/static/favicon.*`:
@@ -72,16 +88,16 @@ Todo vive en `main/static/brand/` (fuente única) + `main/static/favicon.*`:
 | Archivo | Qué es | Cuándo usarlo |
 |---|---|---|
 | `brand/gelico-mark.svg` | Isotipo (cruz + libro + "G") en `fill="currentColor"`, `viewBox="0 0 780 780"` | Embebido **inline** (`{% include %}` o pegado directo en el HTML) cuando necesitas que el color del logo herede del contexto (p. ej. dentro de un botón, o un contenedor con `text-primary`/`text-white`). |
-| `brand/gelico-mark-primary.svg` | Mismo isotipo, color de marca fijo (`#4F46E5`) | Vía `<img src="...">` en cualquier lugar donde no puedas controlar `currentColor` (así está usado hoy en el sidebar, `partials/base/_sidebar.html`). |
-| `brand/gelico-wordmark.svg` | Isotipo + texto "GELICO", color de marca fijo | Pantallas con espacio de sobra y fondo claro: login (`registration/login.html`), portadas, splash. No lo achiques debajo de ~28px de alto — el texto deja de leerse. |
-| `favicon.svg` | Isotipo en blanco sobre cuadro `#4F46E5` redondeado, `viewBox 0 0 64 64` | `<link rel="icon">`. Ya wireado en `base.html`/`login.html`. |
+| `brand/gelico-mark-primary.svg` | Mismo isotipo, color de marca fijo (`#111E60`) | Vía `<img src="...">` en cualquier lugar donde no puedas controlar `currentColor` (así está usado hoy en el sidebar, `partials/base/_sidebar.html`, y en el navbar móvil de `base.html`). |
+| `brand/gelico-wordmark.svg` | Isotipo (`#111E60`) + texto "GELICO" (`#161B2C`) | Pantallas con espacio de sobra y fondo claro: login (`registration/login.html`), portadas, splash. No lo achiques debajo de ~28px de alto — el texto deja de leerse. |
+| `favicon.svg` | Isotipo en blanco sobre cuadro `#111E60` redondeado, `viewBox 0 0 64 64` | `<link rel="icon">`. Ya wireado en `base.html`/`login.html`. |
 | `favicon.ico` | Igual, rasterizado en 16/32/48px | Fallback para navegadores que no soportan favicon SVG (`<link rel="alternate icon">`, ya wireado). |
 | `brand/apple-touch-icon.png` | Igual, 180×180 | `<link rel="apple-touch-icon">` (ya wireado en `base.html`). |
-| `brand/gelico-icon-512.png` | Isotipo en blanco sobre `#4F46E5`, 512×512 | Fuente para generar cualquier ícono nuevo (PWA manifest, redes, etc.) sin volver a exportar desde el SVG. |
+| `brand/gelico-icon-512.png` | Isotipo en blanco sobre `#111E60`, 512×512 | Fuente para generar cualquier ícono nuevo (PWA manifest, redes, etc.) sin volver a exportar desde el SVG. |
 
 ### Reglas de uso del logo
 
-- **No** lo re-colorees fuera de la paleta de marca (`#4F46E5` o
+- **No** lo re-colorees fuera de la paleta de marca (`#111E60` o
   `currentColor`) ni lo pongas en degradado/con sombra — el isotipo ya tiene
   suficiente detalle (cruz, libro, arco) y pierde legibilidad con efectos
   encima.
