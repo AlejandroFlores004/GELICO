@@ -106,14 +106,24 @@
     padding: 0.625rem 0.875rem;
     font-size: 0.9375rem;
     font-weight: 500;
-    color: color-mix(in oklab, var(--color-base-content) 80%, transparent);
+    color: color-mix(in oklab, var(--color-base-content) 88%, transparent);
+    transition: color 0.15s ease, background-color 0.15s ease;
   }
 
+  /* El ícono hereda el color del link (currentColor) — sin opacity aparte,
+     que antes se sumaba al color ya atenuado del texto y lo dejaba casi
+     invisible. El tamaño se subió de 1.25rem a 1.5rem: a 20px el trazo se
+     perdía, sobre todo en los íconos con más detalle (Ausencias, CDE). */
   .gelico-sidebar > li > a > svg {
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 1.5rem;
+    height: 1.5rem;
     flex-shrink: 0;
-    opacity: 0.75;
+    stroke-width: 1.85;
+  }
+
+  .gelico-sidebar > li > a:not(.menu-active):hover {
+    color: var(--color-base-content);
+    background-color: color-mix(in oklab, var(--color-base-content) 6%, transparent);
   }
 
   .gelico-sidebar > li > a.menu-active {
@@ -123,7 +133,7 @@
   }
 
   .gelico-sidebar > li > a.menu-active > svg {
-    opacity: 1;
+    stroke-width: 2.1;
   }
 
   .gelico-sidebar > li > a.menu-active::before {
