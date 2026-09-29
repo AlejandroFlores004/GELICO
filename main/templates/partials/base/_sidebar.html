@@ -30,7 +30,7 @@
       <!-- Escuelas -->
       <li class="menu-title"><span class="gelico-sidebar-label">Escuelas</span></li>
       <li>
-        <a href="#" class="pointer-events-none opacity-50">
+        <a href="{% url 'home_escuelas' %}" class="{% if url_name == 'home_escuelas' %}menu-active{% endif %}" title="Escuelas">
           <span class="gelico-sidebar-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
                 stroke-width="2" fill="none" stroke="currentColor">
@@ -39,7 +39,6 @@
             </svg>
           </span>
           <span class="gelico-sidebar-label">Escuelas</span>
-          <span class="gelico-sidebar-label badge badge-accent badge-soft badge-sm ml-auto">Pronto</span>
         </a>
       </li>
       <li>

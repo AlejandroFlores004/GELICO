@@ -10,6 +10,13 @@ urlpatterns = [
     path('encargado/<int:pk>/toggle/',views.encargado_toggle_estado, name='encargado_toggle'),
     path('encargado/imprimir/', views.encargado_imprimir, name='encargado_imprimir'),
 
+    path('cde/', views.cdeHomeView, name='home_cde'),
+    path('cde/buscar/', views.buscar_cdes, name='buscar_cdes'),
+    path('cde/imprimir/', views.cde_imprimir, name='cde_imprimir'),
+    path('cde/nuevo/', views.cde_form, name='cde_nuevo'),
+    path('cde/<int:pk>/editar/', views.cde_form, name='cde_editar'),
+    path('cde/<int:pk>/eliminar/', views.cde_eliminar, name='cde_eliminar'),
+
     path('', views.home_escuelas, name='home_escuelas'),
     path('buscar/', views.buscar_escuelas, name='escuela_buscar'),
     path('nueva/', views.escuela_form, name='escuela_nueva'),

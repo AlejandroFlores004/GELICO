@@ -35,6 +35,7 @@ ENV/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+db.backup-*.sqlite3
 media/
 
 # Static files collected by collectstatic
