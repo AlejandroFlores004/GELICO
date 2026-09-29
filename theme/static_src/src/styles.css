@@ -25,38 +25,46 @@
   prefersdark: false;
   color-scheme: light;
 
-  /* Superficies — grises con un ligero tinte azulado, evita el blanco puro
-     para reducir el brillo/cansancio visual en jornadas largas frente al panel. */
+  /* Superficies — grises con tinte azul-marino (misma familia que el
+     primario) en vez de grises neutros o blanco puro. base-300 se separó
+     más de base-200 a propósito: con menos diferencia los bordes quedaban
+     invisibles ("blanco sobre blanco"). */
   --color-base-100: #FFFFFF;
-  --color-base-200: #F3F4F8;
-  --color-base-300: #E5E7F0;
-  --color-base-content: #1E2233;
+  --color-base-200: #EEF0F6;
+  --color-base-300: #D6DAE6;
+  --color-base-content: #161B2C;
 
-  /* Primario — indigo institucional, ya usado en el isotipo. Acciones
+  /* Primario — navy institucional (color de marca/logo, fijo: no cambiar
+     sin actualizar también main/static/brand/*.svg y favicon.svg). Acciones
      principales, enlaces, estado activo del sidebar. */
-  --color-primary: #4F46E5;
+  --color-primary: #111E60;
   --color-primary-content: #FFFFFF;
 
-  /* Secundario — teal, para acciones alternas/informativas que no deben
-     competir con el primario (p. ej. botones secundarios, estados "en curso"). */
-  --color-secondary: #0D9488;
+  /* Secundario y neutral son tonos más claros/oscuros del MISMO azul que el
+     primario (no un color nuevo) — así ninguna combinación choca entre sí. */
+  --color-secondary: #35437A;
   --color-secondary-content: #FFFFFF;
 
-  /* Acento — ámbar, uso puntual: destacar, badges "Pronto", llamadas de
-     atención suaves. No usar como color de botón por defecto. */
-  --color-accent: #F59E0B;
-  --color-accent-content: #1F2937;
+  /* Acento — dorado apagado, el complemento clásico del azul marino en
+     identidades institucionales/académicas. Uso puntual: destacar, badges
+     "Pronto". Es un dorado envejecido a propósito (no ámbar brillante) para
+     que no choque con el navy. No usar como color de botón por defecto. */
+  --color-accent: #8A6D3B;
+  --color-accent-content: #FFFFFF;
 
-  --color-neutral: #374151;
+  --color-neutral: #232A42;
   --color-neutral-content: #FFFFFF;
 
-  --color-info: #0284C7;
+  /* Semánticos — versiones apagadas (no saturadas) de azul/verde/naranja/rojo
+     para que combinen con el resto de la paleta en vez de verse "de otro
+     sistema" cuando aparecen junto al navy y al dorado. */
+  --color-info: #2B5FA8;
   --color-info-content: #FFFFFF;
-  --color-success: #16A34A;
+  --color-success: #2F7D52;
   --color-success-content: #FFFFFF;
-  --color-warning: #D97706;
+  --color-warning: #A85D22;
   --color-warning-content: #FFFFFF;
-  --color-error: #DC2626;
+  --color-error: #B3413A;
   --color-error-content: #FFFFFF;
 
   /* Radios — esquinas suaves y consistentes en cards/modales, campos/botones
