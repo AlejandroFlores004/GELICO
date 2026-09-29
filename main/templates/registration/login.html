@@ -1,18 +1,26 @@
 {% load tailwind_tags %}
+{% load static %}
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="es" data-theme="gelico">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Login</title>
+  <title>Iniciar sesión · GELICO</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   {% tailwind_css %}
+  <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}">
+  <link rel="alternate icon" href="{% static 'favicon.ico' %}">
+  <meta name="theme-color" content="#4F46E5">
 </head>
 <body class="min-h-screen bg-base-200 flex items-center justify-center">
 
   <div class="card w-full max-w-sm shadow-xl bg-base-100">
     <div class="card-body gap-4">
 
-      <h2 class="card-title text-2xl font-bold justify-center">Inicio de Sesión</h2>
+      <img src="{% static 'brand/gelico-wordmark.svg' %}" alt="GELICO" class="h-9 w-auto mx-auto mb-1">
+      <p class="text-center text-sm text-base-content/60 -mt-3">Gestión de Liquidaciones y Convocatorias</p>
 
       {% if messages %}
         {% for message in messages %}

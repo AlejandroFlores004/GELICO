@@ -1,5 +1,7 @@
 @import "tailwindcss";
-@plugin "daisyui";
+@plugin "daisyui" {
+  themes: gelico --default;
+}
 
 /**
   * A catch-all path to Django template files, JavaScript, and Python files
@@ -9,3 +11,73 @@
   * the scope of this path.
   */
 @source "../../../**/*.{html,py,js}";
+
+/*
+ * Identidad visual GELICO — tema daisyUI "gelico".
+ * Paleta y radios documentados en la skill `gelico-brand`.
+ * Cambios aquí son la única fuente de verdad: no hardcodear colores/hex
+ * sueltos en templates, usa siempre las clases semánticas de daisyUI
+ * (btn-primary, badge-accent, bg-base-200, text-base-content/70, etc.).
+ */
+@plugin "daisyui/theme" {
+  name: "gelico";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  /* Superficies — grises con un ligero tinte azulado, evita el blanco puro
+     para reducir el brillo/cansancio visual en jornadas largas frente al panel. */
+  --color-base-100: #FFFFFF;
+  --color-base-200: #F3F4F8;
+  --color-base-300: #E5E7F0;
+  --color-base-content: #1E2233;
+
+  /* Primario — indigo institucional, ya usado en el isotipo. Acciones
+     principales, enlaces, estado activo del sidebar. */
+  --color-primary: #4F46E5;
+  --color-primary-content: #FFFFFF;
+
+  /* Secundario — teal, para acciones alternas/informativas que no deben
+     competir con el primario (p. ej. botones secundarios, estados "en curso"). */
+  --color-secondary: #0D9488;
+  --color-secondary-content: #FFFFFF;
+
+  /* Acento — ámbar, uso puntual: destacar, badges "Pronto", llamadas de
+     atención suaves. No usar como color de botón por defecto. */
+  --color-accent: #F59E0B;
+  --color-accent-content: #1F2937;
+
+  --color-neutral: #374151;
+  --color-neutral-content: #FFFFFF;
+
+  --color-info: #0284C7;
+  --color-info-content: #FFFFFF;
+  --color-success: #16A34A;
+  --color-success-content: #FFFFFF;
+  --color-warning: #D97706;
+  --color-warning-content: #FFFFFF;
+  --color-error: #DC2626;
+  --color-error-content: #FFFFFF;
+
+  /* Radios — esquinas suaves y consistentes en cards/modales, campos/botones
+     y elementos pequeños (checkbox, badge, toggle). */
+  --radius-box: 0.75rem;
+  --radius-field: 0.5rem;
+  --radius-selector: 0.5rem;
+
+  --size-field: 0.25rem;
+  --size-selector: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+  }
+}
