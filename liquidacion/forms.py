@@ -4,6 +4,7 @@ from django_select2.forms import Select2Widget
 
 from escuela.models import Distrito, Escuela
 from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Bono, Observacion, Recibo
+from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Bono, Observacion, Recibo
 
 
 class FiltrarAsignacionesForm(forms.Form):
@@ -179,10 +180,9 @@ class ObservacionForm(forms.ModelForm):
 class BonoForm(forms.ModelForm):
     class Meta:
         model = Bono
-        fields = ['nombre', 'anio', 'id_sistema', 'descripcion']
+        fields = ['nombre', 'id_sistema', 'descripcion']
         labels = {
             'nombre': 'Nombre',
-            'anio': 'Año',
             'id_sistema': 'ID en el sistema',
             'descripcion': 'Descripción',
         }
@@ -190,12 +190,6 @@ class BonoForm(forms.ModelForm):
             'nombre': forms.TextInput(attrs={
                 'class': 'input input-bordered w-full',
                 'placeholder': 'Nombre del bono',
-            }),
-            'anio': forms.NumberInput(attrs={
-                'class': 'input input-bordered w-full',
-                'placeholder': 'Ej. 2026',
-                'min': '2000',
-                'max': '2100',
             }),
             'id_sistema': forms.NumberInput(attrs={
                 'class': 'input input-bordered w-full',
@@ -213,5 +207,3 @@ class BonoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Los bonos que vienen de la carga de Excel no traen descripción.
         self.fields['descripcion'].required = False
-        if not self.instance.pk:
-            self.initial.setdefault('anio', timezone.localdate().year)

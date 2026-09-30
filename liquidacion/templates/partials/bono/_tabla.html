@@ -18,7 +18,6 @@
                 <thead>
                     <tr>
                         <th>Nombre</th>
-                        <th>Año</th>
                         <th>ID en el sistema</th>
                         <th>Descripción</th>
                         <th class="text-right">Acciones</th>
@@ -28,7 +27,6 @@
                     {% for bono in bonos %}
                     <tr class="hover">
                         <td class="font-medium">{{ bono.nombre }}</td>
-                        <td><span class="badge badge-primary badge-soft">{{ bono.anio }}</span></td>
                         <td>{% if bono.id_sistema is not None %}<span class="badge badge-outline font-mono">{{ bono.id_sistema }}</span>{% else %}<span class="text-base-content/40">—</span>{% endif %}</td>
                         <td><div class="text-sm max-w-md whitespace-normal break-words">{{ bono.descripcion|default:"—" }}</div></td>
                         <td>
@@ -48,7 +46,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="5" class="text-center text-base-content/60 py-6">No existen registros.</td></tr>
+                    <tr><td colspan="4" class="text-center text-base-content/60 py-6">No existen registros.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

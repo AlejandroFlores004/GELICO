@@ -14,10 +14,9 @@ from django.views.decorators.http import require_POST
 from django_htmx.http import HttpResponseClientRedirect
 from weasyprint import HTML
 
-from catalogo.models import Bono
 from escuela.models import CDE, Encargado, Escuela
-from .forms import AbonoForm, AsignacionForm, AsignacionValorForm, FiltrarAsignacionesForm, ObservacionForm, ReciboForm
-from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Observacion, Recibo
+from .forms import AbonoForm, AsignacionForm, AsignacionValorForm, BonoForm, FiltrarAsignacionesForm, ObservacionForm, ReciboForm
+from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Bono, Observacion, Recibo
 from .utils import a_decimal, a_entero, a_texto_codigo, indice_columna, indices_columna, leer_filas_excel
 
 
@@ -495,27 +494,24 @@ def observacion_toggle(request, pk):
 def _bonos_filtrados(request):
     """Queryset filtrado, SIN paginar. Lo reutiliza tanto el listado como el imprimir."""
     search = request.GET.get('q', '').strip()
-    anio = request.GET.get('anio', '').strip()
-    bonos = Bono.objects.all().order_by('-anio', 'nombre')
+    bonos = Bono.objects.all().order_by('nombre')
     if search:
         filtro = Q(nombre__icontains=search) | Q(descripcion__icontains=search)
         if search.isdigit():
             filtro |= Q(id_sistema=int(search))
         bonos = bonos.filter(filtro)
-    if anio.isdigit():
-        bonos = bonos.filter(anio=int(anio))
-    return search, anio, bonos
+    return search, bonos
 
 
 def _filtrar_bonos(request):
-    search, anio, bonos_list = _bonos_filtrados(request)
+    search, bonos_list = _bonos_filtrados(request)
     paginator = Paginator(bonos_list, 20)
     bonos = paginator.get_page(request.GET.get('page'))
-    return search, anio, bonos
+    return search, bonos
 
 
 def bonoHomeView(request):
-    search, anio, bonos = _filtrar_bonos(request)
+    search, bonos = _filtrar_bonos(request)
 
     breadcrumbs = [
         {'name': 'Inicio', 'url': reverse('home')},
@@ -529,14 +525,12 @@ def bonoHomeView(request):
             "breadcrumbs": breadcrumbs,
             "bonos": bonos,
             "search": search,
-            "anio": anio,
-            "anios": Bono.objects.order_by('-anio').values_list('anio', flat=True).distinct(),
         },
     )
 
 
 def buscar_bonos(request):
-    _, _, bonos = _filtrar_bonos(request)
+    _, bonos = _filtrar_bonos(request)
 
     return render(
         request,
@@ -552,7 +546,7 @@ def bono_form(request, pk=None):
         form = BonoForm(request.POST, instance=instance)
         if form.is_valid():
             form.save()
-            _, _, bonos = _filtrar_bonos(request)
+            _, bonos = _filtrar_bonos(request)
             return render(
                 request,
                 "partials/bono/_modal_form_success.html",
@@ -573,7 +567,7 @@ def bono_eliminar(request, pk):
 
     if request.method == "POST":
         instance.delete()
-        _, _, bonos = _filtrar_bonos(request)
+        _, bonos = _filtrar_bonos(request)
         return render(
             request,
             "partials/bono/_modal_form_success.html",
@@ -588,7 +582,7 @@ def bono_eliminar(request, pk):
 
 
 def bono_imprimir(request):
-    _, _, bonos = _bonos_filtrados(request)
+    _, bonos = _bonos_filtrados(request)
     html_string = render_to_string(
         "partials/bono/_reporte_pdf.html",
         {
