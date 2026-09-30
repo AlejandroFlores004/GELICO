@@ -58,7 +58,8 @@
             <tr>
                 <th style="width: 6%;">Nº</th>
                 <th class="izq" style="width: 34%;">Nombre</th>
-                <th style="width: 14%;">ID sistema</th>
+                <th style="width: 8%;">Año</th>
+                <th style="width: 12%;">ID sistema</th>
                 <th class="izq">Descripción</th>
             </tr>
         </thead>
@@ -67,11 +68,12 @@
             <tr>
                 <td class="centro">{{ forloop.counter }}</td>
                 <td>{{ bono.nombre|upper }}</td>
+                <td class="centro">{{ bono.anio }}</td>
                 <td class="centro">{{ bono.id_sistema|default_if_none:"" }}</td>
                 <td>{{ bono.descripcion|linebreaksbr }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="4" class="vacio">No existen registros.</td></tr>
+            <tr><td colspan="5" class="vacio">No existen registros.</td></tr>
             {% endfor %}
         </tbody>
     </table>

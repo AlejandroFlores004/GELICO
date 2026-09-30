@@ -4,7 +4,7 @@ from escuela.models import Escuela
 ESTADO_LIQUIDACION_CHOICES = [
     ('liquidado', 'Liquidado'),
     ('liquidado_con_observaciones', 'Liquidado con observaciones'),
-    ('pendiente_observacion', 'Pendiente de observación'),
+    ('pendiente_revision', 'Pendiente de revisión'),
 ]
 
 # Create your models here.
@@ -12,6 +12,7 @@ class Bono(models.Model):
     nombre = models.CharField(max_length=255, unique=True)
     descripcion = models.TextField()
     id_sistema = models.IntegerField(null=True, blank=True, unique=True)
+    anio = models.PositiveSmallIntegerField(verbose_name="Año")
 
     def __str__(self):
         return self.nombre
