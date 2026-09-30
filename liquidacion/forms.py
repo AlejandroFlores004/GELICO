@@ -43,6 +43,20 @@ class FiltrarAsignacionesForm(forms.Form):
         required=False,
     )
 
+    anio = forms.TypedChoiceField(
+        coerce=int,
+        empty_value=None,
+        required=False,
+        widget=Select2Widget(attrs={
+            'data-placeholder': 'Todos los años',
+            'style': 'width: 100%',
+            'class': 'select2-daisy',
+            'data-allow-clear': 'false',
+            'data-minimum-results-for-search': 'Infinity',
+        }),
+        label='Año',
+    )
+
     estado = forms.ChoiceField(
         choices=[('', '')] + ESTADO_LIQUIDACION_CHOICES,
         required=False,
@@ -55,6 +69,11 @@ class FiltrarAsignacionesForm(forms.Form):
         }),
         label='Estado',
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        anios = Bono.objects.order_by('-anio').values_list('anio', flat=True).distinct()
+        self.fields['anio'].choices = [('', '')] + [(anio, anio) for anio in anios]
 
 
 class AsignacionForm(forms.ModelForm):
