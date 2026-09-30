@@ -17,7 +17,7 @@ from weasyprint import HTML
 from escuela.models import CDE, Encargado, Escuela
 from .forms import AbonoForm, AsignacionForm, AsignacionValorForm, BonoForm, FiltrarAsignacionesForm, ObservacionForm, ReciboForm
 from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Bono, Observacion, Recibo
-from .utils import a_decimal, a_entero, a_texto_codigo, indice_columna, indices_columna, leer_filas_excel
+from .utils import a_decimal, a_entero, a_texto_codigo, extraer_anio, indice_columna, indices_columna, leer_filas_excel
 
 
 def _cerrar_y_recargar(request, asignacion_pk):
@@ -32,7 +32,7 @@ def _estado_liquidacion(recibos):
     """Calcula el estado de liquidación de una asignación según sus observaciones."""
     observaciones = [obs for recibo in recibos for obs in recibo.observacion_set.all()]
     if not observaciones:
-        return 'pendiente_observacion'
+        return 'pendiente_revision'
     if all(obs.resuelta for obs in observaciones):
         return 'liquidado'
     return 'liquidado_con_observaciones'
@@ -491,24 +491,27 @@ def observacion_toggle(request, pk):
 def _bonos_filtrados(request):
     """Queryset filtrado, SIN paginar. Lo reutiliza tanto el listado como el imprimir."""
     search = request.GET.get('q', '').strip()
-    bonos = Bono.objects.all().order_by('nombre')
+    anio = request.GET.get('anio', '').strip()
+    bonos = Bono.objects.all().order_by('-anio', 'nombre')
     if search:
         filtro = Q(nombre__icontains=search) | Q(descripcion__icontains=search)
         if search.isdigit():
             filtro |= Q(id_sistema=int(search))
         bonos = bonos.filter(filtro)
-    return search, bonos
+    if anio.isdigit():
+        bonos = bonos.filter(anio=int(anio))
+    return search, anio, bonos
 
 
 def _filtrar_bonos(request):
-    search, bonos_list = _bonos_filtrados(request)
+    search, anio, bonos_list = _bonos_filtrados(request)
     paginator = Paginator(bonos_list, 20)
     bonos = paginator.get_page(request.GET.get('page'))
-    return search, bonos
+    return search, anio, bonos
 
 
 def bonoHomeView(request):
-    search, bonos = _filtrar_bonos(request)
+    search, anio, bonos = _filtrar_bonos(request)
 
     breadcrumbs = [
         {'name': 'Inicio', 'url': reverse('home')},
@@ -522,12 +525,14 @@ def bonoHomeView(request):
             "breadcrumbs": breadcrumbs,
             "bonos": bonos,
             "search": search,
+            "anio": anio,
+            "anios": Bono.objects.order_by('-anio').values_list('anio', flat=True).distinct(),
         },
     )
 
 
 def buscar_bonos(request):
-    _, bonos = _filtrar_bonos(request)
+    _, _, bonos = _filtrar_bonos(request)
 
     return render(
         request,
@@ -543,7 +548,7 @@ def bono_form(request, pk=None):
         form = BonoForm(request.POST, instance=instance)
         if form.is_valid():
             form.save()
-            _, bonos = _filtrar_bonos(request)
+            _, _, bonos = _filtrar_bonos(request)
             return render(
                 request,
                 "partials/bono/_modal_form_success.html",
@@ -564,7 +569,7 @@ def bono_eliminar(request, pk):
 
     if request.method == "POST":
         instance.delete()
-        _, bonos = _filtrar_bonos(request)
+        _, _, bonos = _filtrar_bonos(request)
         return render(
             request,
             "partials/bono/_modal_form_success.html",
@@ -579,7 +584,7 @@ def bono_eliminar(request, pk):
 
 
 def bono_imprimir(request):
-    _, bonos = _bonos_filtrados(request)
+    _, _, bonos = _bonos_filtrados(request)
     html_string = render_to_string(
         "partials/bono/_reporte_pdf.html",
         {
@@ -664,6 +669,7 @@ def carga_bonos_preview(request):
         {
             "id_bono": id_bono,
             "nombre_bono": nombre_bono,
+            "anio": extraer_anio(nombre_bono),
             "ya_existe": id_bono in ids_existentes or nombre_bono in nombres_existentes,
         }
         for id_bono, nombre_bono in vistos.items()
@@ -694,7 +700,9 @@ def carga_bonos_confirmar(request):
         id_bono = a_entero(request.POST.get(f"id_bono_{indice}"))
         nombre_bono = request.POST.get(f"nombre_bono_{indice}", "").strip()
 
-        if id_bono is None or not nombre_bono:
+        anio = extraer_anio(nombre_bono)
+
+        if id_bono is None or not nombre_bono or anio is None:
             continue
 
         ya_existe = Bono.objects.filter(nombre=nombre_bono).exists() or Bono.objects.filter(id_sistema=id_bono).exists()
@@ -702,7 +710,7 @@ def carga_bonos_confirmar(request):
             omitidos += 1
             continue
 
-        Bono.objects.create(nombre=nombre_bono, id_sistema=id_bono)
+        Bono.objects.create(nombre=nombre_bono, id_sistema=id_bono, anio=anio)
         creados += 1
 
     return render(

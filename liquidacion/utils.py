@@ -1,3 +1,4 @@
+import re
 from decimal import Decimal, InvalidOperation
 
 import openpyxl
@@ -71,3 +72,12 @@ def a_texto_codigo(valor):
     if entero is not None:
         return str(entero)
     return str(valor).strip() if valor not in (None, "") else ""
+
+
+def extraer_anio(texto):
+    """Devuelve el año (4 dígitos, 19xx/20xx) que aparece en el texto, o None.
+
+    Si hay varios, se toma el último (ej. "BONO ESCOLAR 01/02/2025" -> 2025).
+    """
+    anios = re.findall(r"(?<!\d)((?:19|20)\d{2})(?!\d)", str(texto or ""))
+    return int(anios[-1]) if anios else None
