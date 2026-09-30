@@ -1,9 +1,8 @@
 from django import forms
 from django_select2.forms import Select2Widget
 
-from catalogo.models import Bono
 from escuela.models import Distrito, Escuela
-from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Observacion, Recibo
+from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Bono, Observacion, Recibo
 
 
 class FiltrarAsignacionesForm(forms.Form):
@@ -155,3 +154,35 @@ class ObservacionForm(forms.ModelForm):
                 'class': 'checkbox',
             }),
         }
+
+
+class BonoForm(forms.ModelForm):
+    class Meta:
+        model = Bono
+        fields = ['nombre', 'id_sistema', 'descripcion']
+        labels = {
+            'nombre': 'Nombre',
+            'id_sistema': 'ID en el sistema',
+            'descripcion': 'Descripción',
+        }
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'input input-bordered w-full',
+                'placeholder': 'Nombre del bono',
+            }),
+            'id_sistema': forms.NumberInput(attrs={
+                'class': 'input input-bordered w-full',
+                'placeholder': 'Opcional',
+                'min': '0',
+            }),
+            'descripcion': forms.Textarea(attrs={
+                'class': 'textarea textarea-bordered w-full',
+                'rows': 4,
+                'placeholder': 'Opcional',
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Los bonos que vienen de la carga de Excel no traen descripción.
+        self.fields['descripcion'].required = False

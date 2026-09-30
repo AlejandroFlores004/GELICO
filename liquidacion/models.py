@@ -1,5 +1,4 @@
 from django.db import models
-from catalogo.models import Bono
 from escuela.models import Escuela
 
 ESTADO_LIQUIDACION_CHOICES = [
@@ -9,6 +8,19 @@ ESTADO_LIQUIDACION_CHOICES = [
 ]
 
 # Create your models here.
+class Bono(models.Model):
+    nombre = models.CharField(max_length=255, unique=True)
+    descripcion = models.TextField()
+    id_sistema = models.IntegerField(null=True, blank=True, unique=True)
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        verbose_name = "Bono"
+        verbose_name_plural = "Bonos"
+
+
 class Asignacion(models.Model):
     valor = models.DecimalField(max_digits=10, decimal_places=2)
     bono = models.ForeignKey(Bono, on_delete=models.CASCADE)

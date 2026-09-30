@@ -103,12 +103,11 @@ usuario; no los diseñes, completes ni "corrijas" por iniciativa propia.
 | `main`        | Wired — home + login/logout, `base.html`, sidebar, breadcrumbs |
 | `escuela`     | Wired (`/escuela/...`) |
 | `programacion`| Wired (`/programacion/...`) |
-| `catalogo`    | **NO** está en `gelico/urls.py` todavía, aunque sí en `INSTALLED_APPS` |
 | `liquidacion` | Vacía — se está reconstruyendo desde cero (branch `wb-liquidaciones-brand-new`). **No** está en `gelico/urls.py`. El esquema de modelos es 100% decisión del usuario; no lo propongas por tu cuenta, pregúntale antes de escribir `models.py` |
 | `usuario`     | Vacía, placeholder — **NO** está en `gelico/urls.py` |
 | `theme`       | App de `django-tailwind`, no tocar salvo temas/CSS |
 
-Antes de agregar código a `catalogo`, `liquidacion` o `usuario`, confirma si
+Antes de agregar código a `liquidacion` o `usuario`, confirma si
 ya deben conectarse a `gelico/urls.py`.
 
 ## Checklist al dar de alta o conectar una app

@@ -14,10 +14,9 @@ from django.views.decorators.http import require_POST
 from django_htmx.http import HttpResponseClientRedirect
 from weasyprint import HTML
 
-from catalogo.models import Bono
 from escuela.models import CDE, Encargado, Escuela
-from .forms import AbonoForm, AsignacionForm, AsignacionValorForm, FiltrarAsignacionesForm, ObservacionForm, ReciboForm
-from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Observacion, Recibo
+from .forms import AbonoForm, AsignacionForm, AsignacionValorForm, BonoForm, FiltrarAsignacionesForm, ObservacionForm, ReciboForm
+from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Bono, Observacion, Recibo
 from .utils import a_decimal, a_entero, a_texto_codigo, indice_columna, indices_columna, leer_filas_excel
 
 
@@ -487,6 +486,116 @@ def observacion_toggle(request, pk):
         return asignacion_detalle(request, instance.recibo.asignacion_id)
 
     return _cerrar_y_recargar(request, instance.recibo.asignacion_id)
+
+
+def _bonos_filtrados(request):
+    """Queryset filtrado, SIN paginar. Lo reutiliza tanto el listado como el imprimir."""
+    search = request.GET.get('q', '').strip()
+    bonos = Bono.objects.all().order_by('nombre')
+    if search:
+        filtro = Q(nombre__icontains=search) | Q(descripcion__icontains=search)
+        if search.isdigit():
+            filtro |= Q(id_sistema=int(search))
+        bonos = bonos.filter(filtro)
+    return search, bonos
+
+
+def _filtrar_bonos(request):
+    search, bonos_list = _bonos_filtrados(request)
+    paginator = Paginator(bonos_list, 20)
+    bonos = paginator.get_page(request.GET.get('page'))
+    return search, bonos
+
+
+def bonoHomeView(request):
+    search, bonos = _filtrar_bonos(request)
+
+    breadcrumbs = [
+        {'name': 'Inicio', 'url': reverse('home')},
+        {'name': 'Bonos'},
+    ]
+
+    return render(
+        request,
+        "bono/bonoHome.html",
+        {
+            "breadcrumbs": breadcrumbs,
+            "bonos": bonos,
+            "search": search,
+        },
+    )
+
+
+def buscar_bonos(request):
+    _, bonos = _filtrar_bonos(request)
+
+    return render(
+        request,
+        "partials/bono/_tabla.html",
+        {"bonos": bonos},
+    )
+
+
+def bono_form(request, pk=None):
+    instance = get_object_or_404(Bono, pk=pk) if pk else None
+
+    if request.method == "POST":
+        form = BonoForm(request.POST, instance=instance)
+        if form.is_valid():
+            form.save()
+            _, bonos = _filtrar_bonos(request)
+            return render(
+                request,
+                "partials/bono/_modal_form_success.html",
+                {"bonos": bonos},
+            )
+    else:
+        form = BonoForm(instance=instance)
+
+    return render(
+        request,
+        "partials/bono/_modal_form.html",
+        {"form": form, "instance": instance},
+    )
+
+
+def bono_eliminar(request, pk):
+    instance = get_object_or_404(Bono, pk=pk)
+
+    if request.method == "POST":
+        instance.delete()
+        _, bonos = _filtrar_bonos(request)
+        return render(
+            request,
+            "partials/bono/_modal_form_success.html",
+            {"bonos": bonos},
+        )
+
+    return render(
+        request,
+        "partials/bono/_modal_delete.html",
+        {"instance": instance, "total_asignaciones": instance.asignacion_set.count()},
+    )
+
+
+def bono_imprimir(request):
+    _, bonos = _bonos_filtrados(request)
+    html_string = render_to_string(
+        "partials/bono/_reporte_pdf.html",
+        {
+            "bonos": bonos,
+            "fecha_generacion": timezone.localdate(),
+            "fecha_impresion": timezone.localtime(),
+        },
+    )
+    pdf = HTML(
+        string=html_string,
+        base_url=request.build_absolute_uri("/"),
+    ).write_pdf()
+
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = 'inline; filename="bonos.pdf"'
+    return response
 
 
 def home_carga_excel(request):
