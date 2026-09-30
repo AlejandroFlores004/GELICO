@@ -14,7 +14,7 @@ from django.views.decorators.http import require_POST
 from django_htmx.http import HttpResponseClientRedirect
 from weasyprint import HTML
 
-from escuela.models import CDE, Encargado, Escuela
+from escuela.models import Encargado, Escuela
 from .forms import AbonoForm, AsignacionForm, AsignacionValorForm, BonoForm, FiltrarAsignacionesForm, ObservacionForm, ReciboForm
 from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Bono, Observacion, Recibo
 from .utils import a_decimal, a_entero, a_texto_codigo, extraer_anio, indice_columna, indices_columna, leer_filas_excel
@@ -68,6 +68,7 @@ def _asignaciones_filtradas(request):
         distrito = filtro_form.cleaned_data.get('distrito')
         escuela = filtro_form.cleaned_data.get('escuela')
         bono = filtro_form.cleaned_data.get('bono')
+        anio = filtro_form.cleaned_data.get('anio')
         estado = filtro_form.cleaned_data.get('estado')
 
         if distrito:
@@ -76,6 +77,8 @@ def _asignaciones_filtradas(request):
             asignaciones_list = asignaciones_list.filter(escuela=escuela)
         if bono:
             asignaciones_list = asignaciones_list.filter(bono=bono)
+        if anio:
+            asignaciones_list = asignaciones_list.filter(bono__anio=anio)
         if estado:
             # El estado se calcula a partir de las observaciones (no es un campo de BD),
             # así que hay que evaluar el queryset y filtrar en Python.
@@ -187,11 +190,6 @@ def asignacion_imprimir(request, pk):
                 'escuela__encargado_set',
                 queryset=Encargado.objects.filter(estado=True).order_by('apellido', 'nombre'),
                 to_attr='encargados_activos',
-            ),
-            Prefetch(
-                'escuela__cde_set',
-                queryset=CDE.objects.filter(estado=True).order_by('-FechaInicio'),
-                to_attr='cdes_activos',
             ),
         ),
         pk=pk,
