@@ -42,6 +42,7 @@
         .centro { text-align: center; }
         .fila-recibo td { font-weight: bold; background: #f2f2f2; }
         .vacio { font-style: italic; color: #444; }
+        .fecha-obs { font-size: 8.5px; color: #444; margin-top: 2px; }
 
         /* Recuadros de subtotal */
         table.subtotal { width: 100%; border-collapse: collapse; border: 1.5px solid #000; border-top: none; }
@@ -172,9 +173,15 @@
                 {% for observacion in recibo.observaciones_lista %}
                 <tr>
                     <td class="centro">{{ forloop.parentloop.counter }}.{{ forloop.counter }}</td>
-                    <td>{{ observacion.descripcion|linebreaksbr }}</td>
+                    <td>
+                        {{ observacion.descripcion|linebreaksbr }}
+                        <div class="fecha-obs">Creada el {{ observacion.fecha_creacion|date:"d/m/Y" }}</div>
+                    </td>
                     <td></td>
-                    <td class="centro">{% if observacion.resuelta %}Resuelta{% else %}Pendiente{% endif %}</td>
+                    <td class="centro">
+                        {% if observacion.resuelta %}Resuelta{% else %}Pendiente{% endif %}
+                        {% if observacion.fecha_resolucion %}<div class="fecha-obs">el {{ observacion.fecha_resolucion|date:"d/m/Y" }}</div>{% endif %}
+                    </td>
                 </tr>
                 {% empty %}
                 <tr><td></td><td class="vacio" colspan="3">Sin observaciones</td></tr>

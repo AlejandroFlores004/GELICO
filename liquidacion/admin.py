@@ -56,12 +56,16 @@ class AbonoAdmin(admin.ModelAdmin):
 
 @admin.register(Observacion)
 class ObservacionAdmin(admin.ModelAdmin):
-    list_display = ('recibo', 'resuelta', 'descripcion')
+    list_display = ('recibo', 'resuelta', 'fecha_creacion', 'fecha_resolucion', 'descripcion')
+    readonly_fields = ('fecha_creacion', 'fecha_resolucion')
     list_filter = ('resuelta', 'recibo__asignacion__bono')
     search_fields = ('descripcion', 'recibo__asignacion__bono__nombre')
     ordering = ('-id',)
     fieldsets = (
         ('Información básica', {
             'fields': ('recibo', 'descripcion', 'resuelta')
+        }),
+        ('Fechas', {
+            'fields': ('fecha_creacion', 'fecha_resolucion')
         }),
     )
