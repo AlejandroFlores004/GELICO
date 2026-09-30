@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from escuela.models import Escuela
 
 ESTADO_LIQUIDACION_CHOICES = [
