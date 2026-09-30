@@ -42,7 +42,6 @@
         .centro { text-align: center; }
         .fila-recibo td { font-weight: bold; background: #f2f2f2; }
         .vacio { font-style: italic; color: #444; }
-        .fecha-obs { font-size: 8.5px; color: #444; margin-top: 2px; }
 
         /* Recuadros de subtotal */
         table.subtotal { width: 100%; border-collapse: collapse; border: 1.5px solid #000; border-top: none; }
@@ -58,7 +57,7 @@
             <td class="titulos">
                 <div class="t1">MINISTERIO DE EDUCACION</div>
                 <div class="t2">GELICO - GESTIÓN DE LIQUIDACIONES Y CONVOCATORIAS</div>
-                <div class="t3">Reporte de liquidación por asignación</div>
+                <div class="t3">Reporte de liquidación por componentes</div>
             </td>
             <td style="width: 2.6cm;"></td>
         </tr>
@@ -101,27 +100,6 @@
         </tbody>
     </table>
 
-    <table class="datos" style="margin-top: 8px;">
-        <thead>
-            <tr>
-                <th class="izq">Modalidad</th>
-                <th style="width: 24%;">Fecha inicio</th>
-                <th style="width: 24%;">Fecha fin</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for cde in escuela.cdes_activos %}
-            <tr>
-                <td>CDE</td>
-                <td class="centro">{{ cde.FechaInicio|date:"d/m/Y" }}</td>
-                <td class="centro">{{ cde.FechaFin|date:"d/m/Y" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="3" class="vacio">Sin CDE activo</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
     {# ---------- Asignación ---------- #}
     <table class="campos" style="margin-top: 18px;">
         <tr><td class="etiqueta">Bono:</td><td>{{ instance.bono.nombre|upper }}</td></tr>
@@ -157,34 +135,34 @@
         <table class="datos">
             <thead>
                 <tr>
-                    <th style="width: 9%;">Nº</th>
+                    <th style="width: 6%;">Nº</th>
                     <th>Observación</th>
-                    <th style="width: 13%;">Monto($)</th>
-                    <th style="width: 27%;">Estado</th>
+                    <th style="width: 12%;">Fecha creación</th>
+                    <th style="width: 12%;">Fecha resolución</th>
+                    <th style="width: 12%;">Monto($)</th>
+                    <th style="width: 22%;">Estado</th>
                 </tr>
             </thead>
             <tbody>
                 <tr class="fila-recibo">
                     <td class="centro">{{ forloop.counter }}</td>
                     <td>RECIBO #{{ forloop.counter }}</td>
+                    <td></td>
+                    <td></td>
                     <td class="num">{{ recibo.monto|moneda }}</td>
                     <td class="centro">{{ recibo.estado_etiqueta }}</td>
                 </tr>
                 {% for observacion in recibo.observaciones_lista %}
                 <tr>
                     <td class="centro">{{ forloop.parentloop.counter }}.{{ forloop.counter }}</td>
-                    <td>
-                        {{ observacion.descripcion|linebreaksbr }}
-                        <div class="fecha-obs">Creada el {{ observacion.fecha_creacion|date:"d/m/Y" }}</div>
-                    </td>
+                    <td>{{ observacion.descripcion|linebreaksbr }}</td>
+                    <td class="centro">{{ observacion.fecha_creacion|date:"d/m/Y" }}</td>
+                    <td class="centro">{% if observacion.fecha_resolucion %}{{ observacion.fecha_resolucion|date:"d/m/Y" }}{% else %}—{% endif %}</td>
                     <td></td>
-                    <td class="centro">
-                        {% if observacion.resuelta %}Resuelta{% else %}Pendiente{% endif %}
-                        {% if observacion.fecha_resolucion %}<div class="fecha-obs">el {{ observacion.fecha_resolucion|date:"d/m/Y" }}</div>{% endif %}
-                    </td>
+                    <td class="centro">{% if observacion.resuelta %}Resuelta{% else %}Pendiente{% endif %}</td>
                 </tr>
                 {% empty %}
-                <tr><td></td><td class="vacio" colspan="3">Sin observaciones</td></tr>
+                <tr><td></td><td class="vacio" colspan="5">Sin observaciones</td></tr>
                 {% endfor %}
             </tbody>
         </table>
