@@ -4,12 +4,13 @@ from .models import Bono, Asignacion, Recibo, Abono, Observacion
 
 @admin.register(Bono)
 class BonoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'id_sistema', 'descripcion')
+    list_display = ('nombre', 'anio', 'id_sistema', 'descripcion')
+    list_filter = ('anio',)
     search_fields = ('nombre', 'descripcion', 'id_sistema')
-    ordering = ('nombre',)
+    ordering = ('-anio', 'nombre')
     fieldsets = (
         ('Información básica', {
-            'fields': ('nombre', 'id_sistema', 'descripcion')
+            'fields': ('nombre', 'anio', 'id_sistema', 'descripcion')
         }),
     )
 
