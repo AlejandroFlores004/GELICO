@@ -1,0 +1,48 @@
+<div class="card bg-base-100 shadow-xl border border-base-300">
+    <div class="card-body gap-5">
+        <div class="flex items-start gap-3">
+            <div class="bg-primary/10 text-primary rounded-xl p-2.5 shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+            </div>
+            <div>
+                <h2 class="card-title m-0">Buscar bonos</h2>
+                <p class="text-sm text-base-content/60">
+                    Busca por nombre, descripción o ID en el sistema.
+                </p>
+            </div>
+        </div>
+
+        <form
+            hx-get="{% url 'buscar_bonos' %}"
+            hx-target="#listado-bonos"
+            hx-swap="outerHTML"
+            hx-indicator="#bono-search-spinner"
+            class="space-y-5"
+        >
+            <div class="form-control w-full">
+                <label class="label" for="bono-search-text">
+                    <span class="label-text font-medium">Bono</span>
+                </label>
+                <input id="bono-search-text" type="text" name="q" value="{{ search|default:'' }}" class="input input-bordered w-full" placeholder="Nombre, descripción o ID">
+            </div>
+
+            <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4 border-t border-base-200">
+                <a href="{% url 'home_bonos' %}" class="btn btn-ghost gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Limpiar
+                </a>
+                <button type="submit" class="btn btn-primary gap-2 sm:min-w-36">
+                    <span id="bono-search-spinner" class="htmx-indicator loading loading-spinner loading-sm"></span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                    </svg>
+                    Buscar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

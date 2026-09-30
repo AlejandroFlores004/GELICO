@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Bonos
+{% endblock %}
+
+{% block content %}
+<main class="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    <div class="flex items-center gap-4">
+        <div class="bg-primary text-primary-content rounded-2xl p-4 shadow-md shadow-primary/20">
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.75"
+                stroke="currentColor"
+                class="w-8 h-8"
+            >
+                <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z"
+                />
+            </svg>
+        </div>
+        <div>
+            <h1 class="text-4xl font-bold">
+                Bonos
+            </h1>
+            <p class="text-base-content/70">
+                Gestiona el catálogo de bonos que se pueden asignar a las escuelas.
+            </p>
+        </div>
+    </div>
+
+    {% include "partials/bono/_toolbar.html" %}
+
+    <div id="bono-modal-wrapper"></div>
+
+    {% include "partials/bono/_buscador.html" %}
+
+    {% include "partials/bono/_tabla.html" %}
+
+</main>
+{% endblock %}
