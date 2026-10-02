@@ -1,3 +1,4 @@
+{% load liquidacion_extras %}
 <div id="asignacion-modal-wrapper">
     <dialog id="asignacion-modal" class="modal">
         <div class="modal-box rounded-2xl border border-base-300 shadow-2xl max-w-2xl">
@@ -12,16 +13,16 @@
             <div class="flex flex-wrap items-center gap-6 bg-base-200 rounded-lg p-4 mt-4">
                 <div class="text-right">
                     <p class="text-[11px] uppercase tracking-wide text-base-content/50">Monto</p>
-                    <p class="font-bold">${{ recibo.monto|floatformat:2 }}</p>
+                    <p class="font-bold">${{ recibo.monto|moneda }}</p>
                 </div>
                 <div class="text-right">
                     <p class="text-[11px] uppercase tracking-wide text-base-content/50">Abonado</p>
-                    <p class="font-semibold">${{ total_abonado|floatformat:2 }}</p>
+                    <p class="font-semibold">${{ total_abonado|moneda }}</p>
                 </div>
                 <div class="text-right">
                     <p class="text-[11px] uppercase tracking-wide text-base-content/50">Pendiente</p>
                     <p class="font-semibold {% if diferencia > 0 %}text-warning{% else %}text-success{% endif %}">
-                        ${{ diferencia|floatformat:2 }}
+                        ${{ diferencia|moneda }}
                     </p>
                 </div>
             </div>
@@ -41,7 +42,7 @@
                         <tbody>
                             {% for abono in abonos %}
                             <tr>
-                                <td class="font-semibold">${{ abono.monto|floatformat:2 }}</td>
+                                <td class="font-semibold">${{ abono.monto|moneda }}</td>
                                 <td>{{ abono.requerimiento }}</td>
                                 <td>#{{ abono.id_planilla_parcial }}</td>
                                 <td><span class="badge badge-ghost badge-sm">{{ abono.estado }}</span></td>

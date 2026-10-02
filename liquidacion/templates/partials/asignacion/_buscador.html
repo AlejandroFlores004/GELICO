@@ -79,3 +79,36 @@
         </form>
     </div>
 </div>
+
+<script>
+    // La escuela es el filtro más específico: al elegirla se deshabilitan todos los demás.
+    // El distrito solo deshabilita la escuela; bono y estado siguen disponibles.
+    $(function () {
+        var $escuela = $('#{{ filtro_form.escuela.id_for_label }}');
+        var $distrito = $('#{{ filtro_form.distrito.id_for_label }}');
+        var $otros = $('#{{ filtro_form.bono.id_for_label }}, #{{ filtro_form.estado.id_for_label }}');
+
+        function bloquear($campos, bloqueado) {
+            $campos.each(function () {
+                var $campo = $(this);
+                if (bloqueado && $campo.val()) {
+                    $campo.val(null);
+                }
+                $campo.prop('disabled', bloqueado).trigger('change.select2');
+            });
+        }
+
+        function actualizarFiltros() {
+            var hayEscuela = !!$escuela.val();
+            var hayDistrito = !!$distrito.val();
+
+            bloquear($distrito.add($otros), hayEscuela);
+            if (!hayEscuela) {
+                bloquear($escuela, hayDistrito);
+            }
+        }
+
+        $escuela.add($distrito).on('change', actualizarFiltros);
+        actualizarFiltros();
+    });
+</script>

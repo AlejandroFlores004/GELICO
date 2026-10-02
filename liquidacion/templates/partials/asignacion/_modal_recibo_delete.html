@@ -1,3 +1,4 @@
+{% load liquidacion_extras %}
 <div id="asignacion-modal-wrapper">
     <dialog id="asignacion-modal" class="modal">
         <div class="modal-box rounded-2xl border border-base-300 shadow-2xl">
@@ -11,7 +12,7 @@
             <div class="bg-base-200 rounded-lg p-4 mt-5 space-y-2 text-sm">
                 <div class="flex justify-between gap-4"><span class="text-base-content/60">Escuela</span><span class="font-medium text-right">{{ instance.asignacion.escuela.nombre_corto }}</span></div>
                 <div class="flex justify-between gap-4"><span class="text-base-content/60">Bono</span><span class="font-medium text-right">{{ instance.asignacion.bono.nombre }}</span></div>
-                <div class="flex justify-between gap-4"><span class="text-base-content/60">Monto</span><span class="font-medium text-right">${{ instance.monto|floatformat:2 }}</span></div>
+                <div class="flex justify-between gap-4"><span class="text-base-content/60">Monto</span><span class="font-medium text-right">${{ instance.monto|moneda }}</span></div>
             </div>
             <form hx-post="{% url 'recibo_eliminar' instance.pk %}" hx-target="#asignacion-modal-wrapper" hx-swap="outerHTML">
                 {% csrf_token %}
