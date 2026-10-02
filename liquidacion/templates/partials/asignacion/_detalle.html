@@ -1,3 +1,4 @@
+{% load liquidacion_extras %}
 <div class="space-y-3 pt-1">
     {% if recibos %}
         <p class="text-[11px] font-semibold uppercase tracking-wide text-base-content/50">Recibos de esta asignación</p>
@@ -8,16 +9,16 @@
                 <div class="flex flex-wrap items-center gap-4">
                     <div class="text-right">
                         <p class="text-[10px] uppercase tracking-wide text-base-content/50">Monto</p>
-                        <p class="text-sm font-semibold">${{ recibo.monto|floatformat:2 }}</p>
+                        <p class="text-sm font-semibold">${{ recibo.monto|moneda }}</p>
                     </div>
                     <div class="text-right">
                         <p class="text-[10px] uppercase tracking-wide text-base-content/50">Abonado</p>
-                        <p class="text-sm font-semibold">${{ recibo.total_abonado|floatformat:2 }}</p>
+                        <p class="text-sm font-semibold">${{ recibo.total_abonado|moneda }}</p>
                     </div>
                     <div class="text-right">
                         <p class="text-[10px] uppercase tracking-wide text-base-content/50">Pendiente</p>
                         <p class="text-sm font-semibold {% if recibo.diferencia > 0 %}text-warning{% else %}text-success{% endif %}">
-                            ${{ recibo.diferencia|floatformat:2 }}
+                            ${{ recibo.diferencia|moneda }}
                         </p>
                     </div>
                     <button
