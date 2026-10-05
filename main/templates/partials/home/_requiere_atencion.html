@@ -1,0 +1,63 @@
+{% load liquidacion_extras %}
+<div class="card bg-base-100 shadow-xl border border-base-300 h-full">
+    <div class="card-body gap-4">
+        <div>
+            <h2 class="card-title m-0">Requiere atención</h2>
+            <p class="text-sm text-base-content/60">Datos inconsistentes o incompletos que conviene revisar.</p>
+        </div>
+
+        <ul class="space-y-2">
+            <li class="rounded-lg border {% if atencion.total_sobrepagadas %}border-error/30 bg-error/5{% else %}border-base-300{% endif %} p-3">
+                <div class="flex items-center gap-3">
+                    <span class="text-xl font-bold tabular-nums w-10 text-center {% if atencion.total_sobrepagadas %}text-error{% else %}text-base-content/40{% endif %}">{{ atencion.total_sobrepagadas }}</span>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium">Recibido mayor al asignado</p>
+                        <p class="text-xs text-base-content/60">Asignaciones cuyos recibos superan el valor asignado.</p>
+                    </div>
+                </div>
+                {% if atencion.sobrepagadas %}
+                <ul class="mt-2 ml-13 space-y-1">
+                    {% for asignacion in atencion.sobrepagadas %}
+                    <li>
+                        <a href="{% url 'asignacion_gestionar' asignacion.pk %}" class="flex justify-between gap-3 text-xs link-hover">
+                            <span class="truncate" title="{{ asignacion.escuela.nombre }} · {{ asignacion.bono.nombre }}">{{ asignacion.escuela.nombre_corto }}</span>
+                            <span class="tabular-nums text-error font-semibold whitespace-nowrap">+${{ asignacion.excedente|moneda }}</span>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </li>
+
+            <li>
+                <a href="{% url 'home_escuelas' %}" class="flex items-center gap-3 rounded-lg border border-base-300 p-3 hover:bg-base-200 transition-colors">
+                    <span class="text-xl font-bold tabular-nums w-10 text-center {% if atencion.escuelas_sin_encargado %}text-warning{% else %}text-base-content/40{% endif %}">{{ atencion.escuelas_sin_encargado }}</span>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium">Escuelas activas sin encargado</p>
+                        <p class="text-xs text-base-content/60">No tienen un encargado activo al que contactar.</p>
+                    </div>
+                </a>
+            </li>
+
+            <li>
+                <a href="{% url 'home_encargados' %}" class="flex items-center gap-3 rounded-lg border border-base-300 p-3 hover:bg-base-200 transition-colors">
+                    <span class="text-xl font-bold tabular-nums w-10 text-center {% if atencion.encargados_sin_telefono %}text-warning{% else %}text-base-content/40{% endif %}">{{ atencion.encargados_sin_telefono }}</span>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium">Encargados sin teléfono</p>
+                        <p class="text-xs text-base-content/60">Encargados activos sin ningún número registrado.</p>
+                    </div>
+                </a>
+            </li>
+
+            <li>
+                <a href="{% url 'home_escuelas' %}" class="flex items-center gap-3 rounded-lg border border-base-300 p-3 hover:bg-base-200 transition-colors">
+                    <span class="text-xl font-bold tabular-nums w-10 text-center {% if atencion.escuelas_sin_asignacion %}text-warning{% else %}text-base-content/40{% endif %}">{{ atencion.escuelas_sin_asignacion }}</span>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium">Escuelas activas sin asignación</p>
+                        <p class="text-xs text-base-content/60">No tienen ningún bono asignado{% if anio %} en {{ anio }}{% endif %}.</p>
+                    </div>
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>

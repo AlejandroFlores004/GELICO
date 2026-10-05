@@ -1,0 +1,33 @@
+{% load liquidacion_extras %}
+<div class="card bg-base-100 shadow-xl border border-base-300 {% if completo %}h-full{% endif %}">
+    <div class="card-body gap-4">
+        <div>
+            <h2 class="card-title m-0">{{ titulo }}</h2>
+            <p class="text-sm text-base-content/60">{{ subtitulo }}</p>
+        </div>
+
+        {% if filas %}
+        <div class="max-h-96 overflow-y-auto -mx-2 px-2">
+            <ul class="divide-y divide-base-200">
+                {% for fila in filas %}
+                <li>
+                    <a href="{% url 'home_asignaciones' %}?{{ parametro }}={{ fila.id }}{% if anio %}&anio={{ anio }}{% endif %}" class="block py-3 -mx-2 px-2 rounded-lg hover:bg-base-200 transition-colors">
+                        <div class="flex items-baseline justify-between gap-3">
+                            <span class="text-sm font-medium line-clamp-2" title="{{ fila.nombre }}">{{ fila.nombre }}</span>
+                            <span class="text-sm font-semibold tabular-nums shrink-0 {% if fila.porcentaje > 100 %}text-error{% elif fila.porcentaje >= 100 %}text-success{% endif %}">{{ fila.porcentaje|stringformat:'.1f' }}%</span>
+                        </div>
+                        <progress class="progress {% if fila.porcentaje > 100 %}progress-error{% elif fila.porcentaje >= 100 %}progress-success{% else %}progress-primary{% endif %} h-2 w-full mt-1.5" value="{{ fila.porcentaje|stringformat:'.1f' }}" max="100"></progress>
+                        <div class="flex flex-wrap justify-between gap-x-4 text-xs text-base-content/60 tabular-nums mt-1">
+                            <span>${{ fila.recibido|moneda }} de ${{ fila.asignado|moneda }}</span>
+                            <span>{{ fila.asignaciones }} asignaci{{ fila.asignaciones|pluralize:"ón,ones" }} · pendiente ${{ fila.pendiente|moneda }}</span>
+                        </div>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% else %}
+        <p class="py-8 text-center text-sm text-base-content/50">{{ vacio }}</p>
+        {% endif %}
+    </div>
+</div>

@@ -5,48 +5,39 @@ Dashboard
 {% endblock %}
 
 {% block content %}
-<main class="p-6 lg:p-8 space-y-6">
+<main class="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
 
-    <div>
-        <h1 class="text-4xl font-bold">
-            Dashboard
-        </h1>
+    {% include "partials/home/_encabezado.html" %}
 
-        <p class="text-base-content/70">
-            Bienvenido de nuevo al sistema de liquidaciones.
-        </p>
+    {% include "partials/home/_indicadores.html" %}
+
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        <div class="xl:col-span-5">
+            {% include "partials/home/_estado_liquidacion.html" %}
+        </div>
+        <div class="xl:col-span-7">
+            {% include "partials/home/_avance.html" with titulo="Avance por bono" subtitulo="Monto recibido frente al asignado en cada bono." filas=avance_bonos parametro="bono" completo=True vacio="No hay bonos con asignaciones para este año." %}
+        </div>
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
-
-        <!-- Columna izquierda -->
-        <div class="xl:col-span-3">
-
-            <div class="space-y-6">
-
-                {% include "partials/home/_active_call.html" %}
-
-                {% include "partials/home/_pending_reviews.html" %}
-
-                {% include "partials/home/_quick_actions.html" %}
-
-            </div>
-
+        <div class="xl:col-span-7">
+            {% include "partials/home/_mayores_saldos.html" %}
         </div>
-
-        <!-- Columna derecha -->
-        <div class="xl:col-span-9">
-
-            <div class="space-y-6">
-
-                {% include "partials/home/_schedule.html" %}
-
-                {% include "partials/home/_recent_activity.html" %}
-
-            </div>
-
+        <div class="xl:col-span-5">
+            {% include "partials/home/_requiere_atencion.html" %}
         </div>
+    </div>
 
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        <div class="xl:col-span-7 space-y-6">
+            {% include "partials/home/_avance.html" with titulo="Avance por distrito" subtitulo="Monto recibido frente al asignado en las escuelas de cada distrito." filas=avance_distritos parametro="distrito" vacio="No hay asignaciones para este año." %}
+            {% include "partials/home/_observaciones_abiertas.html" %}
+        </div>
+        <div class="xl:col-span-5 space-y-6">
+            {% include "partials/home/_programacion.html" %}
+            {% include "partials/home/_actividad_reciente.html" %}
+        </div>
     </div>
 
 </main>

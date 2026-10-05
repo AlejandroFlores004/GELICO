@@ -1,0 +1,50 @@
+{% load liquidacion_extras %}
+<div class="card bg-base-100 shadow-xl border border-base-300 h-full">
+    <div class="card-body gap-4">
+        <div>
+            <h2 class="card-title m-0">Mayores saldos pendientes</h2>
+            <p class="text-sm text-base-content/60">
+                Asignaciones a las que más dinero les falta por recibir.
+            </p>
+        </div>
+
+        {% if mayores_saldos %}
+        <div class="overflow-x-auto">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Escuela</th>
+                        <th class="text-right">Asignado</th>
+                        <th class="text-right">Pendiente</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for asignacion in mayores_saldos %}
+                    <tr class="hover:bg-base-200">
+                        <td>
+                            <p class="font-medium truncate" title="{{ asignacion.escuela.nombre }}">{{ asignacion.escuela.nombre_corto }}</p>
+                            <p class="text-xs text-base-content/50 line-clamp-2" title="{{ asignacion.bono.nombre }}">{{ asignacion.bono.nombre }}</p>
+                        </td>
+                        <td class="text-right tabular-nums whitespace-nowrap">${{ asignacion.valor|moneda }}</td>
+                        <td class="text-right tabular-nums whitespace-nowrap font-semibold text-warning">${{ asignacion.diferencia|moneda }}</td>
+                        <td class="text-right">
+                            <a href="{% url 'asignacion_gestionar' asignacion.pk %}" class="btn btn-ghost btn-xs btn-square" title="Gestionar asignación" aria-label="Gestionar asignación">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if con_saldo > mayores_saldos|length %}
+        <p class="text-xs text-base-content/50">
+            Mostrando {{ mayores_saldos|length }} de {{ con_saldo }} asignaciones con saldo pendiente.
+        </p>
+        {% endif %}
+        {% else %}
+        <p class="py-8 text-center text-sm text-base-content/50">No hay asignaciones con saldo pendiente.</p>
+        {% endif %}
+    </div>
+</div>

@@ -1,0 +1,42 @@
+<div class="card bg-base-100 shadow-xl border border-base-300 h-full">
+    <div class="card-body gap-5">
+        <div>
+            <h2 class="card-title m-0">Estado de liquidación</h2>
+            <p class="text-sm text-base-content/60">
+                Cómo están las {{ resumen.total_asignaciones }} asignaciones{% if anio %} de {{ anio }}{% endif %} según sus observaciones.
+            </p>
+        </div>
+
+        {% if resumen.total_asignaciones %}
+        <div class="flex h-4 w-full overflow-hidden rounded-full bg-base-200" role="img" aria-label="Distribución de asignaciones por estado">
+            {% for estado in resumen.estados %}
+            {% if estado.cantidad %}
+            <div
+                class="h-full {% if estado.clave == 'liquidado' %}bg-success{% elif estado.clave == 'liquidado_con_observaciones' %}bg-warning{% else %}bg-base-content/20{% endif %} {% if not forloop.last %}border-r-2 border-base-100{% endif %}"
+                style="width: {{ estado.porcentaje|stringformat:'.1f' }}%"
+                title="{{ estado.nombre }}: {{ estado.cantidad }}"
+            ></div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        <ul class="divide-y divide-base-200">
+            {% for estado in resumen.estados %}
+            <li>
+                <a href="{% url 'home_asignaciones' %}?estado={{ estado.clave }}{% if anio %}&anio={{ anio }}{% endif %}" class="flex items-center gap-3 py-3 -mx-2 px-2 rounded-lg hover:bg-base-200 transition-colors">
+                    <span class="size-3 rounded-full shrink-0 {% if estado.clave == 'liquidado' %}bg-success{% elif estado.clave == 'liquidado_con_observaciones' %}bg-warning{% else %}bg-base-content/20{% endif %}"></span>
+                    <span class="flex-1 text-sm font-medium">{{ estado.nombre }}</span>
+                    <span class="text-sm tabular-nums text-base-content/60">{{ estado.porcentaje|stringformat:'.1f' }}%</span>
+                    <span class="text-lg font-bold tabular-nums w-12 text-right">{{ estado.cantidad }}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 text-base-content/30">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="py-8 text-center text-sm text-base-content/50">No hay asignaciones registradas{% if anio %} para {{ anio }}{% endif %}.</p>
+        {% endif %}
+    </div>
+</div>
