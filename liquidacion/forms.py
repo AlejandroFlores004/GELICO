@@ -4,7 +4,6 @@ from django_select2.forms import Select2Widget
 
 from escuela.models import Distrito, Escuela
 from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Bono, Observacion, Recibo
-from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Bono, Observacion, Recibo
 
 
 class FiltrarAsignacionesForm(forms.Form):
