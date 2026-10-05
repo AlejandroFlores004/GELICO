@@ -40,6 +40,7 @@
         table.datos th.izq { text-align: left; }
         .num { text-align: right; white-space: nowrap; }
         .centro { text-align: center; }
+        .sub { color: #444; font-size: 9px; }
         .fila-recibo td { font-weight: bold; background: #f2f2f2; }
         .vacio { font-style: italic; color: #444; }
 
@@ -82,8 +83,8 @@
     <table class="datos">
         <thead>
             <tr>
-                <th class="izq" style="width: 34%;">Encargado</th>
-                <th style="width: 18%;">Teléfono</th>
+                <th class="izq" style="width: 32%;">Encargado</th>
+                <th style="width: 24%;">Teléfono</th>
                 <th>Correo electrónico</th>
             </tr>
         </thead>
@@ -91,7 +92,11 @@
             {% for encargado in escuela.encargados_activos %}
             <tr>
                 <td>{{ encargado.nombre|upper }} {{ encargado.apellido|upper }}</td>
-                <td class="centro">{{ encargado.telefono }}</td>
+                <td class="centro" style="white-space: nowrap;">
+                    {% for tel in encargado.telefonos.all %}
+                    {{ tel.numero }} <span class="sub">({{ tel.get_etiqueta_display }})</span>{% if not forloop.last %}<br>{% endif %}
+                    {% empty %}—{% endfor %}
+                </td>
                 <td>{{ encargado.email }}</td>
             </tr>
             {% empty %}

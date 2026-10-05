@@ -188,7 +188,7 @@ def asignacion_imprimir(request, pk):
         Asignacion.objects.select_related('escuela__distrito', 'bono').prefetch_related(
             Prefetch(
                 'escuela__encargado_set',
-                queryset=Encargado.objects.filter(estado=True).order_by('apellido', 'nombre'),
+                queryset=Encargado.objects.filter(estado=True).order_by('apellido', 'nombre').prefetch_related('telefonos'),
                 to_attr='encargados_activos',
             ),
         ),
