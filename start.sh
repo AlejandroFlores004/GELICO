@@ -1,5 +1,11 @@
 #!/bin/sh
 
+# First run: install Tailwind's npm dependencies (node_modules is gitignored)
+if [ ! -d theme/static_src/node_modules ]; then
+    echo "Primer arranque: instalando dependencias de Tailwind..."
+    python manage.py tailwind install || exit 1
+fi
+
 # Start Tailwind watcher in the background
 python manage.py tailwind start &
 
