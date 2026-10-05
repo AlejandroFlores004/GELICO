@@ -1,9 +1,9 @@
 from django import forms
+from django.utils import timezone
 from django_select2.forms import Select2Widget
 
-from catalogo.models import Bono
 from escuela.models import Distrito, Escuela
-from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Observacion, Recibo
+from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Bono, Observacion, Recibo
 
 
 class FiltrarAsignacionesForm(forms.Form):
@@ -43,6 +43,20 @@ class FiltrarAsignacionesForm(forms.Form):
         required=False,
     )
 
+    anio = forms.TypedChoiceField(
+        coerce=int,
+        empty_value=None,
+        required=False,
+        widget=Select2Widget(attrs={
+            'data-placeholder': 'Todos los años',
+            'style': 'width: 100%',
+            'class': 'select2-daisy',
+            'data-allow-clear': 'false',
+            'data-minimum-results-for-search': 'Infinity',
+        }),
+        label='Año',
+    )
+
     estado = forms.ChoiceField(
         choices=[('', '')] + ESTADO_LIQUIDACION_CHOICES,
         required=False,
@@ -55,6 +69,11 @@ class FiltrarAsignacionesForm(forms.Form):
         }),
         label='Estado',
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        anios = Bono.objects.order_by('-anio').values_list('anio', flat=True).distinct()
+        self.fields['anio'].choices = [('', '')] + [(anio, anio) for anio in anios]
 
 
 class AsignacionForm(forms.ModelForm):
@@ -155,3 +174,44 @@ class ObservacionForm(forms.ModelForm):
                 'class': 'checkbox',
             }),
         }
+
+
+class BonoForm(forms.ModelForm):
+    class Meta:
+        model = Bono
+        fields = ['nombre', 'anio', 'id_sistema', 'descripcion']
+        labels = {
+            'nombre': 'Nombre',
+            'anio': 'Año',
+            'id_sistema': 'ID en el sistema',
+            'descripcion': 'Descripción',
+        }
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'input input-bordered w-full',
+                'placeholder': 'Nombre del bono',
+            }),
+            'anio': forms.NumberInput(attrs={
+                'class': 'input input-bordered w-full',
+                'placeholder': 'Ej. 2026',
+                'min': '2000',
+                'max': '2100',
+            }),
+            'id_sistema': forms.NumberInput(attrs={
+                'class': 'input input-bordered w-full',
+                'placeholder': 'Opcional',
+                'min': '0',
+            }),
+            'descripcion': forms.Textarea(attrs={
+                'class': 'textarea textarea-bordered w-full',
+                'rows': 4,
+                'placeholder': 'Opcional',
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Los bonos que vienen de la carga de Excel no traen descripción.
+        self.fields['descripcion'].required = False
+        if not self.instance.pk:
+            self.initial.setdefault('anio', timezone.localdate().year)

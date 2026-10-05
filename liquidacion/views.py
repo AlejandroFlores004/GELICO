@@ -14,11 +14,10 @@ from django.views.decorators.http import require_POST
 from django_htmx.http import HttpResponseClientRedirect
 from weasyprint import HTML
 
-from catalogo.models import Bono
-from escuela.models import CDE, Encargado, Escuela
-from .forms import AbonoForm, AsignacionForm, AsignacionValorForm, FiltrarAsignacionesForm, ObservacionForm, ReciboForm
-from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Observacion, Recibo
-from .utils import a_decimal, a_entero, a_texto_codigo, indice_columna, indices_columna, leer_filas_excel
+from escuela.models import Encargado, Escuela
+from .forms import AbonoForm, AsignacionForm, AsignacionValorForm, BonoForm, FiltrarAsignacionesForm, ObservacionForm, ReciboForm
+from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Bono, Observacion, Recibo
+from .utils import a_decimal, a_entero, a_texto_codigo, extraer_anio, indice_columna, indices_columna, leer_filas_excel
 
 
 def _cerrar_y_recargar(request, asignacion_pk):
@@ -33,7 +32,7 @@ def _estado_liquidacion(recibos):
     """Calcula el estado de liquidación de una asignación según sus observaciones."""
     observaciones = [obs for recibo in recibos for obs in recibo.observacion_set.all()]
     if not observaciones:
-        return 'pendiente_observacion'
+        return 'pendiente_revision'
     if all(obs.resuelta for obs in observaciones):
         return 'liquidado'
     return 'liquidado_con_observaciones'
@@ -69,6 +68,7 @@ def _asignaciones_filtradas(request):
         distrito = filtro_form.cleaned_data.get('distrito')
         escuela = filtro_form.cleaned_data.get('escuela')
         bono = filtro_form.cleaned_data.get('bono')
+        anio = filtro_form.cleaned_data.get('anio')
         estado = filtro_form.cleaned_data.get('estado')
 
         if distrito:
@@ -77,6 +77,8 @@ def _asignaciones_filtradas(request):
             asignaciones_list = asignaciones_list.filter(escuela=escuela)
         if bono:
             asignaciones_list = asignaciones_list.filter(bono=bono)
+        if anio:
+            asignaciones_list = asignaciones_list.filter(bono__anio=anio)
         if estado:
             # El estado se calcula a partir de las observaciones (no es un campo de BD),
             # así que hay que evaluar el queryset y filtrar en Python.
@@ -188,11 +190,6 @@ def asignacion_imprimir(request, pk):
                 'escuela__encargado_set',
                 queryset=Encargado.objects.filter(estado=True).order_by('apellido', 'nombre'),
                 to_attr='encargados_activos',
-            ),
-            Prefetch(
-                'escuela__cde_set',
-                queryset=CDE.objects.filter(estado=True).order_by('-FechaInicio'),
-                to_attr='cdes_activos',
             ),
         ),
         pk=pk,
@@ -489,6 +486,121 @@ def observacion_toggle(request, pk):
     return _cerrar_y_recargar(request, instance.recibo.asignacion_id)
 
 
+def _bonos_filtrados(request):
+    """Queryset filtrado, SIN paginar. Lo reutiliza tanto el listado como el imprimir."""
+    search = request.GET.get('q', '').strip()
+    anio = request.GET.get('anio', '').strip()
+    bonos = Bono.objects.all().order_by('-anio', 'nombre')
+    if search:
+        filtro = Q(nombre__icontains=search) | Q(descripcion__icontains=search)
+        if search.isdigit():
+            filtro |= Q(id_sistema=int(search))
+        bonos = bonos.filter(filtro)
+    if anio.isdigit():
+        bonos = bonos.filter(anio=int(anio))
+    return search, anio, bonos
+
+
+def _filtrar_bonos(request):
+    search, anio, bonos_list = _bonos_filtrados(request)
+    paginator = Paginator(bonos_list, 20)
+    bonos = paginator.get_page(request.GET.get('page'))
+    return search, anio, bonos
+
+
+def bonoHomeView(request):
+    search, anio, bonos = _filtrar_bonos(request)
+
+    breadcrumbs = [
+        {'name': 'Inicio', 'url': reverse('home')},
+        {'name': 'Bonos'},
+    ]
+
+    return render(
+        request,
+        "bono/bonoHome.html",
+        {
+            "breadcrumbs": breadcrumbs,
+            "bonos": bonos,
+            "search": search,
+            "anio": anio,
+            "anios": Bono.objects.order_by('-anio').values_list('anio', flat=True).distinct(),
+        },
+    )
+
+
+def buscar_bonos(request):
+    _, _, bonos = _filtrar_bonos(request)
+
+    return render(
+        request,
+        "partials/bono/_tabla.html",
+        {"bonos": bonos},
+    )
+
+
+def bono_form(request, pk=None):
+    instance = get_object_or_404(Bono, pk=pk) if pk else None
+
+    if request.method == "POST":
+        form = BonoForm(request.POST, instance=instance)
+        if form.is_valid():
+            form.save()
+            _, _, bonos = _filtrar_bonos(request)
+            return render(
+                request,
+                "partials/bono/_modal_form_success.html",
+                {"bonos": bonos},
+            )
+    else:
+        form = BonoForm(instance=instance)
+
+    return render(
+        request,
+        "partials/bono/_modal_form.html",
+        {"form": form, "instance": instance},
+    )
+
+
+def bono_eliminar(request, pk):
+    instance = get_object_or_404(Bono, pk=pk)
+
+    if request.method == "POST":
+        instance.delete()
+        _, _, bonos = _filtrar_bonos(request)
+        return render(
+            request,
+            "partials/bono/_modal_form_success.html",
+            {"bonos": bonos},
+        )
+
+    return render(
+        request,
+        "partials/bono/_modal_delete.html",
+        {"instance": instance, "total_asignaciones": instance.asignacion_set.count()},
+    )
+
+
+def bono_imprimir(request):
+    _, _, bonos = _bonos_filtrados(request)
+    html_string = render_to_string(
+        "partials/bono/_reporte_pdf.html",
+        {
+            "bonos": bonos,
+            "fecha_generacion": timezone.localdate(),
+            "fecha_impresion": timezone.localtime(),
+        },
+    )
+    pdf = HTML(
+        string=html_string,
+        base_url=request.build_absolute_uri("/"),
+    ).write_pdf()
+
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = 'inline; filename="bonos.pdf"'
+    return response
+
+
 def home_carga_excel(request):
     breadcrumbs = [
         {'name': 'Inicio', 'url': reverse('home')},
@@ -555,6 +667,7 @@ def carga_bonos_preview(request):
         {
             "id_bono": id_bono,
             "nombre_bono": nombre_bono,
+            "anio": extraer_anio(nombre_bono),
             "ya_existe": id_bono in ids_existentes or nombre_bono in nombres_existentes,
         }
         for id_bono, nombre_bono in vistos.items()
@@ -585,7 +698,9 @@ def carga_bonos_confirmar(request):
         id_bono = a_entero(request.POST.get(f"id_bono_{indice}"))
         nombre_bono = request.POST.get(f"nombre_bono_{indice}", "").strip()
 
-        if id_bono is None or not nombre_bono:
+        anio = extraer_anio(nombre_bono)
+
+        if id_bono is None or not nombre_bono or anio is None:
             continue
 
         ya_existe = Bono.objects.filter(nombre=nombre_bono).exists() or Bono.objects.filter(id_sistema=id_bono).exists()
@@ -593,7 +708,7 @@ def carga_bonos_confirmar(request):
             omitidos += 1
             continue
 
-        Bono.objects.create(nombre=nombre_bono, id_sistema=id_bono)
+        Bono.objects.create(nombre=nombre_bono, id_sistema=id_bono, anio=anio)
         creados += 1
 
     return render(
@@ -614,7 +729,7 @@ def _columnas_reporte_recibos(encabezados):
         "codigo_entidad": indice_columna(encabezados, "codigo_entidad"),
         "id_bono": indice_columna(encabezados, "id_bono"),
         "monto_asignado": indice_columna(encabezados, "monto_asignado"),
-        "codigo_requerimiento": indice_columna(encabezados, "codigo_requerimiento"),
+        "no_requerimiento": indice_columna(encabezados, "no_requerimiento"),
         "estado_trans": indice_columna(encabezados, "estado_trans"),
         "id_planilla_parcial": indice_columna(encabezados, "id_planilla_parcial"),
     }
@@ -638,7 +753,7 @@ def _procesar_reporte_recibos(archivo):
         return {
             "error": (
                 "El archivo debe tener las columnas \"codigo_entidad\", \"id_bono\", "
-                "\"monto_asignado\", \"codigo_requerimiento\", \"estado_trans\", "
+                "\"monto_asignado\", \"no_requerimiento\", \"estado_trans\", "
                 "\"id_planilla_parcial\" y dos columnas \"monto\" (una para el recibo "
                 "y otra para el abono)."
             )
@@ -684,7 +799,7 @@ def _procesar_reporte_recibos(archivo):
         monto_recibo = a_decimal(fila[indices["monto_recibo"]])
         monto_abono = a_decimal(fila[indices["monto_abono"]])
         estado = a_entero(fila[indices["estado_trans"]])
-        requerimiento_val = fila[indices["codigo_requerimiento"]]
+        requerimiento_val = fila[indices["no_requerimiento"]]
         requerimiento = str(requerimiento_val).strip() if requerimiento_val not in (None, "") else ""
         id_planilla_parcial = a_entero(fila[indices["id_planilla_parcial"]])
 

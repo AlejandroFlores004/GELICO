@@ -1,5 +1,18 @@
 from django.contrib import admin
-from .models import Asignacion, Recibo, Abono, Observacion
+from .models import Bono, Asignacion, Recibo, Abono, Observacion
+
+
+@admin.register(Bono)
+class BonoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'anio', 'id_sistema', 'descripcion')
+    list_filter = ('anio',)
+    search_fields = ('nombre', 'descripcion', 'id_sistema')
+    ordering = ('-anio', 'nombre')
+    fieldsets = (
+        ('Información básica', {
+            'fields': ('nombre', 'anio', 'id_sistema', 'descripcion')
+        }),
+    )
 
 
 @admin.register(Asignacion)
@@ -43,12 +56,16 @@ class AbonoAdmin(admin.ModelAdmin):
 
 @admin.register(Observacion)
 class ObservacionAdmin(admin.ModelAdmin):
-    list_display = ('recibo', 'resuelta', 'descripcion')
+    list_display = ('recibo', 'resuelta', 'fecha_creacion', 'fecha_resolucion', 'descripcion')
+    readonly_fields = ('fecha_creacion', 'fecha_resolucion')
     list_filter = ('resuelta', 'recibo__asignacion__bono')
     search_fields = ('descripcion', 'recibo__asignacion__bono__nombre')
     ordering = ('-id',)
     fieldsets = (
         ('Información básica', {
             'fields': ('recibo', 'descripcion', 'resuelta')
+        }),
+        ('Fechas', {
+            'fields': ('fecha_creacion', 'fecha_resolucion')
         }),
     )

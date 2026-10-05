@@ -211,6 +211,9 @@
                                     <p class="text-xs font-semibold uppercase tracking-wide mt-0.5 {% if observacion.resuelta %}text-success{% else %}text-warning{% endif %}">
                                         {% if observacion.resuelta %}Resuelta{% else %}Pendiente de resolver{% endif %}
                                     </p>
+                                    <p class="text-xs text-base-content/50 mt-0.5">
+                                        Creada el {{ observacion.fecha_creacion|date:"d/m/Y" }}{% if observacion.fecha_resolucion %} · Resuelta el {{ observacion.fecha_resolucion|date:"d/m/Y" }}{% endif %}
+                                    </p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-1 shrink-0 self-end sm:self-auto">

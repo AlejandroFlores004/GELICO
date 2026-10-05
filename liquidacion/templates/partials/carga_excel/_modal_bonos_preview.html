@@ -16,7 +16,7 @@
                 </div>
             {% elif bonos %}
                 <p class="text-sm text-base-content/70 mt-1">
-                    Selecciona los bonos que quieres agregar al catálogo. Los que ya existen no se pueden volver a agregar.
+                    Selecciona los bonos que quieres agregar al catálogo. Los que ya existen, o cuyo nombre no trae un año, no se pueden agregar.
                 </p>
 
                 <form
@@ -34,6 +34,7 @@
                                     <th class="w-10"></th>
                                     <th>ID</th>
                                     <th>Nombre</th>
+                                    <th>Año</th>
                                     <th>Estado</th>
                                 </tr>
                             </thead>
@@ -45,7 +46,7 @@
                                             type="checkbox"
                                             name="seleccion_{{ forloop.counter0 }}"
                                             class="checkbox checkbox-sm"
-                                            {% if bono.ya_existe %}disabled{% else %}checked{% endif %}
+                                            {% if bono.ya_existe or not bono.anio %}disabled{% else %}checked{% endif %}
                                         >
                                     </td>
                                     <td>
@@ -56,9 +57,12 @@
                                         {{ bono.nombre_bono }}
                                         <input type="hidden" name="nombre_bono_{{ forloop.counter0 }}" value="{{ bono.nombre_bono }}">
                                     </td>
+                                    <td>{{ bono.anio|default:"—" }}</td>
                                     <td>
                                         {% if bono.ya_existe %}
                                             <span class="badge badge-ghost badge-sm">Ya existe</span>
+                                        {% elif not bono.anio %}
+                                            <span class="badge badge-warning badge-outline badge-sm">Sin año</span>
                                         {% else %}
                                             <span class="badge badge-success badge-outline badge-sm">Nuevo</span>
                                         {% endif %}
