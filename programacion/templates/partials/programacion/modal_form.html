@@ -19,6 +19,9 @@
                         {{ field }}
                         {% if field.errors %}<span class="text-error text-xs mt-1">{{ field.errors.0 }}</span>{% endif %}
                     </div>
+                    {% if field.name == 'auxiliar' %}
+                    {% include "partials/programacion/auxiliar_horarios.html" %}
+                    {% endif %}
                     {% endfor %}
                 </div>
                 <div class="modal-action">
@@ -40,6 +43,11 @@
                     var $el = $(el);
                     try { $el.select2('destroy'); } catch (ignored) { /* aún no inicializado */ }
                     $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
+                    if (el.id === 'id_auxiliar') {
+                        $el.on('select2:select select2:clear', function () {
+                            htmx.trigger(el, 'auxiliar-seleccionado');
+                        });
+                    }
                 } catch (err) {
                     console.error('No se pudo inicializar select2', err);
                 }

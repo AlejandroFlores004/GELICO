@@ -1,5 +1,6 @@
 from django import forms
 from django_select2.forms import Select2Widget
+from django.urls import reverse_lazy
 from django.utils.dateparse import parse_date
 
 from escuela.models import Escuela
@@ -128,6 +129,11 @@ class ProgramacionForm(forms.ModelForm):
                 'data-placeholder': 'Seleccione un auxiliar',
                 'style': 'width: 100%; display: none !important;',
                 'class': 'select2-daisy',
+                'hx-get': reverse_lazy('programacion_auxiliar_horario'),
+                'hx-target': '#programacion-auxiliar-horarios',
+                'hx-swap': 'outerHTML',
+                'hx-trigger': 'auxiliar-seleccionado',
+                'hx-include': '#programacion-horario-mes',
             }),
             'fecha_programada': forms.DateInput(format='%Y-%m-%d', attrs={
                 'class': 'input input-bordered w-full',
@@ -142,6 +148,17 @@ class ProgramacionForm(forms.ModelForm):
                 'style': 'width: 100%; display: none !important;',
                 'class': 'select2-daisy',
             }),
+            'estado': forms.Select(attrs={
+                'class': 'select select-bordered w-full',
+            }),
+        }
+
+
+class ProgramacionEstadoForm(forms.ModelForm):
+    class Meta:
+        model = Programacion
+        fields = ['estado']
+        widgets = {
             'estado': forms.Select(attrs={
                 'class': 'select select-bordered w-full',
             }),

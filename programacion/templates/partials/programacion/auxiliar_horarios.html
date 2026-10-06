@@ -1,0 +1,50 @@
+<div id="programacion-auxiliar-horarios" class="form-control w-full md:col-span-2">
+    <input type="hidden" id="programacion-horario-mes" name="mes" value="{{ mes_actual }}">
+    {% if auxiliar %}
+        <section class="rounded-lg border border-base-300 bg-base-100 p-3">
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    <h4 class="font-semibold">Disponibilidad de {{ auxiliar.nombre }} {{ auxiliar.apellido }}</h4>
+                    <p class="text-xs text-base-content/60">Selecciona un día marcado para usarlo en la programación.</p>
+                </div>
+                <div class="join" aria-label="Navegación de horarios">
+                    <a href="{% url 'programacion_auxiliar_horario' %}?auxiliar={{ auxiliar.pk }}&mes={{ mes_anterior }}" hx-get="{% url 'programacion_auxiliar_horario' %}?auxiliar={{ auxiliar.pk }}&mes={{ mes_anterior }}" hx-target="#programacion-auxiliar-horarios" hx-swap="outerHTML" class="join-item btn btn-xs btn-outline" aria-label="Mes anterior">‹</a>
+                    <span class="join-item btn btn-xs btn-ghost no-animation pointer-events-none">{{ mes_titulo }}</span>
+                    <a href="{% url 'programacion_auxiliar_horario' %}?auxiliar={{ auxiliar.pk }}&mes={{ mes_siguiente }}" hx-get="{% url 'programacion_auxiliar_horario' %}?auxiliar={{ auxiliar.pk }}&mes={{ mes_siguiente }}" hx-target="#programacion-auxiliar-horarios" hx-swap="outerHTML" class="join-item btn btn-xs btn-outline" aria-label="Mes siguiente">›</a>
+                </div>
+            </div>
+
+            <div class="grid border-b border-base-300 bg-base-200/50 text-center text-xs font-semibold uppercase text-base-content/60" style="grid-template-columns: repeat(7, minmax(0, 1fr));">
+                <div class="py-1.5">Dom</div>
+                <div class="py-1.5">Lun</div>
+                <div class="py-1.5">Mar</div>
+                <div class="py-1.5">Mié</div>
+                <div class="py-1.5">Jue</div>
+                <div class="py-1.5">Vie</div>
+                <div class="py-1.5">Sáb</div>
+            </div>
+            {% for semana in calendario_horarios %}
+                <div class="grid" style="grid-template-columns: repeat(7, minmax(0, 1fr));">
+                    {% for dia in semana %}
+                        <div class="min-h-14 border-b border-r border-base-300 p-1 text-center {% if not dia.en_mes %}bg-base-200/30 text-base-content/40{% endif %}">
+                            {% if dia.horarios %}
+                                <button type="button" class="btn btn-primary btn-xs min-h-6 h-6 px-1" data-fecha="{{ dia.fecha|date:'Y-m-d' }}" aria-label="Seleccionar {{ dia.fecha|date:'d/m/Y' }}" onclick="var campoFecha = document.getElementById('id_fecha_programada'); campoFecha.value = this.dataset.fecha; campoFecha.dispatchEvent(new Event('change', { bubbles: true }));">
+                                    {{ dia.fecha.day }}
+                                </button>
+                                <div class="mt-1 flex flex-col gap-0.5">
+                                    {% for horario in dia.horarios %}
+                                        <span class="truncate rounded bg-primary/10 px-0.5 text-[10px] font-medium text-primary">{{ horario.hora_inicio|time:"H:i" }}–{{ horario.hora_fin|time:"H:i" }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <span class="inline-flex h-6 min-w-6 items-center justify-center text-sm {% if not dia.en_mes %}text-base-content/40{% endif %}">{{ dia.fecha.day }}</span>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </section>
+    {% else %}
+        <p class="text-sm text-base-content/60">Selecciona un auxiliar para ver sus días con horario.</p>
+    {% endif %}
+</div>
