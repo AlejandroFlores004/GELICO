@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <title>Programaciones</title>
+    <style>
+        body { font-family: sans-serif; color: #222; font-size: 11px; }
+        h1 { margin-bottom: 4px; }
+        p { color: #555; margin-top: 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+        th, td { border: 1px solid #bbb; padding: 7px; text-align: left; }
+        th { background: #eee; }
+    </style>
+</head>
+<body>
+    <h1>Programaciones</h1>
+    <p>Generado el {{ fecha_generacion|date:"d/m/Y" }} · {{ programaciones|length }} registros</p>
+    <table>
+        <thead>
+            <tr><th>Fecha</th><th>Hora</th><th>Convocatoria</th><th>Auxiliar</th><th>Escuela</th><th>Estado</th></tr>
+        </thead>
+        <tbody>
+            {% for programacion in programaciones %}
+            <tr>
+                <td>{{ programacion.fecha_programada|date:"d/m/Y" }}</td>
+                <td>{{ programacion.hora_programada|time:"H:i" }}</td>
+                <td>{{ programacion.convocatoria.nombre }}</td>
+                <td>{{ programacion.auxiliar.nombre }} {{ programacion.auxiliar.apellido }}</td>
+                <td>{{ programacion.escuela.nombre_corto }}</td>
+                <td>{{ programacion.get_estado_display }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">No existen registros.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
