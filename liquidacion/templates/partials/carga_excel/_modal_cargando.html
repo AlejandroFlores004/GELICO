@@ -1,0 +1,43 @@
+<template id="modal-cargando-template">
+    <dialog class="modal" data-modal-cargando-dialog>
+        <div class="modal-box max-w-sm rounded-2xl border border-base-300 shadow-2xl">
+            <div class="flex flex-col items-center gap-4 py-4 text-center">
+                <span class="loading loading-spinner loading-lg text-primary"></span>
+                <div>
+                    <h3 class="font-bold text-lg">Procesando archivo</h3>
+                    <p class="text-sm text-base-content/70">Esto puede tardar unos segundos, no cierres la página.</p>
+                </div>
+            </div>
+        </div>
+    </dialog>
+</template>
+
+<script>
+    (function () {
+        // Abre un modal con spinner mientras el servidor procesa el Excel;
+        // la respuesta de htmx reemplaza el wrapper y con él este modal.
+        document.body.addEventListener('htmx:beforeRequest', function (evt) {
+            var form = evt.detail.elt;
+            if (!form.hasAttribute || !form.hasAttribute('data-modal-cargando')) return;
+
+            var wrapper = document.querySelector(form.getAttribute('hx-target'));
+            var template = document.getElementById('modal-cargando-template');
+            wrapper.innerHTML = '';
+            wrapper.appendChild(template.content.cloneNode(true));
+
+            var dialog = wrapper.querySelector('[data-modal-cargando-dialog]');
+            dialog.addEventListener('cancel', function (e) { e.preventDefault(); });
+            dialog.showModal();
+        });
+
+        document.body.addEventListener('htmx:afterRequest', function (evt) {
+            var form = evt.detail.elt;
+            if (!form.hasAttribute || !form.hasAttribute('data-modal-cargando')) return;
+            if (evt.detail.successful) return;
+
+            var wrapper = document.querySelector(form.getAttribute('hx-target'));
+            if (wrapper) wrapper.innerHTML = '';
+            alert('Ocurrió un error al procesar el archivo. Inténtalo de nuevo.');
+        });
+    })();
+</script>

@@ -1,0 +1,43 @@
+<dialog id="columnas-bonos-modal" class="modal">
+    <div class="modal-box max-w-2xl rounded-2xl border border-base-300 shadow-2xl">
+        <form method="dialog">
+            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
+        </form>
+        <h3 class="font-bold text-xl">Columnas del archivo de transferencias</h3>
+        <p class="text-sm text-base-content/70 mt-1">El archivo debe tener estas columnas en la primera fila. Puede traer otras columnas: el sistema las ignora.</p>
+
+        <div class="mt-4 overflow-hidden rounded-lg border border-base-300">
+            <table class="table table-sm">
+                <thead class="bg-base-200">
+                    <tr>
+                        <th>Columna</th>
+                        <th>Contenido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                        <tr>
+                            <td><span class="badge badge-ghost badge-sm font-mono whitespace-nowrap">id_bono</span></td>
+                            <td class="text-sm text-base-content/80">Código del bono en el sistema del ministerio.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-ghost badge-sm font-mono whitespace-nowrap">nombre_bono</span></td>
+                            <td class="text-sm text-base-content/80">Nombre completo del bono. Debe incluir el año (ej. 2026), si no, no se puede agregar.</td>
+                        </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="alert alert-info alert-soft mt-4 text-sm">
+            <span>Los bonos que ya existen en el catálogo se muestran, pero no se vuelven a agregar.</span>
+        </div>
+
+        <div class="modal-action">
+            <form method="dialog">
+                <button class="btn btn-primary">Entendido</button>
+            </form>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>

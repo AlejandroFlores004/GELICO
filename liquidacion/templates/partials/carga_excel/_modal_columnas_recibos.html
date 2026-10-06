@@ -1,0 +1,67 @@
+<dialog id="columnas-recibos-modal" class="modal">
+    <div class="modal-box max-w-2xl rounded-2xl border border-base-300 shadow-2xl">
+        <form method="dialog">
+            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
+        </form>
+        <h3 class="font-bold text-xl">Columnas del reporte transferido por recibo</h3>
+        <p class="text-sm text-base-content/70 mt-1">El archivo debe tener estas columnas en la primera fila. Puede traer otras columnas: el sistema las ignora.</p>
+
+        <div class="mt-4 overflow-hidden rounded-lg border border-base-300">
+            <table class="table table-sm">
+                <thead class="bg-base-200">
+                    <tr>
+                        <th>Columna</th>
+                        <th>Contenido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                        <tr>
+                            <td><span class="badge badge-ghost badge-sm font-mono whitespace-nowrap">codigo_entidad</span></td>
+                            <td class="text-sm text-base-content/80">Código de la escuela (centro educativo).</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-ghost badge-sm font-mono whitespace-nowrap">id_bono</span></td>
+                            <td class="text-sm text-base-content/80">Código del bono. El bono debe estar registrado antes en el catálogo.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-ghost badge-sm font-mono whitespace-nowrap">monto_asignado</span></td>
+                            <td class="text-sm text-base-content/80">Monto asignado a la escuela para ese bono.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-ghost badge-sm font-mono whitespace-nowrap">monto</span></td>
+                            <td class="text-sm text-base-content/80"><span class="font-medium">Primera columna “monto”:</span> monto del recibo.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-ghost badge-sm font-mono whitespace-nowrap">monto</span></td>
+                            <td class="text-sm text-base-content/80"><span class="font-medium">Última columna “monto”:</span> monto del abono de esa fila.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-ghost badge-sm font-mono whitespace-nowrap">no_requerimiento</span></td>
+                            <td class="text-sm text-base-content/80">Número de requerimiento del abono.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-ghost badge-sm font-mono whitespace-nowrap">estado_trans</span></td>
+                            <td class="text-sm text-base-content/80">Estado de la transferencia.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-ghost badge-sm font-mono whitespace-nowrap">id_planilla_parcial</span></td>
+                            <td class="text-sm text-base-content/80">Identificador de la planilla parcial del abono.</td>
+                        </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="alert alert-info alert-soft mt-4 text-sm">
+            <span>Sube primero el archivo de transferencias: las filas cuyo bono no esté en el catálogo se omiten.</span>
+        </div>
+
+        <div class="modal-action">
+            <form method="dialog">
+                <button class="btn btn-primary">Entendido</button>
+            </form>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
