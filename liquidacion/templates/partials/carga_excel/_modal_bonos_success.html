@@ -11,9 +11,28 @@
                 <p class="text-base-content/70">
                     Se agregaron <span class="font-semibold text-base-content">{{ creados }}</span> bono{{ creados|pluralize }} nuevo{{ creados|pluralize }} al catálogo.
                     {% if omitidos %}
-                        <br>Se omitieron {{ omitidos }} por ya existir.
+                        <br>{{ omitidos }} bono{{ omitidos|pluralize }} ya existía{{ omitidos|pluralize:"n" }} en el catálogo.
                     {% endif %}
                 </p>
+            </div>
+
+            <div class="overflow-hidden rounded-lg border border-base-300 text-left">
+                <table class="table table-sm">
+                    <tbody>
+                        <tr>
+                            <td>Asignaciones nuevas</td>
+                            <td class="text-right font-semibold">{{ asignaciones_creadas }}</td>
+                        </tr>
+                        <tr class="text-base-content/60">
+                            <td>Asignaciones ya existentes (omitidas)</td>
+                            <td class="text-right">{{ asignaciones_existentes }}</td>
+                        </tr>
+                        <tr class="text-base-content/60">
+                            <td>Escuelas no encontradas (omitidas)</td>
+                            <td class="text-right">{{ escuelas_no_encontradas }}</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
             <div class="modal-action justify-center">
                 <button type="button" class="btn btn-primary" onclick="document.getElementById('bonos-modal').close()">Listo</button>

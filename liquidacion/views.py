@@ -614,6 +614,9 @@ def home_carga_excel(request):
     )
 
 
+_SESION_ASIGNACIONES = "carga_excel_asignaciones"
+
+
 @require_POST
 def carga_bonos_preview(request):
     archivo = request.FILES.get("archivo")
@@ -636,17 +639,28 @@ def carga_bonos_preview(request):
 
     col_id = indice_columna(encabezados, "id_bono")
     col_nombre = indice_columna(encabezados, "nombre_bono")
+    col_escuela = indice_columna(encabezados, "codigo_entidad")
+    col_monto = indice_columna(encabezados, "monto_asignado")
 
-    if col_id is None or col_nombre is None:
+    if None in (col_id, col_nombre, col_escuela, col_monto):
         return render(
             request,
             "partials/carga_excel/_modal_bonos_preview.html",
-            {"error": "El archivo debe tener las columnas \"id_bono\" y \"nombre_bono\" en la primera fila."},
+            {
+                "error": (
+                    "El archivo debe tener las columnas \"id_bono\", \"nombre_bono\", "
+                    "\"codigo_entidad\" y \"monto_asignado\" en la primera fila."
+                )
+            },
         )
 
+    maximo_indice = max(col_id, col_nombre, col_escuela, col_monto)
     vistos = {}
+    # id_bono -> {codigo_entidad: monto_asignado}; una escuela puede repetirse
+    # en varias filas del mismo bono, se toma el primer monto encontrado.
+    asignaciones = {}
     for fila in filas:
-        if col_id >= len(fila) or col_nombre >= len(fila):
+        if len(fila) <= maximo_indice:
             continue
 
         id_bono = a_entero(fila[col_id])
@@ -657,6 +671,11 @@ def carga_bonos_preview(request):
             continue
 
         vistos.setdefault(id_bono, nombre_bono)
+
+        codigo = a_texto_codigo(fila[col_escuela])
+        monto = a_decimal(fila[col_monto])
+        if codigo and monto is not None:
+            asignaciones.setdefault(id_bono, {}).setdefault(codigo, monto)
 
     nombres_existentes = set(Bono.objects.values_list("nombre", flat=True))
     ids_existentes = set(
@@ -669,9 +688,18 @@ def carga_bonos_preview(request):
             "nombre_bono": nombre_bono,
             "anio": extraer_anio(nombre_bono),
             "ya_existe": id_bono in ids_existentes or nombre_bono in nombres_existentes,
+            "total_asignaciones": len(asignaciones.get(id_bono, {})),
+            "monto_total": sum(asignaciones.get(id_bono, {}).values(), Decimal("0")),
         }
         for id_bono, nombre_bono in vistos.items()
     ]
+
+    # El archivo no viaja en la confirmación, así que las asignaciones se
+    # guardan en la sesión hasta que el usuario confirme.
+    request.session[_SESION_ASIGNACIONES] = {
+        str(id_bono): {codigo: str(monto) for codigo, monto in por_escuela.items()}
+        for id_bono, por_escuela in asignaciones.items()
+    }
 
     return render(
         request,
@@ -680,10 +708,38 @@ def carga_bonos_preview(request):
     )
 
 
+def _cargar_asignaciones_bono(bono, por_escuela, escuelas, contadores):
+    existentes = set(
+        Asignacion.objects.filter(bono=bono).values_list("escuela_id", flat=True)
+    )
+    nuevas = []
+    for codigo, monto in por_escuela.items():
+        escuela = escuelas.get(codigo)
+        if escuela is None:
+            contadores["escuelas_no_encontradas"] += 1
+            continue
+        if escuela.id in existentes:
+            contadores["asignaciones_existentes"] += 1
+            continue
+        nuevas.append(Asignacion(escuela=escuela, bono=bono, valor=Decimal(monto)))
+        existentes.add(escuela.id)
+
+    Asignacion.objects.bulk_create(nuevas)
+    contadores["asignaciones_creadas"] += len(nuevas)
+
+
 @require_POST
 def carga_bonos_confirmar(request):
-    creados = 0
-    omitidos = 0
+    asignaciones = request.session.pop(_SESION_ASIGNACIONES, {})
+    escuelas = {str(e.codigo).strip(): e for e in Escuela.objects.all()}
+
+    contadores = {
+        "creados": 0,
+        "omitidos": 0,
+        "asignaciones_creadas": 0,
+        "asignaciones_existentes": 0,
+        "escuelas_no_encontradas": 0,
+    }
 
     indices = {
         clave[len("id_bono_"):]
@@ -691,30 +747,35 @@ def carga_bonos_confirmar(request):
         if clave.startswith("id_bono_")
     }
 
-    for indice in indices:
-        if request.POST.get(f"seleccion_{indice}") != "on":
-            continue
+    with transaction.atomic():
+        for indice in indices:
+            if request.POST.get(f"seleccion_{indice}") != "on":
+                continue
 
-        id_bono = a_entero(request.POST.get(f"id_bono_{indice}"))
-        nombre_bono = request.POST.get(f"nombre_bono_{indice}", "").strip()
+            id_bono = a_entero(request.POST.get(f"id_bono_{indice}"))
+            nombre_bono = request.POST.get(f"nombre_bono_{indice}", "").strip()
 
-        anio = extraer_anio(nombre_bono)
+            if id_bono is None or not nombre_bono:
+                continue
 
-        if id_bono is None or not nombre_bono or anio is None:
-            continue
+            bono = Bono.objects.filter(Q(id_sistema=id_bono) | Q(nombre=nombre_bono)).first()
+            if bono is not None:
+                contadores["omitidos"] += 1
+            else:
+                anio = extraer_anio(nombre_bono)
+                if anio is None:
+                    continue
+                bono = Bono.objects.create(nombre=nombre_bono, id_sistema=id_bono, anio=anio)
+                contadores["creados"] += 1
 
-        ya_existe = Bono.objects.filter(nombre=nombre_bono).exists() or Bono.objects.filter(id_sistema=id_bono).exists()
-        if ya_existe:
-            omitidos += 1
-            continue
-
-        Bono.objects.create(nombre=nombre_bono, id_sistema=id_bono, anio=anio)
-        creados += 1
+            _cargar_asignaciones_bono(
+                bono, asignaciones.get(str(id_bono), {}), escuelas, contadores
+            )
 
     return render(
         request,
         "partials/carga_excel/_modal_bonos_success.html",
-        {"creados": creados, "omitidos": omitidos},
+        contadores,
     )
 
 
@@ -728,7 +789,6 @@ def _columnas_reporte_recibos(encabezados):
     indices = {
         "codigo_entidad": indice_columna(encabezados, "codigo_entidad"),
         "id_bono": indice_columna(encabezados, "id_bono"),
-        "monto_asignado": indice_columna(encabezados, "monto_asignado"),
         "no_requerimiento": indice_columna(encabezados, "no_requerimiento"),
         "estado_trans": indice_columna(encabezados, "estado_trans"),
         "id_planilla_parcial": indice_columna(encabezados, "id_planilla_parcial"),
@@ -753,7 +813,7 @@ def _procesar_reporte_recibos(archivo):
         return {
             "error": (
                 "El archivo debe tener las columnas \"codigo_entidad\", \"id_bono\", "
-                "\"monto_asignado\", \"no_requerimiento\", \"estado_trans\", "
+                "\"no_requerimiento\", \"estado_trans\", "
                 "\"id_planilla_parcial\" y dos columnas \"monto\" (una para el recibo "
                 "y otra para el abono)."
             )
@@ -768,14 +828,13 @@ def _procesar_reporte_recibos(archivo):
     maximo_indice = max(indices.values())
 
     contadores = {
-        "asignaciones_creadas": 0,
-        "asignaciones_existentes": 0,
         "recibos_creados": 0,
         "recibos_existentes": 0,
         "abonos_creados": 0,
         "abonos_existentes": 0,
         "filas_omitidas_escuela": 0,
         "filas_omitidas_bono": 0,
+        "filas_omitidas_asignacion": 0,
         "filas_omitidas_datos": 0,
     }
 
@@ -813,17 +872,17 @@ def _procesar_reporte_recibos(archivo):
             contadores["filas_omitidas_datos"] += 1
             continue
 
+        # Las asignaciones se crean desde el archivo de transferencias; aquí
+        # solo se usan las que ya existen.
         clave_asignacion = (escuela.id, bono.id)
         if clave_asignacion not in asignaciones_cache:
-            asignacion = Asignacion.objects.filter(escuela=escuela, bono=bono).first()
-            if asignacion is None:
-                valor = a_decimal(fila[indices["monto_asignado"]]) or Decimal("0")
-                asignacion = Asignacion.objects.create(escuela=escuela, bono=bono, valor=valor)
-                contadores["asignaciones_creadas"] += 1
-            else:
-                contadores["asignaciones_existentes"] += 1
-            asignaciones_cache[clave_asignacion] = asignacion
+            asignaciones_cache[clave_asignacion] = Asignacion.objects.filter(
+                escuela=escuela, bono=bono
+            ).first()
         asignacion = asignaciones_cache[clave_asignacion]
+        if asignacion is None:
+            contadores["filas_omitidas_asignacion"] += 1
+            continue
 
         clave_recibo = (clave_asignacion, monto_recibo)
         if clave_recibo not in recibos_cache:

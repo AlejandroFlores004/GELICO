@@ -27,14 +27,6 @@
                     <table class="table table-sm">
                         <tbody>
                             <tr>
-                                <td>Asignaciones nuevas</td>
-                                <td class="text-right font-semibold">{{ contadores.asignaciones_creadas }}</td>
-                            </tr>
-                            <tr>
-                                <td>Asignaciones ya existentes</td>
-                                <td class="text-right font-semibold">{{ contadores.asignaciones_existentes }}</td>
-                            </tr>
-                            <tr>
                                 <td>Recibos nuevos</td>
                                 <td class="text-right font-semibold">{{ contadores.recibos_creados }}</td>
                             </tr>
@@ -57,6 +49,10 @@
                             <tr class="text-base-content/60">
                                 <td>Filas omitidas (bono no registrado)</td>
                                 <td class="text-right">{{ contadores.filas_omitidas_bono }}</td>
+                            </tr>
+                            <tr class="text-base-content/60">
+                                <td>Filas omitidas (escuela sin asignación para el bono)</td>
+                                <td class="text-right">{{ contadores.filas_omitidas_asignacion }}</td>
                             </tr>
                             <tr class="text-base-content/60">
                                 <td>Filas omitidas (datos incompletos)</td>
