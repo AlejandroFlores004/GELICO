@@ -186,7 +186,7 @@
                         <tr>
                             <th>Fecha inicio</th>
                             <th>Fecha fin</th>
-                            <th>Estado</th>
+                            <th>Vigencia</th>
                             <th><span class="sr-only">Acciones</span></th>
                         </tr>
                     </thead>
@@ -195,13 +195,7 @@
                         <tr class="hover:bg-base-200/50">
                             <td>{{ cde.FechaInicio|date:"d/m/Y" }}</td>
                             <td>{{ cde.FechaFin|date:"d/m/Y" }}</td>
-                            <td>
-                                {% if cde.estado %}
-                                <span class="badge badge-success badge-soft badge-sm">Activo</span>
-                                {% else %}
-                                <span class="badge badge-ghost badge-sm">Inactivo</span>
-                                {% endif %}
-                            </td>
+                            <td>{% include "partials/cde/_vigencia.html" %}</td>
                             <td>
                                 <div class="flex justify-end gap-1">
                                     <button hx-get="{% url 'cde_editar' cde.pk %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm btn-square" title="Editar CDE" aria-label="Editar CDE">

@@ -1,0 +1,18 @@
+{# Vigencia calculada por fechas (ver _anotar_vigencia y _con_dias en views.py) #}
+{% if cde.vigencia == 'vencido' %}
+<span class="badge badge-error badge-soft badge-sm whitespace-nowrap">Vencido</span>
+<p class="text-xs text-base-content/60 mt-1 whitespace-nowrap">Hace {{ cde.dias_vencido }} día{{ cde.dias_vencido|pluralize }}</p>
+{% elif cde.vigencia == 'proximo' %}
+<span class="badge badge-info badge-soft badge-sm whitespace-nowrap">Próximo</span>
+<p class="text-xs text-base-content/60 mt-1 whitespace-nowrap">Inicia en {{ cde.dias_para_inicio }} día{{ cde.dias_para_inicio|pluralize }}</p>
+{% else %}
+{% if cde.vigencia == 'por_vencer' %}
+<span class="badge badge-warning badge-soft badge-sm whitespace-nowrap">Por vencer</span>
+{% else %}
+<span class="badge badge-success badge-soft badge-sm whitespace-nowrap">Vigente</span>
+{% endif %}
+<p class="text-xs text-base-content/60 mt-1 whitespace-nowrap">
+    {% if cde.dias_para_fin == 0 %}Vence hoy{% else %}Faltan {{ cde.dias_para_fin }} día{{ cde.dias_para_fin|pluralize }}{% endif %}
+</p>
+<progress class="progress {% if cde.vigencia == 'por_vencer' %}progress-warning{% else %}progress-success{% endif %} w-24 h-1.5" value="{{ cde.avance }}" max="100" aria-label="{{ cde.avance }}% del periodo transcurrido"></progress>
+{% endif %}

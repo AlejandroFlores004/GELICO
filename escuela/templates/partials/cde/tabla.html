@@ -1,72 +1,190 @@
-<div id="listado-cdes"{% if oob %} hx-swap-oob="true"{% endif %} class="card bg-base-100 shadow-xl border border-base-300">
-    <div class="card-body p-0">
-        <div class="flex items-center justify-between gap-3 px-6 py-5 border-b border-base-200">
-            <h2 class="card-title m-0">CDE</h2>
-            <div class="badge badge-outline">{{ cdes.paginator.count }} registros</div>
-        </div>
+{% with vigencia_activa=request.GET.vigencia %}
+<div id="listado-cdes"{% if oob %} hx-swap-oob="true"{% endif %} class="space-y-6">
 
-        <div class="flex justify-end p-4 pb-0">
-            <a href="{% url 'cde_imprimir' %}{% querystring %}" target="_blank" class="btn btn-ghost btn-sm gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621.504-1.125 1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5z" />
-                </svg>
-                Imprimir
-            </a>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="table w-full">
-                <thead>
-                    <tr>
-                        <th>Escuela</th>
-                        <th>Distrito</th>
-                        <th>Fecha inicio</th>
-                        <th>Fecha fin</th>
-                        <th class="text-right">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for cde in cdes %}
-                    <tr class="hover">
-                        <td class="font-medium">{{ cde.escuela.nombre_corto }}</td>
-                        <td>{{ cde.escuela.distrito.nombre }}</td>
-                        <td>{{ cde.FechaInicio|date:"d/m/Y" }}</td>
-                        <td>{{ cde.FechaFin|date:"d/m/Y" }}</td>
-                        <td>
-                            <div class="flex justify-end gap-2">
-                                <button hx-get="{% url 'cde_editar' cde.pk %}{% querystring %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm btn-square" title="Editar" aria-label="Editar CDE {{ cde.escuela.nombre_corto }}">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 13.5v4.875c0 .621-.504 1.125-1.125 1.125H5.625a1.125 1.125 0 01-1.125-1.125V6.375c0-.621.504-1.125 1.125-1.125h4.875" />
-                                    </svg>
-                                </button>
-                                <button hx-get="{% url 'cde_eliminar' cde.pk %}{% querystring %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm btn-square text-error" title="Eliminar" aria-label="Eliminar CDE {{ cde.escuela.nombre_corto }}">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="5" class="text-center text-base-content/60 py-6">No existen registros.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% if cdes.paginator.num_pages > 1 %}
-        <div class="flex justify-center py-4">
-            <div class="join">
-                {% if cdes.has_previous %}
-                <a href="{% url 'home_cde' %}{% querystring page=cdes.previous_page_number %}" hx-get="{% url 'buscar_cdes' %}{% querystring page=cdes.previous_page_number %}" hx-target="#listado-cdes" hx-swap="outerHTML" class="join-item btn btn-sm">«</a>
-                {% else %}<button class="join-item btn btn-sm btn-disabled">«</button>{% endif %}
-                {% for numero in cdes.paginator.page_range %}
-                <a href="{% url 'home_cde' %}{% querystring page=numero %}" hx-get="{% url 'buscar_cdes' %}{% querystring page=numero %}" hx-target="#listado-cdes" hx-swap="outerHTML" class="join-item btn btn-sm {% if numero == cdes.number %}btn-active{% endif %}">{{ numero }}</a>
-                {% endfor %}
-                {% if cdes.has_next %}
-                <a href="{% url 'home_cde' %}{% querystring page=cdes.next_page_number %}" hx-get="{% url 'buscar_cdes' %}{% querystring page=cdes.next_page_number %}" hx-target="#listado-cdes" hx-swap="outerHTML" class="join-item btn btn-sm">»</a>
-                {% else %}<button class="join-item btn btn-sm btn-disabled">»</button>{% endif %}
+    {# ── Resumen por vigencia: cada tarjeta filtra el listado (clic otra vez para quitar el filtro) ── #}
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <a href="{% url 'home_cde' %}{% if vigencia_activa == 'vencido' %}{% querystring vigencia=None page=None %}{% else %}{% querystring vigencia='vencido' page=None %}{% endif %}"
+           class="card bg-base-100 border shadow-sm hover:shadow-md transition-shadow {% if vigencia_activa == 'vencido' %}border-error ring-2 ring-error/30{% else %}border-base-300{% endif %}">
+            <div class="card-body p-4 gap-1">
+                <span class="flex items-center gap-2 text-sm text-base-content/70"><span class="size-2.5 rounded-full bg-error"></span>Vencidos</span>
+                <span class="text-3xl font-bold">{{ resumen.vencido }}</span>
+                <span class="text-xs text-base-content/60">Ya pasó su fecha de fin</span>
+            </div>
+        </a>
+        <a href="{% url 'home_cde' %}{% if vigencia_activa == 'por_vencer' %}{% querystring vigencia=None page=None %}{% else %}{% querystring vigencia='por_vencer' page=None %}{% endif %}"
+           class="card bg-base-100 border shadow-sm hover:shadow-md transition-shadow {% if vigencia_activa == 'por_vencer' %}border-warning ring-2 ring-warning/30{% else %}border-base-300{% endif %}">
+            <div class="card-body p-4 gap-1">
+                <span class="flex items-center gap-2 text-sm text-base-content/70"><span class="size-2.5 rounded-full bg-warning"></span>Por vencer</span>
+                <span class="text-3xl font-bold">{{ resumen.por_vencer }}</span>
+                <span class="text-xs text-base-content/60">Vencen en {{ resumen.dias_por_vencer }} días o menos</span>
+            </div>
+        </a>
+        <a href="{% url 'home_cde' %}{% if vigencia_activa == 'vigente' %}{% querystring vigencia=None page=None %}{% else %}{% querystring vigencia='vigente' page=None %}{% endif %}"
+           class="card bg-base-100 border shadow-sm hover:shadow-md transition-shadow {% if vigencia_activa == 'vigente' %}border-success ring-2 ring-success/30{% else %}border-base-300{% endif %}">
+            <div class="card-body p-4 gap-1">
+                <span class="flex items-center gap-2 text-sm text-base-content/70"><span class="size-2.5 rounded-full bg-success"></span>Vigentes</span>
+                <span class="text-3xl font-bold">{{ resumen.vigente }}</span>
+                <span class="text-xs text-base-content/60">En curso, sin apuro</span>
+            </div>
+        </a>
+        <a href="{% url 'home_cde' %}{% if vigencia_activa == 'proximo' %}{% querystring vigencia=None page=None %}{% else %}{% querystring vigencia='proximo' page=None %}{% endif %}"
+           class="card bg-base-100 border shadow-sm hover:shadow-md transition-shadow {% if vigencia_activa == 'proximo' %}border-info ring-2 ring-info/30{% else %}border-base-300{% endif %}">
+            <div class="card-body p-4 gap-1">
+                <span class="flex items-center gap-2 text-sm text-base-content/70"><span class="size-2.5 rounded-full bg-info"></span>Próximos</span>
+                <span class="text-3xl font-bold">{{ resumen.proximo }}</span>
+                <span class="text-xs text-base-content/60">Todavía no inician</span>
+            </div>
+        </a>
+        <div class="card bg-base-100 border border-base-300 shadow-sm col-span-2 lg:col-span-1">
+            <div class="card-body p-4 gap-1">
+                <span class="flex items-center gap-2 text-sm text-base-content/70"><span class="size-2.5 rounded-full bg-base-content/30"></span>Escuelas sin CDE</span>
+                <span class="text-3xl font-bold">{{ resumen.escuelas_sin_cde|length }}</span>
+                <span class="text-xs text-base-content/60">Activas y sin periodo en curso</span>
             </div>
         </div>
-        {% endif %}
+    </div>
+
+    {% if resumen.escuelas_sin_cde %}
+    <details class="collapse collapse-arrow bg-base-100 border border-base-300 rounded-box">
+        <summary class="collapse-title text-sm font-medium">
+            Ver escuelas sin CDE en curso
+            <span class="text-base-content/50">({{ resumen.escuelas_sin_cde|length }})</span>
+        </summary>
+        <div class="collapse-content">
+            <div class="flex flex-wrap gap-2">
+                {% for escuela in resumen.escuelas_sin_cde %}
+                <a href="{% url 'escuela_gestionar' escuela.pk %}" class="btn btn-ghost btn-xs border border-base-300 font-normal" title="{{ escuela.nombre }} · Distrito {{ escuela.distrito.nombre }}">
+                    <span class="font-mono text-base-content/60">{{ escuela.codigo }}</span>
+                    {{ escuela.nombre_corto }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </details>
+    {% endif %}
+
+    {# ── Tabla ── #}
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body p-0">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 px-6 py-5 border-b border-base-200">
+                <div class="flex items-center gap-3">
+                    <h2 class="card-title m-0">Periodos de CDE</h2>
+                    <div class="badge badge-outline">{{ cdes.paginator.count }} registro{{ cdes.paginator.count|pluralize }}</div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    {# Ordenar por: el valor de la opción activa lleva el sentido (ej. "-fin") para que Buscar lo conserve #}
+                    <label for="cde-orden" class="text-sm text-base-content/60">Ordenar por</label>
+                    <select id="cde-orden" name="orden" class="select select-bordered select-sm w-auto"
+                            hx-get="{% url 'buscar_cdes' %}" hx-include="#cde-buscador-form"
+                            hx-target="#listado-cdes" hx-swap="outerHTML">
+                        {% for clave, etiqueta in ordenes %}
+                        <option value="{% if clave == orden_clave and orden_descendente %}-{% endif %}{{ clave }}" {% if clave == orden_clave %}selected{% endif %}>{{ etiqueta }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="button"
+                            hx-get="{% url 'buscar_cdes' %}{% querystring orden=orden_invertido page=None %}"
+                            hx-target="#listado-cdes" hx-swap="outerHTML"
+                            class="btn btn-ghost btn-sm btn-square border border-base-300"
+                            title="{% if orden_descendente %}Descendente: cambiar a ascendente{% else %}Ascendente: cambiar a descendente{% endif %}"
+                            aria-label="Invertir orden">
+                        {% if orden_descendente %}
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0-3.75-3.75M17.25 21 21 17.25" />
+                        </svg>
+                        {% else %}
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75L17.25 9m0 0L21 12.75M17.25 9v12" />
+                        </svg>
+                        {% endif %}
+                    </button>
+
+                    <a href="{% url 'cde_imprimir' %}{% querystring page=None %}" target="_blank" class="btn btn-ghost btn-sm gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5z" />
+                        </svg>
+                        Imprimir
+                    </a>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table w-full">
+                    <thead>
+                        <tr>
+                            {# Clic en una columna ordena por ella; otro clic invierte el sentido #}
+                            {% for col in columnas %}
+                            <th {% if col.activa %}aria-sort="{% if col.descendente %}descending{% else %}ascending{% endif %}"{% endif %}>
+                                <button type="button"
+                                        hx-get="{% url 'buscar_cdes' %}{% querystring orden=col.siguiente page=None %}"
+                                        hx-target="#listado-cdes" hx-swap="outerHTML"
+                                        class="inline-flex items-center gap-1 uppercase tracking-wide hover:text-base-content {% if col.activa %}text-primary font-bold{% endif %}">
+                                    {{ col.etiqueta }}
+                                    {% if col.activa %}
+                                    <span aria-hidden="true">{% if col.descendente %}↓{% else %}↑{% endif %}</span>
+                                    {% else %}
+                                    <span aria-hidden="true" class="text-base-content/30">↕</span>
+                                    {% endif %}
+                                </button>
+                            </th>
+                            {% endfor %}
+                            <th class="text-right"><span class="sr-only">Acciones</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cde in cdes %}
+                        <tr class="hover:bg-base-200/50">
+                            <td>
+                                <a href="{% url 'escuela_gestionar' cde.escuela.pk %}" class="font-medium link link-hover" title="Gestionar {{ cde.escuela.nombre }}">{{ cde.escuela.nombre_corto }}</a>
+                                <div class="text-xs text-base-content/60 font-mono">{{ cde.escuela.codigo }}</div>
+                            </td>
+                            <td>{{ cde.escuela.distrito.nombre }}</td>
+                            <td class="whitespace-nowrap">{{ cde.FechaInicio|date:"d/m/Y" }}</td>
+                            <td class="whitespace-nowrap">{{ cde.FechaFin|date:"d/m/Y" }}</td>
+                            <td>{% include "partials/cde/_vigencia.html" %}</td>
+                            <td>
+                                <div class="flex justify-end gap-1">
+                                    <button hx-get="{% url 'cde_editar' cde.pk %}{% querystring %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm btn-square" title="Editar" aria-label="Editar CDE {{ cde.escuela.nombre_corto }}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                                        </svg>
+                                    </button>
+                                    <button hx-get="{% url 'cde_eliminar' cde.pk %}{% querystring %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm btn-square text-error" title="Eliminar" aria-label="Eliminar CDE {{ cde.escuela.nombre_corto }}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-10">
+                                <p class="font-medium">No hay periodos de CDE con estos filtros</p>
+                                <p class="text-sm text-base-content/60">Prueba quitando algún filtro o usa <span class="font-medium text-base-content">Agregar CDE</span>.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if cdes.paginator.num_pages > 1 %}
+            <div class="flex justify-center py-4">
+                <div class="join">
+                    {% if cdes.has_previous %}
+                    <a href="{% url 'home_cde' %}{% querystring page=cdes.previous_page_number %}" hx-get="{% url 'buscar_cdes' %}{% querystring page=cdes.previous_page_number %}" hx-target="#listado-cdes" hx-swap="outerHTML" class="join-item btn btn-sm">«</a>
+                    {% else %}<button class="join-item btn btn-sm btn-disabled">«</button>{% endif %}
+                    {% for numero in cdes.paginator.page_range %}
+                    <a href="{% url 'home_cde' %}{% querystring page=numero %}" hx-get="{% url 'buscar_cdes' %}{% querystring page=numero %}" hx-target="#listado-cdes" hx-swap="outerHTML" class="join-item btn btn-sm {% if numero == cdes.number %}btn-active{% endif %}">{{ numero }}</a>
+                    {% endfor %}
+                    {% if cdes.has_next %}
+                    <a href="{% url 'home_cde' %}{% querystring page=cdes.next_page_number %}" hx-get="{% url 'buscar_cdes' %}{% querystring page=cdes.next_page_number %}" hx-target="#listado-cdes" hx-swap="outerHTML" class="join-item btn btn-sm">»</a>
+                    {% else %}<button class="join-item btn btn-sm btn-disabled">»</button>{% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
     </div>
 </div>
+{% endwith %}

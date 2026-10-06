@@ -1,4 +1,5 @@
 from django.contrib import admin
+from .forms import TelefonoForm
 from .models import Distrito, Escuela, CDE, Encargado, Telefono
 
 
@@ -49,6 +50,7 @@ class CDEAdmin(admin.ModelAdmin):
 
 class TelefonoInline(admin.TabularInline):
     model = Telefono
+    form = TelefonoForm  # misma validación de formato que el modal de encargado
     extra = 1
 
 

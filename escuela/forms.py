@@ -192,51 +192,75 @@ class CDEFilterForm(forms.Form):
         }),
     )
     distrito = forms.ModelChoiceField(
-        queryset=Distrito.objects.all(),
+        queryset=Distrito.objects.all().order_by('nombre'),
+        required=False,
+        label='Distrito',
         widget=Select2Widget(attrs={
             'data-placeholder': 'Todos los distritos',
             'style': 'width: 100%',
             'class': 'select2-daisy',
             'data-allow-clear': 'false',
         }),
-        label='Distrito',
-        required=False,
     )
-
-    estado = forms.ChoiceField(
+    # Se calcula con las fechas del periodo (ver _anotar_vigencia en views.py)
+    vigencia = forms.ChoiceField(
         choices=[
-            ('', 'Todos'),
-            ('1', 'Activo'),
-            ('0', 'Inactivo'),
+            ('', 'Todas'),
+            ('vigente', 'Vigente'),
+            ('por_vencer', 'Por vencer'),
+            ('vencido', 'Vencido'),
+            ('proximo', 'Próximo'),
         ],
         required=False,
         widget=forms.Select(attrs={'class': 'select select-bordered w-full'}),
-        label='Estado',
+        label='Vigencia',
     )
-
-    texto = forms.CharField(
+    fecha_inicio = forms.DateField(
         required=False,
-        widget=forms.TextInput(attrs={
+        label='Inicia desde',
+        widget=forms.DateInput(attrs={
+            'type': 'date',
             'class': 'input input-bordered w-full',
-            'placeholder': 'Código, nombre',
         }),
-        label='Buscar',
+    )
+    fecha_fin = forms.DateField(
+        required=False,
+        label='Termina hasta',
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'input input-bordered w-full',
+        }),
     )
 
 
-#Formulario para crear o editar una escuela
-class EscuelaForm(forms.ModelForm):
+class CDEForm(forms.ModelForm):
     class Meta:
-        model = Escuela
-        fields = ['codigo', 'nombre', 'nombre_corto', 'distrito']
+        model = CDE
+        fields = ['FechaInicio', 'FechaFin', 'escuela']
+        labels = {
+            'FechaInicio': 'Fecha Inicio',
+            'FechaFin': 'Fecha Fin',
+            'escuela': 'Escuela',
+        }
 
         widgets = {
-            'codigo': forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Ej: 12319'}),
-            'nombre': forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Ej: C.E. Caserío Las Calderas'}),
-            'nombre_corto': forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Ej: Calderas'}),
-            'distrito': Select2Widget(attrs={
-                'data-placeholder': 'Seleccione un Distrito',
-                'style': 'width: 100%',
+            'FechaInicio': forms.DateInput(
+                format='%Y-%m-%d',
+                attrs={
+                    'type': 'date',
+                    'class': 'input input-bordered w-full',
+                }
+            ),
+            'FechaFin': forms.DateInput(
+                format='%Y-%m-%d',
+                attrs={
+                    'type': 'date',
+                    'class': 'input input-bordered w-full',
+                }
+            ),
+            'escuela': Select2Widget(attrs={
+                'data-placeholder': 'Seleccione una escuela',
+                'style': 'width: 100%; display: none !important;',
                 'class': 'select2-daisy',
             }),
         }
@@ -245,6 +269,15 @@ class EscuelaForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.pk:
             self.fields['escuela'].disabled = True
+
+    def clean(self):
+        cleaned_data = super().clean()
+        inicio = cleaned_data.get('FechaInicio')
+        fin = cleaned_data.get('FechaFin')
+        if inicio and fin and fin < inicio:
+            self.add_error('FechaFin', 'La fecha de fin no puede ser anterior a la fecha de inicio.')
+        return cleaned_data
+
 
 #Formulario para filtrar/Buscar escuelas en el listado
 class FiltrarEscuelasForm(forms.Form):
@@ -309,3 +342,10 @@ class EscuelaForm(forms.ModelForm):
                 'class': 'select2-daisy',
             }),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # El código solo se escribe al crear la escuela; al editar queda fijo
+        # (disabled: Django ignora lo que llegue por POST y usa el valor guardado)
+        if self.instance and self.instance.pk:
+            self.fields['codigo'].disabled = True
