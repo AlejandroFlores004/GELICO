@@ -3,11 +3,106 @@ from django.core.paginator import Paginator
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 from weasyprint import HTML
 
-from .forms import AuxiliarForm, AusenciaForm, ConvocatoriaForm, HorarioForm
-from .models import Auxiliar, Ausencia, Convocatoria, Horario
+from .forms import AuxiliarForm, AusenciaForm, ConvocatoriaForm, HorarioForm, ProgramacionFiltroForm, ProgramacionForm
+from .models import Auxiliar, Ausencia, Convocatoria, Horario, Programacion
+
+
+def _programaciones_filtradas(request, paginar=True):
+    filtro_form = ProgramacionFiltroForm(request.GET or None)
+    programaciones = Programacion.objects.select_related(
+        'convocatoria', 'auxiliar', 'escuela'
+    ).order_by('-fecha_programada', '-hora_programada')
+
+    if filtro_form.is_valid():
+        search = filtro_form.cleaned_data.get('q', '').strip()
+        convocatoria = filtro_form.cleaned_data.get('convocatoria')
+        escuela = filtro_form.cleaned_data.get('escuela')
+        auxiliar = filtro_form.cleaned_data.get('auxiliar')
+
+        if convocatoria:
+            programaciones = programaciones.filter(convocatoria=convocatoria)
+        if escuela:
+            programaciones = programaciones.filter(escuela=escuela)
+        if auxiliar:
+            programaciones = programaciones.filter(auxiliar=auxiliar)
+        if search:
+            programaciones = programaciones.filter(
+                Q(convocatoria__nombre__icontains=search)
+                | Q(auxiliar__nombre__icontains=search)
+                | Q(auxiliar__apellido__icontains=search)
+                | Q(escuela__nombre__icontains=search)
+                | Q(escuela__nombre_corto__icontains=search)
+                | Q(estado__icontains=search)
+            )
+
+    if paginar:
+        paginator = Paginator(programaciones, 20)
+        programaciones = paginator.get_page(request.GET.get('page'))
+    return filtro_form, programaciones
+
+
+def programacionHomeView(request):
+    filtro_form, programaciones = _programaciones_filtradas(request)
+    return render(request, 'programacion/programacionHome.html', {
+        'programaciones': programaciones,
+        'filtro_form': filtro_form,
+        'form_media': ProgramacionForm().media + filtro_form.media,
+    })
+
+
+def buscar_programaciones(request):
+    _, programaciones = _programaciones_filtradas(request)
+    return render(request, 'partials/programacion/tabla.html', {
+        'programaciones': programaciones,
+    })
+
+
+def programacion_form(request, pk=None):
+    instance = get_object_or_404(Programacion, pk=pk) if pk else None
+    if request.method == 'POST':
+        form = ProgramacionForm(request.POST, instance=instance)
+        if form.is_valid():
+            form.save()
+            _, programaciones = _programaciones_filtradas(request)
+            return render(request, 'partials/programacion/modal_form_success.html', {
+                'programaciones': programaciones,
+            })
+    else:
+        form = ProgramacionForm(instance=instance)
+
+    return render(request, 'partials/programacion/modal_form.html', {
+        'form': form,
+        'instance': instance,
+    })
+
+
+def programacion_eliminar(request, pk):
+    instance = get_object_or_404(Programacion, pk=pk)
+    if request.method == 'POST':
+        instance.delete()
+        _, programaciones = _programaciones_filtradas(request)
+        return render(request, 'partials/programacion/modal_form_success.html', {
+            'programaciones': programaciones,
+        })
+    return render(request, 'partials/programacion/modal_delete.html', {
+        'instance': instance,
+    })
+
+
+def programacion_imprimir(request):
+    _, programaciones = _programaciones_filtradas(request, paginar=False)
+    html_string = render_to_string('partials/programacion/reporte_pdf.html', {
+        'programaciones': programaciones,
+        'fecha_generacion': timezone.localdate(),
+    })
+    pdf = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename="programaciones.pdf"'
+    return response
 
 
 def _auxiliares_filtrados(request):
@@ -56,6 +151,7 @@ def auxiliarHomeView(request):
         {
             "auxiliares": auxiliares,
             "search": search,
+            "form_media": HorarioForm().media + AusenciaForm().media,
         },
     )
 
@@ -124,9 +220,11 @@ def horario_form(request, pk=None):
                 "partials/horario/modal_form_success.html",
                 {"auxiliares": auxiliares},
             )
+    elif instance:
+        form = HorarioForm(instance=instance)
     else:
-        auxiliar_id = request.GET.get('auxiliar') if not instance else None
-        form = HorarioForm(instance=instance, initial={'auxiliar': auxiliar_id})
+        auxiliar_id = request.GET.get('auxiliar')
+        form = HorarioForm(initial={'auxiliar': auxiliar_id})
 
     return render(
         request,

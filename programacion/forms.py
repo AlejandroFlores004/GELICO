@@ -2,7 +2,8 @@ from django import forms
 from django_select2.forms import Select2Widget
 from django.utils.dateparse import parse_date
 
-from .models import Auxiliar, Ausencia, Convocatoria, Horario
+from escuela.models import Escuela
+from .models import Auxiliar, Ausencia, Convocatoria, Horario, Programacion
 
 
 class AuxiliarForm(forms.ModelForm):
@@ -69,6 +70,11 @@ class AusenciaForm(forms.ModelForm):
 
 
 class HorarioForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields['auxiliar'].disabled = True
+
     class Meta:
         model = Horario
         fields = ['auxiliar', 'fecha', 'hora_inicio', 'hora_fin']
@@ -99,6 +105,88 @@ class HorarioForm(forms.ModelForm):
         if hora_inicio and hora_fin and hora_fin <= hora_inicio:
             self.add_error('hora_fin', 'La hora fin debe ser posterior a la hora inicio.')
         return cleaned_data
+
+
+class ProgramacionForm(forms.ModelForm):
+    class Meta:
+        model = Programacion
+        fields = [
+            'convocatoria',
+            'auxiliar',
+            'fecha_programada',
+            'hora_programada',
+            'escuela',
+            'estado',
+        ]
+        widgets = {
+            'convocatoria': Select2Widget(attrs={
+                'data-placeholder': 'Seleccione una convocatoria',
+                'style': 'width: 100%; display: none !important;',
+                'class': 'select2-daisy',
+            }),
+            'auxiliar': Select2Widget(attrs={
+                'data-placeholder': 'Seleccione un auxiliar',
+                'style': 'width: 100%; display: none !important;',
+                'class': 'select2-daisy',
+            }),
+            'fecha_programada': forms.DateInput(format='%Y-%m-%d', attrs={
+                'class': 'input input-bordered w-full',
+                'type': 'date',
+            }),
+            'hora_programada': forms.TimeInput(format='%H:%M', attrs={
+                'class': 'input input-bordered w-full',
+                'type': 'time',
+            }),
+            'escuela': Select2Widget(attrs={
+                'data-placeholder': 'Seleccione una escuela',
+                'style': 'width: 100%; display: none !important;',
+                'class': 'select2-daisy',
+            }),
+            'estado': forms.Select(attrs={
+                'class': 'select select-bordered w-full',
+            }),
+        }
+
+
+class ProgramacionFiltroForm(forms.Form):
+    q = forms.CharField(
+        required=False,
+        label='Convocatoria, auxiliar, escuela o estado',
+        widget=forms.TextInput(attrs={
+            'class': 'input input-bordered w-full',
+            'placeholder': 'Escribe para buscar',
+        }),
+    )
+    convocatoria = forms.ModelChoiceField(
+        queryset=Convocatoria.objects.all().order_by('nombre'),
+        required=False,
+        label='Convocatoria',
+        widget=Select2Widget(attrs={
+            'data-placeholder': 'Todas las convocatorias',
+            'style': 'width: 100%',
+            'class': 'select2-daisy',
+        }),
+    )
+    escuela = forms.ModelChoiceField(
+        queryset=Escuela.objects.all().order_by('nombre_corto'),
+        required=False,
+        label='Escuela',
+        widget=Select2Widget(attrs={
+            'data-placeholder': 'Todas las escuelas',
+            'style': 'width: 100%',
+            'class': 'select2-daisy',
+        }),
+    )
+    auxiliar = forms.ModelChoiceField(
+        queryset=Auxiliar.objects.all().order_by('apellido', 'nombre'),
+        required=False,
+        label='Auxiliar',
+        widget=Select2Widget(attrs={
+            'data-placeholder': 'Todos los auxiliares',
+            'style': 'width: 100%',
+            'class': 'select2-daisy',
+        }),
+    )
 
 
 class ConvocatoriaForm(forms.ModelForm):
