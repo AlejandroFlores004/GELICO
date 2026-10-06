@@ -21,24 +21,27 @@
             hx-indicator="#asignacion-search-spinner"
             class="space-y-5"
         >
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-                <div class="form-control w-full md:col-span-2">
+            <div class="grid grid-cols-1 gap-4">
+                <div class="form-control w-full">
                     <label class="label" for="{{ filtro_form.escuela.id_for_label }}">
                         <span class="label-text font-medium">Escuela</span>
                     </label>
                     {{ filtro_form.escuela }}
                 </div>
                 <div class="form-control w-full">
-                    <label class="label" for="{{ filtro_form.distrito.id_for_label }}">
-                        <span class="label-text font-medium">Distrito</span>
-                    </label>
-                    {{ filtro_form.distrito }}
-                </div>
-                <div class="form-control w-full">
                     <label class="label" for="{{ filtro_form.bono.id_for_label }}">
                         <span class="label-text font-medium">Bono</span>
                     </label>
                     {{ filtro_form.bono }}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="form-control w-full">
+                    <label class="label" for="{{ filtro_form.distrito.id_for_label }}">
+                        <span class="label-text font-medium">Distrito</span>
+                    </label>
+                    {{ filtro_form.distrito }}
                 </div>
                 <div class="form-control w-full">
                     <label class="label" for="{{ filtro_form.anio.id_for_label }}">
