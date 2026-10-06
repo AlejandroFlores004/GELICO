@@ -37,6 +37,7 @@
                         <span class="label-text font-medium">Código</span>
                     </label>
                     {{ form.codigo }}
+                    {% if instance %}<span class="text-xs text-base-content/60 mt-1">El código no se puede modificar.</span>{% endif %}
                     {% if form.codigo.errors %}<span class="text-error text-xs mt-1">{{ form.codigo.errors.0 }}</span>{% endif %}
                 </div>
 

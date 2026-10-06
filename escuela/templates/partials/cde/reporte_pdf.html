@@ -1,20 +1,44 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Reporte de CDE</title>
-    <style>
-        body { font-family: Arial, sans-serif; color: #1f2937; margin: 30px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 12px; }
-        th { background: #f3f4f6; }
-        h1 { font-size: 22px; margin-bottom: 5px; }
-        .subtitle { color: #4b5563; margin-bottom: 20px; }
-    </style>
+<meta charset="UTF-8">
+<title>Reporte de CDE</title>
+<style>
+    @page {
+        size: A4 landscape;
+        margin: 1.5cm;
+        @bottom-right {
+            content: "Página " counter(page) " de " counter(pages);
+            font-size: 9px;
+            color: #666;
+        }
+    }
+    * { box-sizing: border-box; }
+    body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 11px; color: #1f2937; }
+    header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1f2937; padding-bottom: 10px; margin-bottom: 16px; }
+    header h1 { margin: 0; font-size: 20px; }
+    header p { margin: 2px 0 0; color: #4b5563; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { text-align: left; background-color: #f3f4f6; border-bottom: 1px solid #d1d5db; padding: 6px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; }
+    tbody td { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+    tbody tr:nth-child(even) { background-color: #fafafa; }
+    .subtexto { color: #6b7280; font-size: 9px; }
+    .vigencia { font-weight: bold; }
+    .vencido { color: #B3413A; }
+    .por_vencer { color: #A85D22; }
+    .vigente { color: #2F7D52; }
+    .proximo { color: #2B5FA8; }
+</style>
 </head>
 <body>
-    <h1>Reporte de CDE</h1>
-    <div class="subtitle">Listado de periodos activos y registrados</div>
+    <header>
+        <div>
+            <h1>Reporte de CDE</h1>
+            <p>Periodos de CDE con su vigencia al {{ fecha_generacion|date:"d/m/Y" }}</p>
+        </div>
+        <p class="subtexto">Generado el {{ fecha_generacion|date:"d/m/Y" }}</p>
+    </header>
+
     <table>
         <thead>
             <tr>
@@ -22,20 +46,31 @@
                 <th>Distrito</th>
                 <th>Fecha inicio</th>
                 <th>Fecha fin</th>
+                <th>Vigencia</th>
             </tr>
         </thead>
         <tbody>
             {% for cde in cdes %}
             <tr>
-                <td>{{ cde.escuela.nombre_corto }}</td>
+                <td>{{ cde.escuela.codigo }} - {{ cde.escuela.nombre_corto }}</td>
                 <td>{{ cde.escuela.distrito.nombre }}</td>
                 <td>{{ cde.FechaInicio|date:"d/m/Y" }}</td>
                 <td>{{ cde.FechaFin|date:"d/m/Y" }}</td>
+                <td>
+                    {% if cde.vigencia == 'vencido' %}
+                    <span class="vigencia vencido">Vencido</span>
+                    <div class="subtexto">Hace {{ cde.dias_vencido }} día{{ cde.dias_vencido|pluralize }}</div>
+                    {% elif cde.vigencia == 'proximo' %}
+                    <span class="vigencia proximo">Próximo</span>
+                    <div class="subtexto">Inicia en {{ cde.dias_para_inicio }} día{{ cde.dias_para_inicio|pluralize }}</div>
+                    {% else %}
+                    <span class="vigencia {{ cde.vigencia }}">{% if cde.vigencia == 'por_vencer' %}Por vencer{% else %}Vigente{% endif %}</span>
+                    <div class="subtexto">{% if cde.dias_para_fin == 0 %}Vence hoy{% else %}Faltan {{ cde.dias_para_fin }} día{{ cde.dias_para_fin|pluralize }}{% endif %}</div>
+                    {% endif %}
+                </td>
             </tr>
             {% empty %}
-            <tr>
-                <td colspan="4">No existen registros.</td>
-            </tr>
+            <tr><td colspan="5">No hay periodos de CDE registrados.</td></tr>
             {% endfor %}
         </tbody>
     </table>

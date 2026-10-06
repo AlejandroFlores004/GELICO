@@ -40,7 +40,10 @@
                 {% for cde in cdes %}
                 <li class="flex items-center justify-between gap-3 text-sm">
                     <span>{{ cde.FechaInicio|date:"d/m/Y" }} — {{ cde.FechaFin|date:"d/m/Y" }}</span>
-                    {% if not cde.estado %}<span class="badge badge-ghost badge-xs">Inactivo</span>{% endif %}
+                    {% if cde.vigencia == 'vencido' %}<span class="badge badge-error badge-soft badge-xs">Vencido</span>
+                    {% elif cde.vigencia == 'por_vencer' %}<span class="badge badge-warning badge-soft badge-xs">Por vencer</span>
+                    {% elif cde.vigencia == 'proximo' %}<span class="badge badge-info badge-soft badge-xs">Próximo</span>
+                    {% else %}<span class="badge badge-success badge-soft badge-xs">Vigente</span>{% endif %}
                 </li>
                 {% endfor %}
             </ul>

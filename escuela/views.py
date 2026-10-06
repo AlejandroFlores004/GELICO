@@ -1,3 +1,4 @@
+from datetime import timedelta
 from urllib.parse import urlparse
 
 from django.http import HttpResponse
@@ -7,7 +8,7 @@ from django.utils.dateparse import parse_date
 from django_htmx.http import HttpResponseClientRedirect
 from weasyprint import HTML
 from django.core.paginator import Paginator
-from django.db.models import Prefetch, Q
+from django.db.models import Case, CharField, Count, IntegerField, Prefetch, Q, Value, When
 from django.shortcuts import render, get_object_or_404
 from django.urls import Resolver404, resolve, reverse
 from . import forms
@@ -231,10 +232,75 @@ def encargado_toggle_estado(request, pk):
 
 
 
+# ===================== CDE =====================
+
+# Un periodo "por vencer" es uno vigente al que le quedan estos días o menos
+DIAS_POR_VENCER = 60
+
+# Criterios de orden del listado de CDE: clave -> (etiqueta, campos order_by)
+ORDENES_CDE = {
+    'vigencia': ('Vigencia', ['orden_vigencia', 'FechaFin', 'escuela__codigo']),
+    'codigo': ('Código de escuela', ['escuela__codigo', 'FechaInicio']),
+    'escuela': ('Nombre de escuela', ['escuela__nombre_corto', 'FechaInicio']),
+    'distrito': ('Distrito', ['escuela__distrito__nombre', 'escuela__codigo', 'FechaInicio']),
+    'inicio': ('Fecha de inicio', ['FechaInicio', 'escuela__codigo']),
+    'fin': ('Fecha de fin', ['FechaFin', 'escuela__codigo']),
+}
+ORDEN_CDE_DEFECTO = 'vigencia'
+
+# Columnas de la tabla que se pueden ordenar con clic, en el orden en que se muestran
+COLUMNAS_CDE = [
+    ('escuela', 'Escuela'),
+    ('distrito', 'Distrito'),
+    ('inicio', 'Inicio'),
+    ('fin', 'Fin'),
+    ('vigencia', 'Vigencia'),
+]
+
+
+def _anotar_vigencia(cdes):
+    """Agrega a cada CDE su vigencia calculada con la fecha de hoy:
+    vencido, por_vencer, vigente o proximo (todavía no inicia)."""
+    hoy = timezone.localdate()
+    limite = hoy + timedelta(days=DIAS_POR_VENCER)
+    return cdes.annotate(
+        vigencia=Case(
+            When(FechaFin__lt=hoy, then=Value('vencido')),
+            When(FechaInicio__gt=hoy, then=Value('proximo')),
+            When(FechaFin__lte=limite, then=Value('por_vencer')),
+            default=Value('vigente'),
+            output_field=CharField(),
+        ),
+        # Para ordenar por urgencia: primero lo vencido, al final lo que aún no inicia
+        orden_vigencia=Case(
+            When(FechaFin__lt=hoy, then=Value(0)),
+            When(FechaInicio__gt=hoy, then=Value(3)),
+            When(FechaFin__lte=limite, then=Value(1)),
+            default=Value(2),
+            output_field=IntegerField(),
+        ),
+    )
+
+
+def _orden_cdes(request):
+    """Lee ?orden= (ej. 'fin' o '-fin'). Devuelve (clave, descendente)."""
+    orden = request.GET.get('orden', '')
+    descendente = orden.startswith('-')
+    clave = orden.lstrip('-')
+    if clave not in ORDENES_CDE:
+        return ORDEN_CDE_DEFECTO, False
+    return clave, descendente
+
+
 def _cdes_filtrados(request):
+    """Devuelve (filtro_form, cdes_sin_filtro_de_vigencia, cdes_finales).
+    El segundo sirve para el resumen; el tercero, ya ordenado, para listar e imprimir."""
     filtro_form = forms.CDEFilterForm(request.GET or None)
 
-    cdes = CDE.objects.select_related('escuela', 'escuela__distrito').order_by('FechaInicio', 'escuela__nombre_corto')
+    cdes = _anotar_vigencia(
+        CDE.objects.select_related('escuela', 'escuela__distrito')
+    )
+    vigencia = ''
 
     if filtro_form.is_valid():
         escuela = filtro_form.cleaned_data.get('escuela')
@@ -242,6 +308,7 @@ def _cdes_filtrados(request):
         search = (filtro_form.cleaned_data.get('q') or '').strip()
         fecha_inicio = filtro_form.cleaned_data.get('fecha_inicio')
         fecha_fin = filtro_form.cleaned_data.get('fecha_fin')
+        vigencia = filtro_form.cleaned_data.get('vigencia')
 
         if distrito:
             cdes = cdes.filter(escuela__distrito=distrito)
@@ -258,46 +325,110 @@ def _cdes_filtrados(request):
             cdes = cdes.filter(FechaInicio__gte=fecha_inicio)
         if fecha_fin:
             cdes = cdes.filter(FechaFin__lte=fecha_fin)
-    else:
-        search = (request.GET.get('q', '') or '').strip()
-        fecha_inicio = request.GET.get('fecha_inicio', '').strip()
-        fecha_fin = request.GET.get('fecha_fin', '').strip()
 
-    return filtro_form, search, fecha_inicio, fecha_fin, cdes
+    sin_vigencia = cdes
+    if vigencia:
+        cdes = cdes.filter(vigencia=vigencia)
+
+    clave, descendente = _orden_cdes(request)
+    campos = ORDENES_CDE[clave][1]
+    if descendente:
+        campos = [c[1:] if c.startswith('-') else f'-{c}' for c in campos]
+
+    return filtro_form, sin_vigencia, cdes.order_by(*campos)
 
 
-def _filtrar_cdes(request):
-    filtro_form, search, fecha_inicio, fecha_fin, cdes_list = _cdes_filtrados(request)
-    paginator = Paginator(cdes_list, 20)
-    cdes = paginator.get_page(request.GET.get('page'))
-    return filtro_form, search, fecha_inicio, fecha_fin, cdes
+def _resumen_cdes(filtro_form, cdes):
+    """Conteo por vigencia (respetando los demás filtros) y escuelas activas
+    que hoy no tienen un CDE en curso."""
+    conteo = dict(
+        cdes.order_by().values_list('vigencia').annotate(total=Count('pk'))
+    )
+
+    escuelas = Escuela.objects.filter(estado=True).select_related('distrito')
+    if filtro_form.is_valid():
+        if filtro_form.cleaned_data.get('distrito'):
+            escuelas = escuelas.filter(distrito=filtro_form.cleaned_data['distrito'])
+        if filtro_form.cleaned_data.get('escuela'):
+            escuelas = escuelas.filter(pk=filtro_form.cleaned_data['escuela'].pk)
+    en_curso = _anotar_vigencia(CDE.objects.all()).filter(
+        vigencia__in=['vigente', 'por_vencer']
+    ).values('escuela')
+
+    return {
+        'vigente': conteo.get('vigente', 0),
+        'por_vencer': conteo.get('por_vencer', 0),
+        'vencido': conteo.get('vencido', 0),
+        'proximo': conteo.get('proximo', 0),
+        'escuelas_sin_cde': list(escuelas.exclude(pk__in=en_curso).order_by('codigo')),
+        'dias_por_vencer': DIAS_POR_VENCER,
+    }
+
+
+def _con_dias(cdes):
+    """Agrega a cada CDE los días que le faltan y el % transcurrido del periodo."""
+    hoy = timezone.localdate()
+    for cde in cdes:
+        cde.dias_para_fin = (cde.FechaFin - hoy).days
+        cde.dias_vencido = (hoy - cde.FechaFin).days
+        cde.dias_para_inicio = (cde.FechaInicio - hoy).days
+        total = max((cde.FechaFin - cde.FechaInicio).days, 1)
+        transcurrido = (hoy - cde.FechaInicio).days
+        cde.avance = min(max(round(transcurrido * 100 / total), 0), 100)
+    return cdes
+
+
+def _contexto_cdes(request):
+    """Todo lo que necesita el listado de CDE: tabla, resumen y orden."""
+    filtro_form, sin_vigencia, cdes_list = _cdes_filtrados(request)
+    cdes = Paginator(cdes_list, 20).get_page(request.GET.get('page'))
+    _con_dias(cdes)
+
+    clave, descendente = _orden_cdes(request)
+    columnas = [
+        {
+            'clave': c,
+            'etiqueta': etiqueta,
+            'activa': c == clave,
+            'descendente': c == clave and descendente,
+            # Clic en la columna activa invierte el sentido; en otra, ordena ascendente
+            'siguiente': f'-{c}' if c == clave and not descendente else c,
+        }
+        for c, etiqueta in COLUMNAS_CDE
+    ]
+
+    return {
+        'filtro_form': filtro_form,
+        'cdes': cdes,
+        'resumen': _resumen_cdes(filtro_form, sin_vigencia),
+        'ordenes': [(c, datos[0]) for c, datos in ORDENES_CDE.items()],
+        'orden_clave': clave,
+        'orden_descendente': descendente,
+        'orden_invertido': clave if descendente else f'-{clave}',
+        'columnas': columnas,
+    }
 
 
 def cdeHomeView(request):
-    filtro_form, search, fecha_inicio, fecha_fin, cdes = _filtrar_cdes(request)
+    breadcrumbs = [
+        {'name': 'Inicio', 'url': reverse('home')},
+        {'name': 'CDE'},
+    ]
+    contexto = _contexto_cdes(request)
 
     return render(
         request,
         'cde/cdeHome.html',
         {
-            'cdes': cdes,
-            'search': search,
-            'fecha_inicio': fecha_inicio,
-            'fecha_fin': fecha_fin,
-            'filtro_form': filtro_form,
-            'form_media': filtro_form.media,
+            'breadcrumbs': breadcrumbs,
+            'form_media': contexto['filtro_form'].media,
+            **contexto,
         },
     )
 
 
 def buscar_cdes(request):
-    _, _, _, _, cdes = _filtrar_cdes(request)
-
-    return render(
-        request,
-        'partials/cde/tabla.html',
-        {'cdes': cdes},
-    )
+    return render(request, 'partials/cde/tabla.html', _contexto_cdes(request))
 
 
 def cde_form(request, pk=None):
@@ -314,11 +445,10 @@ def cde_form(request, pk=None):
             form.save()
             if escuela_gestion:
                 return _recargar_gestion(escuela_gestion)
-            _, _, _, _, cdes = _filtrar_cdes(request)
             return render(
                 request,
                 'partials/cde/modal_form_success.html',
-                {'cdes': cdes},
+                _contexto_cdes(request),
             )
     else:
         form = forms.CDEForm(instance=instance, initial=initial)
@@ -340,11 +470,10 @@ def cde_eliminar(request, pk):
         escuela_gestion = _escuela_en_gestion(request)
         if escuela_gestion:
             return _recargar_gestion(escuela_gestion)
-        _, _, _, _, cdes = _filtrar_cdes(request)
         return render(
             request,
             'partials/cde/modal_form_success.html',
-            {'cdes': cdes},
+            _contexto_cdes(request),
         )
 
     return render(
@@ -355,17 +484,11 @@ def cde_eliminar(request, pk):
 
 
 def cde_imprimir(request):
-    _, _, _, _, cdes = _cdes_filtrados(request)
-    html_string = render_to_string(
-        'partials/cde/reporte_pdf.html',
-        {'cdes': cdes},
+    _, _, cdes = _cdes_filtrados(request)
+    return _respuesta_pdf(
+        request, 'partials/cde/reporte_pdf.html',
+        {'cdes': _con_dias(list(cdes))}, 'CDE.pdf'
     )
-    pdf = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
-
-    response = HttpResponse(pdf, content_type='application/pdf')
-    response['Content-Disposition'] = 'inline; filename="cdes.pdf"'
-    return response
-
 
 
 # ===================== Escuelas =====================
@@ -398,7 +521,8 @@ def _escuelas_filtradas(request):
 
 
 def _con_encargado_y_cde(escuelas):
-    # Encargado activo (con sus teléfonos) y CDE activos de cada escuela, sin N+1
+    # Encargado activo (con sus teléfonos) y CDE en curso de cada escuela, sin N+1.
+    # "En curso" = vigente o por vencer según las fechas (ver _anotar_vigencia).
     return escuelas.prefetch_related(
         Prefetch(
             'encargado_set',
@@ -407,10 +531,20 @@ def _con_encargado_y_cde(escuelas):
         ),
         Prefetch(
             'cde_set',
-            queryset=CDE.objects.filter(estado=True).order_by('-FechaInicio'),
+            queryset=_anotar_vigencia(CDE.objects.all()).filter(
+                vigencia__in=['vigente', 'por_vencer']
+            ).order_by('-FechaInicio'),
             to_attr='cdes_activos',
         ),
     )
+
+
+def _cdes_de_escuela(escuela):
+    """Periodos de CDE de una escuela, del más reciente al más antiguo,
+    con su vigencia y días calculados."""
+    return _con_dias(list(
+        _anotar_vigencia(escuela.cde_set.all()).order_by('-FechaInicio')
+    ))
 
 
 def _hay_filtros(filtro_form):
@@ -474,12 +608,12 @@ def escuela_imprimir_encargados(request):
 
 def escuela_imprimir_cde(request):
     _, escuelas = _escuelas_filtradas(request)
-    cdes = CDE.objects.filter(
+    cdes = _anotar_vigencia(CDE.objects.filter(
         escuela__in=escuelas
-    ).select_related('escuela', 'escuela__distrito').order_by('escuela__codigo', '-FechaInicio')
+    )).select_related('escuela', 'escuela__distrito').order_by('escuela__codigo', '-FechaInicio')
     return _respuesta_pdf(
         request, 'partials/cde/reporte_pdf.html',
-        {'cdes': cdes}, 'CDE.pdf'
+        {'cdes': _con_dias(list(cdes))}, 'CDE.pdf'
     )
 
 
@@ -506,7 +640,7 @@ def escuela_imprimir_ficha(request, pk):
             'escuela': escuela,
             'encargado_activo': next((e for e in encargados if e.estado), None),
             'encargados_anteriores': [e for e in encargados if not e.estado],
-            'cdes': escuela.cde_set.order_by('-FechaInicio'),
+            'cdes': _cdes_de_escuela(escuela),
         },
         f'Ficha_{escuela.codigo}.pdf'
     )
@@ -539,237 +673,6 @@ def buscar_escuelas(request):
         'partials/escuela/_listado_escuelas.html',
         {'escuelas': escuelas}
     )
-
-
-def cde_form(request, pk=None):
-    instance = get_object_or_404(CDE, pk=pk) if pk else None
-
-    if request.method == 'POST':
-        form = forms.CDEForm(request.POST, instance=instance)
-        if form.is_valid():
-            form.save()
-            _, _, _, _, cdes = _filtrar_cdes(request)
-            return render(
-                request,
-                'partials/escuela/_escuela_form_success.html',
-                {'escuelas': escuelas}
-            )
-    else:
-        form = forms.CDEForm(instance=instance)
-
-    return render(
-        request,
-        'partials/cde/modal_form.html',
-        {'form': form, 'instance': instance},
-    )
-
-
-def escuela_toggle_estado(request, pk):
-    escuela = get_object_or_404(Escuela, pk=pk)
-
-    if request.method == 'POST':
-        instance.delete()
-        _, _, _, _, cdes = _filtrar_cdes(request)
-        return render(
-            request,
-            'partials/escuela/_escuela_form_success.html',
-            {'escuelas': escuelas}
-        )
-
-        #Modal de confirmación para cambiar el estado de una escuela
-    return render(
-        request,
-        'partials/cde/modal_delete.html',
-        {'instance': instance},
-    )
-
-
-def cde_imprimir(request):
-    _, _, _, _, cdes = _cdes_filtrados(request)
-    html_string = render_to_string(
-        'partials/cde/reporte_pdf.html',
-        {'cdes': cdes},
-    )
-    pdf = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
-
-    response = HttpResponse(pdf, content_type='application/pdf')
-    response['Content-Disposition'] = 'inline; filename="cdes.pdf"'
-    return response
-
-
-
-# ===================== Escuelas =====================
-
-def _escuelas_filtradas(request):
-    filtro_form = forms.FiltrarEscuelasForm(request.GET or None)
-
-    escuelas_list = Escuela.objects.select_related('distrito').order_by('codigo')
-
-    if filtro_form.is_valid():
-        escuela = filtro_form.cleaned_data.get('escuela')
-        distrito = filtro_form.cleaned_data.get('distrito')
-        estado = filtro_form.cleaned_data.get('estado')
-        texto = filtro_form.cleaned_data.get('texto')
-
-        if escuela:
-            escuelas_list = escuelas_list.filter(pk=escuela.pk)
-        if distrito:
-            escuelas_list = escuelas_list.filter(distrito=distrito)
-        if estado:
-            escuelas_list = escuelas_list.filter(estado=(estado == '1'))
-        if texto:
-            escuelas_list = escuelas_list.filter(
-                Q(codigo__icontains=texto) |
-                Q(nombre__icontains=texto) |
-                Q(nombre_corto__icontains=texto)
-            )
-
-    return filtro_form, escuelas_list
-
-
-def _con_encargado_y_cde(escuelas):
-    # Encargado activo (con sus teléfonos) y CDE activos de cada escuela, sin N+1
-    return escuelas.prefetch_related(
-        Prefetch(
-            'encargado_set',
-            queryset=Encargado.objects.filter(estado=True).prefetch_related('telefonos'),
-            to_attr='encargados_activos',
-        ),
-        Prefetch(
-            'cde_set',
-            queryset=CDE.objects.filter(estado=True).order_by('-FechaInicio'),
-            to_attr='cdes_activos',
-        ),
-    )
-
-
-def _hay_filtros(filtro_form):
-    return filtro_form.is_valid() and any(filtro_form.cleaned_data.values())
-
-
-def _filtrar_escuelas(request):
-    filtro_form, escuelas_list = _escuelas_filtradas(request)
-
-    # Sin filtros no se lista nada: la página arranca solo con el buscador.
-    if not _hay_filtros(filtro_form):
-        return filtro_form, None
-
-    paginator = Paginator(_con_encargado_y_cde(escuelas_list), 20)
-    escuelas = paginator.get_page(request.GET.get('page'))
-
-    return filtro_form, escuelas
-
-
-def _respuesta_pdf(request, template, contexto, nombre_archivo):
-    html_string = render_to_string(
-        template,
-        {'fecha_generacion': timezone.localdate(), 'fecha_impresion': timezone.localtime(), **contexto}
-    )
-    pdf = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
-
-    response = HttpResponse(pdf, content_type='application/pdf')
-    response['Content-Disposition'] = f'inline; filename="{nombre_archivo}"'
-    return response
-
-
-# --- Imprimir: reportes individuales, con los filtros del buscador ---
-
-def escuela_imprimir(request):
-    _, escuelas = _escuelas_filtradas(request)
-    return _respuesta_pdf(
-        request, 'partials/escuela/_escuela_reporte_pdf.html',
-        {'escuelas': escuelas}, 'Escuelas.pdf'
-    )
-
-
-def escuela_imprimir_encargados(request):
-    _, escuelas = _escuelas_filtradas(request)
-    # ?anteriores=1 agrega los encargados inactivos (debajo del activo de cada escuela)
-    con_anteriores = request.GET.get('anteriores') == '1'
-
-    encargados = Encargado.objects.filter(
-        escuela__in=escuelas
-    ).select_related('escuela', 'escuela__distrito').prefetch_related(
-        'telefonos'
-    ).order_by('escuela__codigo', '-estado', 'apellido')
-    if not con_anteriores:
-        encargados = encargados.filter(estado=True)
-
-    return _respuesta_pdf(
-        request, 'partials/encargado/_encargado_reporte_pdf.html',
-        {'encargados': encargados},
-        'Encargados_con_anteriores.pdf' if con_anteriores else 'Encargados.pdf'
-    )
-
-
-def escuela_imprimir_cde(request):
-    _, escuelas = _escuelas_filtradas(request)
-    cdes = CDE.objects.filter(
-        escuela__in=escuelas
-    ).select_related('escuela', 'escuela__distrito').order_by('escuela__codigo', '-FechaInicio')
-    return _respuesta_pdf(
-        request, 'partials/cde/reporte_pdf.html',
-        {'cdes': cdes}, 'CDE.pdf'
-    )
-
-
-# --- Imprimir: reporte general (escuela + encargado + CDE en una sola hoja) ---
-
-def escuela_imprimir_general(request):
-    _, escuelas = _escuelas_filtradas(request)
-    return _respuesta_pdf(
-        request, 'partials/escuela/_escuela_reporte_general_pdf.html',
-        {'escuelas': _con_encargado_y_cde(escuelas)}, 'Reporte_general_escuelas.pdf'
-    )
-
-
-# --- Imprimir: ficha de una sola escuela ---
-
-def escuela_imprimir_ficha(request, pk):
-    escuela = get_object_or_404(Escuela.objects.select_related('distrito'), pk=pk)
-    encargados = list(
-        escuela.encargado_set.prefetch_related('telefonos').order_by('-estado', '-pk')
-    )
-    return _respuesta_pdf(
-        request, 'partials/escuela/_escuela_ficha_pdf.html',
-        {
-            'escuela': escuela,
-            'encargado_activo': next((e for e in encargados if e.estado), None),
-            'encargados_anteriores': [e for e in encargados if not e.estado],
-            'cdes': escuela.cde_set.order_by('-FechaInicio'),
-        },
-        f'Ficha_{escuela.codigo}.pdf'
-    )
-
-
-def home_escuelas(request):
-    breadcrumbs = [
-        {'name': 'Inicio', 'url': reverse('home')},
-        {'name': 'Escuelas'},
-    ]
-
-    filtro_form, escuelas = _filtrar_escuelas(request)
-
-    return render(
-        request, 'escuela/escuelaHome.html',
-        {
-            'breadcrumbs': breadcrumbs,
-            'escuelas': escuelas,
-            'filtro_form': filtro_form,
-            'form_media': filtro_form.media,
-        }
-    )
-
-
-def buscar_escuelas(request):
-    _, escuelas = _filtrar_escuelas(request)
-
-    return render(
-        request,
-        'partials/escuela/_listado_escuelas.html',
-        {'escuelas': escuelas}
-    )
-
 
 
 # Contenido que se despliega al abrir una escuela en el listado
@@ -786,7 +689,7 @@ def escuela_detalle(request, pk):
             'escuela': escuela,
             'encargado_activo': next((e for e in encargados if e.estado), None),
             'total_anteriores': sum(1 for e in encargados if not e.estado),
-            'cdes': escuela.cde_set.order_by('-FechaInicio'),
+            'cdes': _cdes_de_escuela(escuela),
         }
     )
 
@@ -812,7 +715,7 @@ def escuela_gestionar(request, pk):
             'escuela': escuela,
             'encargado_activo': next((e for e in encargados if e.estado), None),
             'encargados_anteriores': [e for e in encargados if not e.estado],
-            'cdes': escuela.cde_set.order_by('-FechaInicio'),
+            'cdes': _cdes_de_escuela(escuela),
             # JS/CSS de select2 que usan los modales de escuela y encargado
             'form_media': forms.EscuelaForm().media,
         }
