@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Calendario{% endblock %}
+
+{% block content %}
+<main class="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <div class="bg-primary text-primary-content rounded-xl p-3">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-7 h-7" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 2v4M8 2v4M3 10h18M8 14h2m4 0h2m-8 4h2m4 0h2" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-3xl font-bold">Calendario</h1>
+                <p class="text-base-content/70">{% if total_programaciones == 1 %}1 programación en el mes{% else %}{{ total_programaciones }} programaciones en el mes{% endif %}</p>
+            </div>
+        </div>
+        <div class="join" aria-label="Navegación del calendario">
+            <a href="?mes={{ mes_anterior }}" class="join-item btn btn-outline" aria-label="Mes anterior" title="Mes anterior">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m15 19-7-7 7-7" />
+                </svg>
+            </a>
+            <span class="join-item btn btn-ghost no-animation pointer-events-none min-w-40">{{ mes_titulo }}</span>
+            <a href="?mes={{ mes_siguiente }}" class="join-item btn btn-outline" aria-label="Mes siguiente" title="Mes siguiente">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m9 5 7 7-7 7" />
+                </svg>
+            </a>
+        </div>
+    </div>
+
+    {% if total_programaciones == 0 %}
+        <div class="alert alert-info" role="status">
+            <span>No hay programaciones agendadas para este mes.</span>
+        </div>
+    {% endif %}
+
+    {% now "Y-m-d" as hoy %}
+    <div class="overflow-x-auto rounded-lg border border-base-300 bg-base-100">
+        <div class="min-w-[760px]">
+            <div class="grid border-b border-base-300 bg-base-200/50 text-xs font-semibold uppercase tracking-wide text-base-content/50" style="grid-template-columns: repeat(7, minmax(0, 1fr));">
+                <div class="px-2 py-2 text-center">Dom</div>
+                <div class="px-2 py-2 text-center">Lun</div>
+                <div class="px-2 py-2 text-center">Mar</div>
+                <div class="px-2 py-2 text-center">Mié</div>
+                <div class="px-2 py-2 text-center">Jue</div>
+                <div class="px-2 py-2 text-center">Vie</div>
+                <div class="px-2 py-2 text-center">Sáb</div>
+            </div>
+            {% for semana in calendario %}
+                <div class="grid" style="grid-template-columns: repeat(7, minmax(0, 1fr));">
+                    {% for dia in semana %}
+                        {% with dia_id=dia.fecha|date:'Y_m_d' %}
+                        <section
+                            class="group relative flex min-h-24 flex-col gap-1 border-b border-r border-base-300 p-1.5 last:border-r-0 sm:min-h-28 {% if not dia.en_mes %}bg-base-200/30{% endif %} {% if dia.programaciones %}cursor-pointer hover:bg-base-200/50{% endif %}"
+                            aria-label="{{ dia.fecha|date:'Y-m-d' }}"
+                            {% if dia.programaciones %}onclick="document.getElementById('dia-modal-{{ dia_id }}').showModal()"{% endif %}
+                        >
+                            <div class="flex items-center justify-center gap-1.5">
+                                <span class="flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-sm font-medium {% if dia.fecha|date:'Y-m-d' == hoy %}bg-primary text-primary-content{% elif not dia.en_mes %}text-base-content/40{% endif %}">
+                                    {{ dia.fecha.day }}
+                                </span>
+                                {% if dia.fecha.day == 1 %}
+                                    <span class="text-xs text-base-content/50">{{ dia.fecha|date:"M" }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="flex flex-1 flex-col gap-1 overflow-hidden">
+                                {% for programacion in dia.programaciones|slice:":3" %}
+                                    <div class="truncate rounded px-1.5 py-0.5 text-xs font-medium leading-tight
+                                        {% if programacion.estado == 'completado' %}bg-success text-success-content
+                                        {% elif programacion.estado == 'no asistio' %}bg-error text-error-content
+                                        {% else %}bg-warning text-warning-content{% endif %}">
+                                        {{ programacion.hora_programada|time:"H:i" }} {{ programacion.convocatoria.nombre }}
+                                    </div>
+                                {% endfor %}
+                                {% if dia.programaciones|length > 3 %}
+                                    <span class="px-1 text-xs font-medium text-base-content/50">+{{ dia.programaciones|length|add:"-3" }} más</span>
+                                {% endif %}
+                            </div>
+                        </section>
+
+                        {% if dia.programaciones %}
+                            <dialog id="dia-modal-{{ dia_id }}" class="modal">
+                                <div class="modal-box">
+                                    <h3 class="text-lg font-bold">{{ dia.fecha|date:"l, j \d\e F \d\e Y" }}</h3>
+                                    <p class="text-sm text-base-content/70">
+                                        {% if dia.programaciones|length == 1 %}1 programación{% else %}{{ dia.programaciones|length }} programaciones{% endif %}
+                                    </p>
+                                    <div class="mt-4 space-y-3">
+                                        {% for programacion in dia.programaciones %}
+                                            <article class="rounded-md border-l-4 border-primary bg-base-200/60 px-3 py-2 text-sm leading-snug">
+                                                <div class="flex items-center justify-between gap-2">
+                                                    <span class="font-semibold">{{ programacion.hora_programada|time:"H:i" }} · {{ programacion.convocatoria.nombre }}</span>
+                                                    {% if programacion.estado == 'completado' %}
+                                                        <span class="badge badge-success badge-sm">Completado</span>
+                                                    {% elif programacion.estado == 'no asistio' %}
+                                                        <span class="badge badge-error badge-sm">No asistió</span>
+                                                    {% else %}
+                                                        <span class="badge badge-warning badge-sm">Pendiente</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="mt-1 text-base-content/80">{{ programacion.escuela.nombre_corto|default:programacion.escuela.nombre }}</div>
+                                                <div class="text-base-content/80">{{ programacion.auxiliar.nombre }} {{ programacion.auxiliar.apellido }}</div>
+                                                <form method="post" action="{% url 'programacion_estado' programacion.pk %}" class="mt-3 flex flex-wrap items-end gap-2">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="mes" value="{{ mes_actual }}">
+                                                    <div class="form-control min-w-40 flex-1">
+                                                        <label class="label py-1" for="{{ programacion.estado_form.estado.id_for_label }}">
+                                                            <span class="label-text">Cambiar estado</span>
+                                                        </label>
+                                                        {{ programacion.estado_form.estado }}
+                                                    </div>
+                                                    <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+                                                </form>
+                                            </article>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="modal-action">
+                                        <form method="dialog">
+                                            <button class="btn">Cerrar</button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <form method="dialog" class="modal-backdrop">
+                                    <button>Cerrar</button>
+                                </form>
+                            </dialog>
+                        {% endif %}
+                        {% endwith %}
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</main>
+{% endblock %}

@@ -1,13 +1,18 @@
-from django.http import HttpResponse
+from calendar import Calendar
+from collections import defaultdict
+
+from django.contrib import messages
+from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseRedirect
 from django.core.paginator import Paginator
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from weasyprint import HTML
 
-from .forms import AuxiliarForm, AusenciaForm, ConvocatoriaForm, HorarioForm, ProgramacionFiltroForm, ProgramacionForm
+from .forms import AuxiliarForm, AusenciaForm, ConvocatoriaForm, HorarioForm, ProgramacionEstadoForm, ProgramacionFiltroForm, ProgramacionForm
 from .models import Auxiliar, Ausencia, Convocatoria, Horario, Programacion
 
 
@@ -54,6 +59,80 @@ def programacionHomeView(request):
     })
 
 
+def calendario_programaciones(request):
+    mes_parametro = request.GET.get('mes', '')
+    mes_actual = parse_date(f'{mes_parametro}-01') if mes_parametro else None
+    if mes_actual is None:
+        mes_actual = timezone.localdate().replace(day=1)
+    else:
+        mes_actual = mes_actual.replace(day=1)
+
+    if mes_actual.month == 1:
+        mes_anterior = mes_actual.replace(year=mes_actual.year - 1, month=12)
+    else:
+        mes_anterior = mes_actual.replace(month=mes_actual.month - 1)
+    if mes_actual.month == 12:
+        mes_siguiente = mes_actual.replace(year=mes_actual.year + 1, month=1)
+    else:
+        mes_siguiente = mes_actual.replace(month=mes_actual.month + 1)
+
+    programaciones = Programacion.objects.filter(
+        fecha_programada__gte=mes_actual,
+        fecha_programada__lt=mes_siguiente,
+    ).select_related('convocatoria', 'auxiliar', 'escuela').order_by(
+        'fecha_programada', 'hora_programada'
+    )
+    programaciones_por_fecha = defaultdict(list)
+    for programacion in programaciones:
+        programacion.estado_form = ProgramacionEstadoForm(instance=programacion)
+        programaciones_por_fecha[programacion.fecha_programada].append(programacion)
+
+    calendario = [
+        [
+            {
+                'fecha': fecha,
+                'en_mes': fecha.month == mes_actual.month,
+                'programaciones': programaciones_por_fecha[fecha],
+            }
+            for fecha in semana
+        ]
+        for semana in Calendar(firstweekday=6).monthdatescalendar(
+            mes_actual.year, mes_actual.month
+        )
+    ]
+    nombres_meses = (
+        'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+    )
+
+    return render(request, 'programacion/calendarioHome.html', {
+        'calendario': calendario,
+        'mes_titulo': f'{nombres_meses[mes_actual.month - 1].capitalize()} {mes_actual.year}',
+        'mes_anterior': mes_anterior.strftime('%Y-%m'),
+        'mes_siguiente': mes_siguiente.strftime('%Y-%m'),
+        'mes_actual': mes_actual.strftime('%Y-%m'),
+        'total_programaciones': programaciones.count(),
+    })
+
+
+def programacion_estado(request, pk):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+
+    programacion = get_object_or_404(Programacion, pk=pk)
+    form = ProgramacionEstadoForm(request.POST, instance=programacion)
+    if form.is_valid():
+        form.save()
+    else:
+        messages.error(request, 'No se pudo actualizar el estado de la programación.')
+
+    mes = parse_date(f'{request.POST.get("mes", "")}-01')
+    url_calendario = reverse('home_calendario')
+    if mes:
+        url_calendario = f'{url_calendario}?mes={mes.strftime("%Y-%m")}'
+    return HttpResponseRedirect(url_calendario)
+
+
 def buscar_programaciones(request):
     _, programaciones = _programaciones_filtradas(request)
     return render(request, 'partials/programacion/tabla.html', {
@@ -61,10 +140,77 @@ def buscar_programaciones(request):
     })
 
 
+def _auxiliar_horarios_contexto(auxiliar, mes_parametro=None):
+    mes_actual = parse_date(f'{mes_parametro}-01') if mes_parametro else None
+    if mes_actual is None:
+        mes_actual = timezone.localdate().replace(day=1)
+    else:
+        mes_actual = mes_actual.replace(day=1)
+
+    if mes_actual.month == 1:
+        mes_anterior = mes_actual.replace(year=mes_actual.year - 1, month=12)
+    else:
+        mes_anterior = mes_actual.replace(month=mes_actual.month - 1)
+    if mes_actual.month == 12:
+        mes_siguiente = mes_actual.replace(year=mes_actual.year + 1, month=1)
+    else:
+        mes_siguiente = mes_actual.replace(month=mes_actual.month + 1)
+
+    horarios = Horario.objects.filter(
+        auxiliar=auxiliar,
+        fecha__gte=mes_actual,
+        fecha__lt=mes_siguiente,
+    ).order_by('fecha', 'hora_inicio') if auxiliar else Horario.objects.none()
+    horarios_por_fecha = defaultdict(list)
+    for horario in horarios:
+        horarios_por_fecha[horario.fecha].append(horario)
+
+    calendario_horarios = [
+        [
+            {
+                'fecha': fecha,
+                'en_mes': fecha.month == mes_actual.month,
+                'horarios': horarios_por_fecha[fecha],
+            }
+            for fecha in semana
+        ]
+        for semana in Calendar(firstweekday=6).monthdatescalendar(
+            mes_actual.year, mes_actual.month
+        )
+    ]
+    nombres_meses = (
+        'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+    )
+    return {
+        'auxiliar': auxiliar,
+        'calendario_horarios': calendario_horarios,
+        'mes_actual': mes_actual.strftime('%Y-%m'),
+        'mes_anterior': mes_anterior.strftime('%Y-%m'),
+        'mes_siguiente': mes_siguiente.strftime('%Y-%m'),
+        'mes_titulo': f'{nombres_meses[mes_actual.month - 1].capitalize()} {mes_actual.year}',
+    }
+
+
+def programacion_auxiliar_horario(request):
+    auxiliar_id = request.GET.get('auxiliar')
+    auxiliar = Auxiliar.objects.filter(pk=auxiliar_id).first() if auxiliar_id else None
+    return render(request, 'partials/programacion/auxiliar_horarios.html', _auxiliar_horarios_contexto(
+        auxiliar,
+        request.GET.get('mes'),
+    ))
+
+
 def programacion_form(request, pk=None):
     instance = get_object_or_404(Programacion, pk=pk) if pk else None
+    auxiliar_actual = instance.auxiliar if instance else None
+    mes_horarios = instance.fecha_programada.strftime('%Y-%m') if instance else None
     if request.method == 'POST':
         form = ProgramacionForm(request.POST, instance=instance)
+        auxiliar_id = request.POST.get('auxiliar')
+        mes_horarios = request.POST.get('mes') or mes_horarios
+        if auxiliar_id:
+            auxiliar_actual = Auxiliar.objects.filter(pk=auxiliar_id).first()
         if form.is_valid():
             form.save()
             _, programaciones = _programaciones_filtradas(request)
@@ -77,6 +223,7 @@ def programacion_form(request, pk=None):
     return render(request, 'partials/programacion/modal_form.html', {
         'form': form,
         'instance': instance,
+        **_auxiliar_horarios_contexto(auxiliar_actual, mes_horarios),
     })
 
 

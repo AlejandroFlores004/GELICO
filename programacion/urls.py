@@ -3,8 +3,11 @@ from . import views
 
 urlpatterns = [
     path('programaciones/', views.programacionHomeView, name='home_programacion'),
+    path('calendario/', views.calendario_programaciones, name='home_calendario'),
+    path('programaciones/<int:pk>/estado/', views.programacion_estado, name='programacion_estado'),
     path('programaciones/buscar/', views.buscar_programaciones, name='buscar_programaciones'),
     path('programaciones/imprimir/', views.programacion_imprimir, name='programacion_imprimir'),
+    path('programaciones/auxiliar-horario/', views.programacion_auxiliar_horario, name='programacion_auxiliar_horario'),
     path('programaciones/nueva/', views.programacion_form, name='programacion_nueva'),
     path('programaciones/<int:pk>/editar/', views.programacion_form, name='programacion_editar'),
     path('programaciones/<int:pk>/eliminar/', views.programacion_eliminar, name='programacion_eliminar'),
