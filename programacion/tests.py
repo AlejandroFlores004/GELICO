@@ -1,5 +1,3 @@
-from datetime import date, time
-
 from django.test import TestCase
 from django.urls import reverse
 
