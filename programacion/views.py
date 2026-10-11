@@ -140,7 +140,7 @@ def buscar_programaciones(request):
     })
 
 
-def _auxiliar_horarios_contexto(auxiliar, mes_parametro=None):
+def _auxiliar_horarios_contexto(auxiliar, mes_parametro=None, convocatoria=None):
     mes_actual = parse_date(f'{mes_parametro}-01') if mes_parametro else None
     if mes_actual is None:
         mes_actual = timezone.localdate().replace(day=1)
@@ -171,6 +171,16 @@ def _auxiliar_horarios_contexto(auxiliar, mes_parametro=None):
                 'fecha': fecha,
                 'en_mes': fecha.month == mes_actual.month,
                 'horarios': horarios_por_fecha[fecha],
+                'en_periodo_convocatoria': bool(
+                    convocatoria
+                    and convocatoria.fecha_inicio <= fecha <= convocatoria.fecha_fin
+                ),
+                'inicio_convocatoria': bool(
+                    convocatoria and fecha == convocatoria.fecha_inicio
+                ),
+                'fin_convocatoria': bool(
+                    convocatoria and fecha == convocatoria.fecha_fin
+                ),
             }
             for fecha in semana
         ]
@@ -184,6 +194,7 @@ def _auxiliar_horarios_contexto(auxiliar, mes_parametro=None):
     )
     return {
         'auxiliar': auxiliar,
+        'convocatoria': convocatoria,
         'calendario_horarios': calendario_horarios,
         'mes_actual': mes_actual.strftime('%Y-%m'),
         'mes_anterior': mes_anterior.strftime('%Y-%m'),
@@ -194,23 +205,30 @@ def _auxiliar_horarios_contexto(auxiliar, mes_parametro=None):
 
 def programacion_auxiliar_horario(request):
     auxiliar_id = request.GET.get('auxiliar')
+    convocatoria_id = request.GET.get('convocatoria')
     auxiliar = Auxiliar.objects.filter(pk=auxiliar_id).first() if auxiliar_id else None
+    convocatoria = Convocatoria.objects.filter(pk=convocatoria_id).first() if convocatoria_id else None
     return render(request, 'partials/programacion/auxiliar_horarios.html', _auxiliar_horarios_contexto(
         auxiliar,
         request.GET.get('mes'),
+        convocatoria,
     ))
 
 
 def programacion_form(request, pk=None):
     instance = get_object_or_404(Programacion, pk=pk) if pk else None
     auxiliar_actual = instance.auxiliar if instance else None
+    convocatoria_actual = instance.convocatoria if instance else None
     mes_horarios = instance.fecha_programada.strftime('%Y-%m') if instance else None
     if request.method == 'POST':
         form = ProgramacionForm(request.POST, instance=instance)
         auxiliar_id = request.POST.get('auxiliar')
+        convocatoria_id = request.POST.get('convocatoria')
         mes_horarios = request.POST.get('mes') or mes_horarios
         if auxiliar_id:
             auxiliar_actual = Auxiliar.objects.filter(pk=auxiliar_id).first()
+        if convocatoria_id:
+            convocatoria_actual = Convocatoria.objects.filter(pk=convocatoria_id).first()
         if form.is_valid():
             form.save()
             _, programaciones = _programaciones_filtradas(request)
@@ -223,7 +241,7 @@ def programacion_form(request, pk=None):
     return render(request, 'partials/programacion/modal_form.html', {
         'form': form,
         'instance': instance,
-        **_auxiliar_horarios_contexto(auxiliar_actual, mes_horarios),
+        **_auxiliar_horarios_contexto(auxiliar_actual, mes_horarios, convocatoria_actual),
     })
 
 
