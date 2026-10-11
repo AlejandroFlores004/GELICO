@@ -12,6 +12,13 @@
                 class="space-y-4 mt-4"
             >
                 {% csrf_token %}
+                {% if form.non_field_errors %}
+                    <div role="alert" class="alert alert-warning alert-soft text-sm">
+                        <ul class="list-disc list-inside">
+                            {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {% for field in form %}
                     <div class="form-control w-full">
@@ -43,9 +50,13 @@
                     var $el = $(el);
                     try { $el.select2('destroy'); } catch (ignored) { /* aún no inicializado */ }
                     $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
-                    if (el.id === 'id_auxiliar') {
+                    var eventoCalendario = {
+                        id_auxiliar: 'auxiliar-seleccionado',
+                        id_convocatoria: 'convocatoria-seleccionada',
+                    }[el.id];
+                    if (eventoCalendario) {
                         $el.on('select2:select select2:clear', function () {
-                            htmx.trigger(el, 'auxiliar-seleccionado');
+                            htmx.trigger(el, eventoCalendario);
                         });
                     }
                 } catch (err) {

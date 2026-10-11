@@ -109,6 +109,52 @@ class HorarioForm(forms.ModelForm):
 
 
 class ProgramacionForm(forms.ModelForm):
+    def clean(self):
+        cleaned_data = super().clean()
+        auxiliar = cleaned_data.get('auxiliar')
+        fecha = cleaned_data.get('fecha_programada')
+        hora = cleaned_data.get('hora_programada')
+        escuela = cleaned_data.get('escuela')
+
+        horario_sin_cambios = self.instance.pk and (
+            auxiliar == self.instance.auxiliar
+            and fecha == self.instance.fecha_programada
+            and hora == self.instance.hora_programada
+        )
+
+        if auxiliar and fecha and hora and not horario_sin_cambios and not Horario.objects.filter(
+            auxiliar=auxiliar,
+            fecha=fecha,
+            hora_inicio__lte=hora,
+            hora_fin__gt=hora,
+        ).exists():
+            self.add_error(
+                None,
+                'La hora seleccionada está fuera del horario registrado para este auxiliar en esa fecha.',
+            )
+
+        programaciones_mismo_horario = Programacion.objects.filter(
+            fecha_programada=fecha,
+            hora_programada=hora,
+        )
+        if self.instance.pk:
+            programaciones_mismo_horario = programaciones_mismo_horario.exclude(
+                pk=self.instance.pk
+            )
+
+        if auxiliar and programaciones_mismo_horario.filter(auxiliar=auxiliar).exists():
+            self.add_error(
+                None,
+                'Este auxiliar ya tiene otra programación asignada en esa fecha y hora.',
+            )
+        if escuela and programaciones_mismo_horario.filter(escuela=escuela).exists():
+            self.add_error(
+                None,
+                'Esta escuela ya tiene otra programación asignada en esa fecha y hora.',
+            )
+
+        return cleaned_data
+
     class Meta:
         model = Programacion
         fields = [
@@ -124,6 +170,11 @@ class ProgramacionForm(forms.ModelForm):
                 'data-placeholder': 'Seleccione una convocatoria',
                 'style': 'width: 100%; display: none !important;',
                 'class': 'select2-daisy',
+                'hx-get': reverse_lazy('programacion_auxiliar_horario'),
+                'hx-target': '#programacion-auxiliar-horarios',
+                'hx-swap': 'outerHTML',
+                'hx-trigger': 'convocatoria-seleccionada',
+                'hx-include': 'closest form',
             }),
             'auxiliar': Select2Widget(attrs={
                 'data-placeholder': 'Seleccione un auxiliar',
@@ -133,7 +184,7 @@ class ProgramacionForm(forms.ModelForm):
                 'hx-target': '#programacion-auxiliar-horarios',
                 'hx-swap': 'outerHTML',
                 'hx-trigger': 'auxiliar-seleccionado',
-                'hx-include': '#programacion-horario-mes',
+                'hx-include': 'closest form',
             }),
             'fecha_programada': forms.DateInput(format='%Y-%m-%d', attrs={
                 'class': 'input input-bordered w-full',
