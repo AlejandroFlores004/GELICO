@@ -1,0 +1,105 @@
+<section id="agenda" class="card bg-base-100 shadow-xl border border-base-300 overflow-hidden transition-opacity [&.htmx-request]:opacity-60" aria-label="Agenda de {{ convocatoria.nombre }}">
+    {# Se vuelve a pintar solo cuando un modal guarda, elimina o cambia el estado de una visita. #}
+    <div class="hidden" hx-get="{{ url_actual }}" hx-trigger="agenda-actualizada from:body" hx-target="#convocatoria-detalle" hx-select="#convocatoria-detalle" hx-swap="outerHTML"></div>
+
+    <!-- Barra de la agenda -->
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-base-200 px-4 py-3">
+        <div class="flex flex-wrap items-center gap-2">
+            {% if url_anterior %}
+            <a href="{{ url_anterior }}" {% include "partials/agenda/_navegar.html" with url=url_anterior %} class="btn btn-ghost btn-sm btn-square" title="Anterior" aria-label="{% if modo == 'mes' %}Mes anterior{% elif modo == 'semana' %}Semana anterior{% else %}Día anterior{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+            </a>
+            {% else %}
+            <span class="btn btn-ghost btn-sm btn-square btn-disabled" title="Inicio de la convocatoria" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg></span>
+            {% endif %}
+            {% if url_siguiente %}
+            <a href="{{ url_siguiente }}" {% include "partials/agenda/_navegar.html" with url=url_siguiente %} class="btn btn-ghost btn-sm btn-square" title="Siguiente" aria-label="{% if modo == 'mes' %}Mes siguiente{% elif modo == 'semana' %}Semana siguiente{% else %}Día siguiente{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+            </a>
+            {% else %}
+            <span class="btn btn-ghost btn-sm btn-square btn-disabled" title="Fin de la convocatoria" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg></span>
+            {% endif %}
+            <h2 class="mx-1 min-w-0 text-lg font-bold" aria-live="polite">{{ titulo_periodo }}</h2>
+            {% if url_hoy %}
+            <a href="{{ url_hoy }}" {% include "partials/agenda/_navegar.html" with url=url_hoy %} class="btn btn-sm btn-outline">Hoy</a>
+            {% else %}
+            <a href="{{ url_primer_dia }}" {% include "partials/agenda/_navegar.html" with url=url_primer_dia %} class="btn btn-sm btn-outline">Primer día</a>
+            {% endif %}
+            <nav class="join" aria-label="Vista de la agenda">
+                {% for clave, etiqueta, url_modo in modos %}
+                <a href="{{ url_modo }}" {% include "partials/agenda/_navegar.html" with url=url_modo %} class="join-item btn btn-sm {% if clave == modo %}btn-primary{% else %}btn-ghost border-base-300{% endif %}"{% if clave == modo %} aria-current="page"{% endif %}>{{ etiqueta }}</a>
+                {% endfor %}
+            </nav>
+        </div>
+
+        <form
+            action="{% url 'home_programacion' %}"
+            hx-get="{% url 'home_programacion' %}"
+            hx-trigger="change"
+            hx-target="#agenda"
+            hx-select="#agenda"
+            hx-swap="outerHTML"
+            hx-push-url="true"
+        >
+            <input type="hidden" name="convocatoria" value="{{ convocatoria.pk }}">
+            <input type="hidden" name="modo" value="{{ modo }}">
+            <input type="hidden" name="fecha" value="{{ dia|date:'Y-m-d' }}">
+            <select name="auxiliar" class="select select-sm select-bordered w-56" aria-label="Filtrar por auxiliar">
+                <option value="">Todos los auxiliares</option>
+                {% for opcion in auxiliares %}
+                <option value="{{ opcion.pk }}"{% if opcion == auxiliar %} selected{% endif %}>{{ opcion.nombre }} {{ opcion.apellido }}</option>
+                {% endfor %}
+            </select>
+            <noscript><button type="submit" class="btn btn-sm">Filtrar</button></noscript>
+        </form>
+    </div>
+
+    {% if otras_convocatorias %}
+    <div class="flex flex-wrap items-center gap-2 border-b border-base-200 bg-base-200/40 px-4 py-2 text-sm">
+        <span class="text-xs text-base-content/60">También {% if modo == 'mes' %}este mes{% elif modo == 'semana' %}esta semana{% else %}este día{% endif %}:</span>
+        {% for otra in otras_convocatorias %}
+        <a href="{{ otra.url }}" hx-get="{{ otra.url }}" hx-target="#convocatoria-detalle" hx-select="#convocatoria-detalle" hx-swap="outerHTML" hx-push-url="true"
+           class="badge badge-ghost gap-1.5 border-base-300 py-3 hover:bg-base-100" title="Cambiar a {{ otra.convocatoria.nombre }}">
+            <span class="size-2 rounded-full {{ otra.tono.punto }}" aria-hidden="true"></span>
+            {{ otra.convocatoria.nombre }}
+            <span class="tabular-nums opacity-70">{{ otra.convocatoria.fecha_inicio|date:"d/m" }} – {{ otra.convocatoria.fecha_fin|date:"d/m" }}</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not auxiliares %}
+    <div role="status" class="alert alert-warning alert-soft m-4 text-sm">
+        <span>No hay auxiliares registrados. Regístralos con sus horarios en <a href="{% url 'home_auxiliar' %}" class="link">Auxiliares</a> para poder asignar visitas.</span>
+    </div>
+    {% endif %}
+
+    {% if modo == 'mes' %}
+        {% include "partials/agenda/_mes.html" %}
+    {% else %}
+        {% include "partials/agenda/_grilla.html" %}
+    {% endif %}
+
+    <!-- Pie: leyenda y total -->
+    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-base-200 px-4 py-3 text-xs font-medium text-base-content/70">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span class="flex items-center gap-1.5">{% include "partials/agenda/_icono_estado.html" with estado='pendiente' %} Pendiente</span>
+            <span class="flex items-center gap-1.5">{% include "partials/agenda/_icono_estado.html" with estado='completado' %} Completado</span>
+            <span class="flex items-center gap-1.5">{% include "partials/agenda/_icono_estado.html" with estado='no asistio' %} No asistió</span>
+            <span class="flex items-center gap-1.5"><span class="inline-block h-3 w-4 rounded-sm border border-base-300 bg-base-200/40 bg-[repeating-linear-gradient(135deg,transparent_0_3px,var(--color-base-300)_3px_4px)]" aria-hidden="true"></span> Fuera del periodo</span>
+            {% if leyenda|length > 1 %}
+            <span class="hidden h-4 border-l border-base-300 sm:block" aria-hidden="true"></span>
+            {% for item in leyenda %}
+            <span class="flex items-center gap-1.5">
+                <span class="size-2.5 rounded-full {{ item.tono.punto }}" aria-hidden="true"></span>
+                {{ item.auxiliar.nombre }} {{ item.auxiliar.apellido }}
+            </span>
+            {% endfor %}
+            {% endif %}
+        </div>
+        <span class="tabular-nums text-base-content/60">
+            {{ calendario.total }} programaci{{ calendario.total|pluralize:"ón,ones" }}
+            {% if modo == 'mes' %}en el mes{% elif modo == 'semana' %}en la semana{% else %}en el día{% endif %}
+        </span>
+    </div>
+</section>

@@ -15,6 +15,7 @@
             {% for dia_mes in semana %}
             <div class="group flex min-h-32 min-w-0 flex-col gap-1 border-b border-r border-base-300 p-1.5 last:border-r-0
                 {% if dia_mes.fuera_periodo %}bg-base-200/40 bg-[repeating-linear-gradient(135deg,transparent_0_8px,var(--color-base-300)_8px_9px)]{% elif not dia_mes.en_mes %}bg-base-200/40{% elif dia_mes.fecha == hoy %}bg-primary/[0.04]{% endif %}">
+                {% if not dia_mes.fuera_periodo %}<div class="-mx-1.5 -mt-1.5 mb-0.5 h-1 {{ convocatoria.tono.punto }}" title="{{ convocatoria.nombre }}"></div>{% endif %}
                 <div class="flex items-center justify-between gap-1">
                     <a href="{{ dia_mes.url_dia }}" {% include "partials/agenda/_navegar.html" with url=dia_mes.url_dia %}
                        class="flex size-7 items-center justify-center rounded-full text-sm font-semibold tabular-nums transition {% if dia_mes.fecha == hoy %}bg-primary text-primary-content{% elif not dia_mes.en_mes %}text-base-content/40 hover:bg-base-200{% else %}hover:bg-base-200{% endif %}"
@@ -29,12 +30,12 @@
                         {% if dia_mes.puede_programar %}
                         <button
                             type="button"
-                            hx-get="{% url 'programacion_nueva' %}?origen=calendario&fecha={{ dia_mes.fecha|date:'Y-m-d' }}{% if convocatoria %}&convocatoria={{ convocatoria.pk }}{% endif %}{% if auxiliar %}&auxiliar={{ auxiliar.pk }}{% endif %}"
+                            hx-get="{% url 'programacion_nueva' %}?origen=convocatoria&convocatoria={{ convocatoria.pk }}&fecha={{ dia_mes.fecha|date:'Y-m-d' }}{% if auxiliar %}&auxiliar={{ auxiliar.pk }}{% endif %}"
                             hx-target="#programacion-modal-wrapper"
                             hx-swap="outerHTML"
                             class="btn btn-ghost btn-xs btn-square text-primary opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100"
-                            title="Programar una visita este día"
-                            aria-label="Programar una visita el {{ dia_mes.fecha|date:'l j \d\e F' }}"
+                            title="Asignar una visita este día"
+                            aria-label="Asignar una visita el {{ dia_mes.fecha|date:'l j \d\e F' }}"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                         </button>

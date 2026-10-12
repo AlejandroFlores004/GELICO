@@ -9,6 +9,11 @@
                 <div class="flex justify-between gap-4"><span class="text-base-content/60">Inicio</span><span class="font-medium text-right">{{ instance.fecha_inicio|date:"d/m/Y" }}</span></div>
                 <div class="flex justify-between gap-4"><span class="text-base-content/60">Fin</span><span class="font-medium text-right">{{ instance.fecha_fin|date:"d/m/Y" }}</span></div>
             </div>
+            {% if total_programaciones %}
+            <div role="alert" class="alert alert-error alert-soft text-sm mt-4">
+                <span>También se eliminarán sus <strong>{{ total_programaciones }} programaci{{ total_programaciones|pluralize:"ón,ones" }}</strong>.</span>
+            </div>
+            {% endif %}
             <form hx-post="{% url 'convocatoria_eliminar' instance.pk %}{% querystring %}" hx-target="#convocatoria-modal-wrapper" hx-swap="outerHTML">
                 {% csrf_token %}
                 <div class="modal-action">

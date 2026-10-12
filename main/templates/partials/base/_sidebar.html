@@ -61,7 +61,7 @@
       <!-- Convocatorias -->
       <li class="menu-title"><span class="gelico-sidebar-label">Convocatorias</span></li>
       <li>
-        <a href="{% url 'home_programacion' %}" class="{% if url_name == 'home_programacion' %}menu-active{% endif %}" title="Programación">
+        <a href="{% url 'home_programacion' %}" class="{% if url_name == 'home_programacion' or url_name == 'convocatoria_agenda' %}menu-active{% endif %}" title="Programación">
           <span class="gelico-sidebar-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
                 stroke-width="2" fill="none" stroke="currentColor">

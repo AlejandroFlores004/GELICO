@@ -30,6 +30,7 @@ urlpatterns = [
     path('convocatorias/buscar/', views.buscar_convocatorias, name='buscar_convocatorias'),
     path('convocatorias/imprimir/', views.convocatoria_imprimir, name='convocatoria_imprimir'),
     path('convocatorias/nueva/', views.convocatoria_form, name='convocatoria_nueva'),
+    path('convocatorias/<int:pk>/', views.convocatoria_agenda, name='convocatoria_agenda'),
     path('convocatorias/<int:pk>/editar/', views.convocatoria_form, name='convocatoria_editar'),
     path('convocatorias/<int:pk>/eliminar/', views.convocatoria_eliminar, name='convocatoria_eliminar'),
 ]

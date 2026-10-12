@@ -16,8 +16,9 @@ from django.utils.text import capfirst
 from weasyprint import HTML
 
 from .agenda import (
-    MODOS, armar_calendario, convocatorias_en_rango, rango_visible, resumen_estados, sumar_meses,
-    tonos_por_auxiliar,
+    MODOS, agenda_de_convocatoria, con_conteos, convocatoria_por_defecto, convocatorias_agrupadas,
+    disponibles_en_bloque, estado_convocatoria, etiqueta_bloque, otras_convocatorias, rango_visible,
+    resumen_estados, sumar_meses, tono_convocatoria, tonos_por_auxiliar,
 )
 
 from .forms import AuxiliarForm, AusenciaForm, ConvocatoriaForm, HorarioForm, ProgramacionEstadoForm, ProgramacionFiltroForm, ProgramacionForm
@@ -58,21 +59,32 @@ def _programaciones_filtradas(request, paginar=True):
     return filtro_form, programaciones
 
 
-SECCIONES = ('calendario', 'programaciones', 'convocatorias')
-# Evento htmx que el calendario escucha para volver a pintarse tras guardar algo en un modal.
+SECCIONES = ('calendario', 'convocatorias', 'programaciones')
+# Evento htmx que los calendarios escuchan para volver a pintarse tras guardar algo en un modal.
 EVENTO_AGENDA = 'agenda-actualizada'
 FORMATO_DIA = 'l j \\d\\e F \\d\\e Y'
 FORMATO_FECHA = 'j \\d\\e F Y'
 
 
+def _origen(request):
+    """Desde dónde se abrió un modal: 'calendario' (mes de convocatorias), 'convocatoria' (su agenda) o una lista."""
+    return request.GET.get('origen', '')
+
+
 def _desde_calendario(request):
-    return request.GET.get('origen') == 'calendario'
+    return _origen(request) in ('calendario', 'convocatoria')
 
 
 def _respuesta_guardado(request, plantilla, contexto):
-    """Cierra el modal. Desde una lista refresca su tabla; desde el calendario lo avisa con un evento."""
+    """Cierra el modal. Desde una lista refresca su tabla; desde un calendario lo avisa con un evento."""
     respuesta = render(request, plantilla, {**contexto, 'desde_calendario': _desde_calendario(request)})
     respuesta['HX-Trigger'] = EVENTO_AGENDA
+    return respuesta
+
+
+def _redirigir_htmx(url):
+    respuesta = HttpResponse()
+    respuesta['HX-Redirect'] = url
     return respuesta
 
 
@@ -85,25 +97,6 @@ def _fecha(valor):
 
 def _por_id(modelo, valor):
     return modelo.objects.filter(pk=valor).first() if valor and str(valor).isdigit() else None
-
-
-def _estado_agenda(request):
-    modo = request.GET.get('modo')
-    return {
-        'modo': modo if modo in MODOS else 'semana',
-        'dia': _fecha(request.GET.get('fecha')) or timezone.localdate(),
-        'convocatoria': _por_id(Convocatoria, request.GET.get('convocatoria')),
-        'auxiliar': _por_id(Auxiliar, request.GET.get('auxiliar')),
-    }
-
-
-def _url_agenda(modo, dia, convocatoria=None, auxiliar=None):
-    parametros = {'modo': modo, 'fecha': dia.isoformat()}
-    if convocatoria:
-        parametros['convocatoria'] = convocatoria.pk
-    if auxiliar:
-        parametros['auxiliar'] = auxiliar.pk
-    return f"{reverse('home_programacion')}?{urlencode(parametros)}"
 
 
 def _titulo_periodo(modo, dia):
@@ -119,60 +112,84 @@ def _titulo_periodo(modo, dia):
     return f"{date_format(inicio, FORMATO_FECHA)} – {date_format(fin, FORMATO_FECHA)}"
 
 
-def _contexto_calendario(request):
-    estado = _estado_agenda(request)
-    modo, dia = estado['modo'], estado['dia']
+# ---------------------------------------------------------------------------
+# Calendario: agenda semanal por bloques de la convocatoria elegida
+# ---------------------------------------------------------------------------
+
+def _url_agenda(convocatoria, modo, dia, auxiliar=None):
+    parametros = {'convocatoria': convocatoria.pk, 'modo': modo, 'fecha': dia.isoformat()}
+    if auxiliar:
+        parametros['auxiliar'] = auxiliar.pk
+    return f"{reverse('home_programacion')}?{urlencode(parametros)}"
+
+
+def _contexto_agenda(request):
+    hoy = timezone.localdate()
+    convocatoria = _por_id(Convocatoria, request.GET.get('convocatoria')) or convocatoria_por_defecto(hoy)
+    if convocatoria is None:
+        return {'convocatoria': None}
+    convocatoria = con_conteos(Convocatoria.objects.filter(pk=convocatoria.pk)).get()
+    convocatoria.tono = tono_convocatoria(convocatoria)
+    en_periodo = convocatoria.fecha_inicio <= hoy <= convocatoria.fecha_fin
+
+    modo = request.GET.get('modo')
+    modo = modo if modo in MODOS else 'semana'
+    # Sin fecha, se abre en hoy si la convocatoria está en curso; si no, en su primer día.
+    dia = _fecha(request.GET.get('fecha')) or (hoy if en_periodo else convocatoria.fecha_inicio)
+    auxiliar = _por_id(Auxiliar, request.GET.get('auxiliar'))
 
     def url(modo_destino, dia_destino):
-        return _url_agenda(modo_destino, dia_destino, estado['convocatoria'], estado['auxiliar'])
+        return _url_agenda(convocatoria, modo_destino, dia_destino, auxiliar)
 
     if modo == 'mes':
         anterior, siguiente = sumar_meses(dia, -1), sumar_meses(dia, 1)
     else:
         paso = timedelta(weeks=1) if modo == 'semana' else timedelta(days=1)
         anterior, siguiente = dia - paso, dia + paso
+    inicio_visible, fin_visible = rango_visible(modo, dia)
 
     auxiliares = list(Auxiliar.objects.order_by('apellido', 'nombre'))
     tonos = tonos_por_auxiliar(auxiliares)
-    mostrados = [estado['auxiliar']] if estado['auxiliar'] else auxiliares
-    calendario = armar_calendario(modo, dia, mostrados, tonos, estado['convocatoria'])
-
+    mostrados = [auxiliar] if auxiliar else auxiliares
+    calendario = agenda_de_convocatoria(convocatoria, modo, dia, mostrados, tonos)
     for columna in calendario.get('columnas', []):
         columna['url_dia'] = url('dia', columna['fecha'])
     for semana in calendario.get('semanas', []):
         for dia_mes in semana:
             dia_mes['url_dia'] = url('dia', dia_mes['fecha'])
 
-    # En el día, cada columna ya dice de qué auxiliar es; si no, lo dice cada tarjeta.
+    programaciones = convocatoria.programacion_set.all()
     columnas_por_auxiliar = modo == 'dia' and any(c['auxiliar'] for c in calendario.get('columnas', []))
-    inicio, fin = rango_visible(modo, dia)
 
     return {
-        **estado,
+        'convocatoria': convocatoria,
+        'convocatorias_agrupadas': convocatorias_agrupadas(hoy),
+        'otras_convocatorias': [
+            {'convocatoria': otra, 'tono': tono_convocatoria(otra), 'url': _url_agenda(otra, modo, dia, auxiliar)}
+            for otra in otras_convocatorias(inicio_visible, fin_visible, convocatoria)
+        ],
+        'estado_convocatoria': estado_convocatoria(convocatoria, hoy),
+        'duracion': (convocatoria.fecha_fin - convocatoria.fecha_inicio).days + 1,
+        'dias_restantes': (convocatoria.fecha_fin - hoy).days,
+        'estados': resumen_estados(programaciones),
+        'auxiliares_asignados': programaciones.values('auxiliar').distinct().count(),
+        'escuelas_visitadas': programaciones.values('escuela').distinct().count(),
+        'modo': modo,
+        'dia': dia,
+        'hoy': hoy,
+        'auxiliar': auxiliar,
+        'auxiliares': auxiliares,
         'calendario': calendario,
         'titulo_periodo': _titulo_periodo(modo, dia),
-        'hoy': timezone.localdate(),
         'url_actual': url(modo, dia),
-        'url_anterior': url(modo, anterior),
-        'url_siguiente': url(modo, siguiente),
-        'url_hoy': url(modo, timezone.localdate()),
-        'modos': [(clave, etiqueta, url(clave, dia)) for clave, etiqueta in (('mes', 'Mes'), ('semana', 'Semana'), ('dia', 'Día'))],
-        'auxiliares': auxiliares,
-        'leyenda': [{'auxiliar': auxiliar, 'tono': tonos[auxiliar.pk]} for auxiliar in mostrados],
+        # No se navega más allá del periodo de la convocatoria.
+        'url_anterior': url(modo, anterior) if inicio_visible > convocatoria.fecha_inicio else None,
+        'url_siguiente': url(modo, siguiente) if fin_visible < convocatoria.fecha_fin else None,
+        'url_hoy': url(modo, hoy) if en_periodo else None,
+        'url_primer_dia': url(modo, convocatoria.fecha_inicio),
+        'modos': [(clave, etiqueta, url(clave, dia)) for clave, etiqueta in (('semana', 'Semana'), ('dia', 'Día'), ('mes', 'Mes'))],
+        'leyenda': [{'auxiliar': aux, 'tono': tonos[aux.pk]} for aux in mostrados],
         'mostrar_auxiliar': len(mostrados) > 1 and not columnas_por_auxiliar,
-        'convocatorias': Convocatoria.objects.order_by('-fecha_inicio'),
-        # Cada convocatoria del periodo filtra el calendario; la ya elegida quita el filtro.
-        'convocatorias_periodo': [
-            {
-                'convocatoria': convocatoria,
-                'activa': convocatoria == estado['convocatoria'],
-                'url': _url_agenda(
-                    modo, dia, None if convocatoria == estado['convocatoria'] else convocatoria, estado['auxiliar'],
-                ),
-            }
-            for convocatoria in convocatorias_en_rango(inicio, fin)
-        ],
-        'estados': resumen_estados(calendario['programaciones']),
     }
 
 
@@ -190,7 +207,7 @@ def programacionHomeView(request):
     }
     form_media = ProgramacionForm().media
     if seccion == 'calendario':
-        contexto.update(_contexto_calendario(request))
+        contexto.update(_contexto_agenda(request))
     elif seccion == 'programaciones':
         filtro_form, programaciones = _programaciones_filtradas(request)
         contexto.update({'filtro_form': filtro_form, 'programaciones': programaciones})
@@ -208,6 +225,12 @@ def programacionHomeView(request):
 def calendario_programaciones(request):
     """Ruta anterior del calendario: ahora es la sección principal de Programación."""
     return HttpResponseRedirect(reverse('home_programacion'))
+
+
+def convocatoria_agenda(request, pk):
+    """Enlace directo a una convocatoria: abre el calendario con ella elegida."""
+    convocatoria = get_object_or_404(Convocatoria, pk=pk)
+    return HttpResponseRedirect(f"{reverse('home_programacion')}?{urlencode({'convocatoria': convocatoria.pk})}")
 
 
 def programacion_estado(request, pk):
@@ -307,34 +330,35 @@ def programacion_auxiliar_horario(request):
 
 
 def _inicial_programacion(request):
-    """Valores con que se abre el formulario desde un espacio libre del calendario."""
+    """Valores con que se abre el formulario desde un bloque de la agenda."""
     inicial = {}
     fecha = _fecha(request.GET.get('fecha'))
     hora = parse_time(request.GET.get('hora') or '') if request.GET.get('hora') else None
     auxiliar = _por_id(Auxiliar, request.GET.get('auxiliar'))
-    convocatoria = _por_id(Convocatoria, request.GET.get('convocatoria'))
     if fecha:
         inicial['fecha_programada'] = fecha
-        if not convocatoria:
-            # Si solo una convocatoria cubre ese día, se propone esa.
-            vigentes = list(Convocatoria.objects.filter(fecha_inicio__lte=fecha, fecha_fin__gte=fecha)[:2])
-            convocatoria = vigentes[0] if len(vigentes) == 1 else None
     if hora:
         inicial['hora_programada'] = hora
     if auxiliar:
         inicial['auxiliar'] = auxiliar.pk
-    if convocatoria:
-        inicial['convocatoria'] = convocatoria.pk
-    return inicial, auxiliar, convocatoria, fecha
+    return inicial, auxiliar, fecha, hora
 
 
 def programacion_form(request, pk=None):
     instance = get_object_or_404(Programacion, pk=pk) if pk else None
+    # Desde la agenda de una convocatoria, la visita queda fija a esa convocatoria.
+    convocatoria_fija = None
+    if _origen(request) == 'convocatoria':
+        convocatoria_fija = instance.convocatoria if instance else _por_id(Convocatoria, request.GET.get('convocatoria'))
+
     auxiliar_actual = instance.auxiliar if instance else None
-    convocatoria_actual = instance.convocatoria if instance else None
+    convocatoria_actual = instance.convocatoria if instance else convocatoria_fija
     mes_horarios = instance.fecha_programada.strftime('%Y-%m') if instance else None
+    fecha_bloque = instance.fecha_programada if instance else None
+    hora_bloque = instance.hora_programada if instance else None
+
     if request.method == 'POST':
-        form = ProgramacionForm(request.POST, instance=instance)
+        form = ProgramacionForm(request.POST, instance=instance, convocatoria_fija=convocatoria_fija)
         auxiliar_id = request.POST.get('auxiliar')
         convocatoria_id = request.POST.get('convocatoria')
         mes_horarios = request.POST.get('mes') or mes_horarios
@@ -348,19 +372,28 @@ def programacion_form(request, pk=None):
             return _respuesta_guardado(request, 'partials/programacion/modal_form_success.html', {
                 'programaciones': programaciones,
             })
+        fecha_bloque = form.cleaned_data.get('fecha_programada')
+        hora_bloque = form.cleaned_data.get('hora_programada')
     elif instance:
-        form = ProgramacionForm(instance=instance)
+        form = ProgramacionForm(instance=instance, convocatoria_fija=convocatoria_fija)
     else:
-        inicial, auxiliar_actual, convocatoria_actual, fecha = _inicial_programacion(request)
-        form = ProgramacionForm(initial=inicial)
-        if fecha:
-            mes_horarios = fecha.strftime('%Y-%m')
+        inicial, auxiliar_actual, fecha_bloque, hora_bloque = _inicial_programacion(request)
+        form = ProgramacionForm(initial=inicial, convocatoria_fija=convocatoria_fija)
+        if fecha_bloque:
+            mes_horarios = fecha_bloque.strftime('%Y-%m')
 
     return render(request, 'partials/programacion/modal_form.html', {
         'form': form,
         'instance': instance,
+        'convocatoria_fija': convocatoria_fija,
         'estados_programacion': Programacion._meta.get_field('estado').choices,
         'desde_calendario': _desde_calendario(request),
+        'fecha_bloque': fecha_bloque,
+        'etiqueta_bloque': etiqueta_bloque(hora_bloque) if hora_bloque else None,
+        'disponibles_bloque': (
+            disponibles_en_bloque(fecha_bloque, hora_bloque, excluir=instance)
+            if fecha_bloque and hora_bloque else None
+        ),
         **_auxiliar_horarios_contexto(auxiliar_actual, mes_horarios, convocatoria_actual),
     })
 
@@ -711,13 +744,20 @@ def convocatoria_form(request, pk=None):
     if request.method == "POST":
         form = ConvocatoriaForm(request.POST, instance=instance)
         if form.is_valid():
-            form.save()
+            convocatoria = form.save()
+            if instance is None and _desde_calendario(request):
+                # Recién creada, lo siguiente es asignarle programaciones en su agenda.
+                return _redirigir_htmx(f"{reverse('home_programacion')}?{urlencode({'convocatoria': convocatoria.pk})}")
             convocatorias = None if _desde_calendario(request) else _convocatorias_filtradas(request)[3]
             return _respuesta_guardado(request, "partials/convocatorias/modal_form_success.html", {
                 "convocatorias": convocatorias,
             })
     else:
-        form = ConvocatoriaForm(instance=instance)
+        fecha_inicio = _fecha(request.GET.get("fecha"))
+        form = ConvocatoriaForm(
+            instance=instance,
+            initial={"fecha_inicio": fecha_inicio} if fecha_inicio and not instance else None,
+        )
 
     return render(
         request,
@@ -731,6 +771,9 @@ def convocatoria_eliminar(request, pk):
 
     if request.method == "POST":
         instance.delete()
+        if _origen(request) == "convocatoria":
+            # Se estaba dentro de su agenda, que ya no existe.
+            return _redirigir_htmx(reverse("home_programacion"))
         convocatorias = None if _desde_calendario(request) else _convocatorias_filtradas(request)[3]
         return _respuesta_guardado(request, "partials/convocatorias/modal_form_success.html", {
             "convocatorias": convocatorias,
@@ -739,7 +782,7 @@ def convocatoria_eliminar(request, pk):
     return render(
         request,
         "partials/convocatorias/modal_delete.html",
-        {"instance": instance},
+        {"instance": instance, "total_programaciones": instance.programacion_set.count()},
     )
 
 

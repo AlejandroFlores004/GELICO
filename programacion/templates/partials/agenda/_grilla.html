@@ -1,7 +1,22 @@
-{# Semana o día: una fila por hora; columnas por día (semana) o por auxiliar (día). #}
+{# Semana o día: una fila por bloque de una hora; columnas por día (semana) o por auxiliar (día). #}
 <div class="overflow-x-auto">
     <table class="w-full table-fixed border-collapse text-sm {% if calendario.columnas|length > 3 %}min-w-[56rem]{% endif %}">
         <thead>
+            {# Franja de la convocatoria: muestra en qué días de lo visible corre la convocatoria elegida. #}
+            <tr>
+                <th class="w-20 bg-base-200/60"><span class="sr-only">Convocatoria</span></th>
+                {% for columna in calendario.columnas %}
+                <th class="bg-base-200/60 p-0 pt-2 font-normal">
+                    {% if columna.fuera_periodo %}
+                    <div class="flex h-6 items-center justify-center text-[11px] font-medium text-base-content/40">Fuera de la convocatoria</div>
+                    {% else %}
+                    <div class="flex h-6 items-center whitespace-nowrap px-2 text-xs font-semibold {{ convocatoria.tono.barra }} {% if columna.inicia_tramo %}ml-1 rounded-l-md{% endif %} {% if columna.cierra_tramo %}mr-1 rounded-r-md{% endif %}">
+                        {% if columna.inicia_tramo %}<span class="relative z-10" title="{{ convocatoria.nombre }}">{{ convocatoria.nombre }}</span>{% endif %}
+                    </div>
+                    {% endif %}
+                </th>
+                {% endfor %}
+            </tr>
             <tr>
                 <th scope="col" class="w-20 border-b border-base-300 bg-base-200/60"><span class="sr-only">Hora</span></th>
                 {% for columna in calendario.columnas %}
@@ -32,25 +47,35 @@
         <tbody>
             {% for fila in calendario.filas %}
             <tr>
-                <th scope="row" class="w-20 whitespace-nowrap border-t border-base-300 px-2 pt-2 text-right align-top text-xs font-medium tabular-nums text-base-content/60">{{ fila.hora|time:'g:i A' }}</th>
+                <th scope="row" class="w-20 whitespace-nowrap border-t border-base-300 px-2 pt-2 text-right align-top text-xs font-medium tabular-nums text-base-content/60">
+                    {{ fila.hora|time:'H:i' }}
+                    <span class="block font-normal text-base-content/40">a {{ fila.hora|time:'G'|add:1 }}:00</span>
+                </th>
                 {% for celda in fila.celdas %}
                 <td class="group h-24 border-l border-t border-base-300 p-1 align-top
-                    {% if celda.fuera_periodo or not celda.trabaja %}bg-base-200/40 bg-[repeating-linear-gradient(135deg,transparent_0_8px,var(--color-base-300)_8px_9px)]{% elif celda.fecha == hoy %}bg-primary/[0.04]{% endif %}">
+                    {% if celda.fuera_periodo %}bg-base-200/40 bg-[repeating-linear-gradient(135deg,transparent_0_8px,var(--color-base-300)_8px_9px)]{% elif celda.paso %}bg-base-200/30{% elif celda.fecha == hoy %}bg-primary/[0.04]{% endif %}">
                     <div class="flex h-full min-h-20 gap-1">
                         {% for programacion in celda.programaciones %}
                             {% include "partials/agenda/_tarjeta.html" %}
                         {% endfor %}
-                        {% if celda.hora_libre %}
+                        {% if celda.puede_programar %}
                         <button
                             type="button"
-                            hx-get="{% url 'programacion_nueva' %}?origen=calendario&fecha={{ celda.fecha|date:'Y-m-d' }}&hora={{ celda.hora_libre|time:'H:i' }}{% if celda.auxiliar_libre %}&auxiliar={{ celda.auxiliar_libre }}{% endif %}{% if convocatoria %}&convocatoria={{ convocatoria.pk }}{% endif %}"
+                            hx-get="{% url 'programacion_nueva' %}?origen=convocatoria&convocatoria={{ convocatoria.pk }}&fecha={{ celda.fecha|date:'Y-m-d' }}&hora={{ celda.hora|time:'H:i' }}{% if celda.auxiliar_sugerido %}&auxiliar={{ celda.auxiliar_sugerido }}{% endif %}"
                             hx-target="#programacion-modal-wrapper"
                             hx-swap="outerHTML"
-                            class="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-primary/30 text-primary/60 opacity-50 transition hover:border-primary hover:bg-primary/5 hover:text-primary group-hover:opacity-100 focus-visible:opacity-100 {% if celda.programaciones %}w-8 shrink-0{% else %}w-full{% endif %}"
-                            title="Programar a las {{ celda.hora_libre|time:'g:i A' }}{% if celda.total_libres > 1 %} ({{ celda.total_libres }} auxiliares libres){% endif %}"
-                            aria-label="Programar una visita el {{ celda.fecha|date:'l j \d\e F' }} a las {{ celda.hora_libre|time:'g:i A' }}"
+                            class="flex cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed transition hover:border-primary hover:bg-primary/5 hover:text-primary focus-visible:outline-2 focus-visible:outline-primary
+                                {% if celda.disponibles %}border-primary/40 text-primary/70{% else %}border-base-300 text-base-content/40{% endif %}
+                                {% if celda.programaciones %}w-9 shrink-0{% else %}w-full{% endif %}"
+                            title="Asignar una visita de {{ celda.hora|time:'H:i' }} a {{ celda.hora|time:'G'|add:1 }}:00 · {% if celda.disponibles %}Disponibles: {% for aux in celda.disponibles %}{{ aux.nombre }} {{ aux.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}ningún auxiliar con horario en este bloque{% endif %}"
+                            aria-label="Asignar una visita el {{ celda.fecha|date:'l j \d\e F' }} de {{ celda.hora|time:'H:i' }} a {{ celda.hora|time:'G'|add:1 }}:00"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                            {% if not celda.programaciones %}
+                            <span class="text-[11px] font-medium leading-none">
+                                {% if not celda.disponibles %}sin horario{% elif celda.de_un_auxiliar %}libre{% else %}{{ celda.disponibles|length }} disp.{% endif %}
+                            </span>
+                            {% endif %}
                         </button>
                         {% endif %}
                     </div>

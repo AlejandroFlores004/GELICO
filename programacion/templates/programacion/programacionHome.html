@@ -18,30 +18,19 @@
             </div>
             <div>
                 <h1 class="text-4xl font-bold">Programación</h1>
-                <p class="text-base-content/70">Convocatorias, visitas a escuelas y disponibilidad de los auxiliares en un solo lugar.</p>
+                <p class="text-base-content/70">Elige una convocatoria y asigna las visitas a escuelas en su calendario por bloques de hora.</p>
             </div>
         </div>
 
-        <div class="flex flex-wrap gap-2">
-            <button
-                hx-get="{% url 'convocatoria_nueva' %}{% if seccion == 'calendario' %}?origen=calendario{% endif %}"
-                hx-target="#convocatoria-modal-wrapper"
-                hx-swap="outerHTML"
-                class="btn btn-ghost gap-2"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m3 11 18-5v12L3 14v-3z" /><path stroke-linecap="round" stroke-linejoin="round" d="M11.6 16.8a3 3 0 1 1-5.8-1.6" /></svg>
-                Nueva convocatoria
-            </button>
-            <button
-                hx-get="{% url 'programacion_nueva' %}{% if seccion == 'calendario' %}?origen=calendario{% if convocatoria %}&convocatoria={{ convocatoria.pk }}{% endif %}{% if auxiliar %}&auxiliar={{ auxiliar.pk }}{% endif %}{% endif %}"
-                hx-target="#programacion-modal-wrapper"
-                hx-swap="outerHTML"
-                class="btn btn-primary gap-2"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                Nueva programación
-            </button>
-        </div>
+        <button
+            hx-get="{% url 'convocatoria_nueva' %}{% if seccion == 'calendario' %}?origen=calendario{% endif %}"
+            hx-target="#convocatoria-modal-wrapper"
+            hx-swap="outerHTML"
+            class="btn btn-outline gap-2"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+            Nueva convocatoria
+        </button>
     </div>
 
     <div role="tablist" class="tabs tabs-box w-fit max-w-full overflow-x-auto bg-base-100 border border-base-300 shadow-sm">
@@ -49,13 +38,13 @@
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><rect x="3" y="4" width="18" height="18" rx="2" /><path stroke-linecap="round" stroke-linejoin="round" d="M16 2v4M8 2v4M3 10h18" /></svg>
             Calendario
         </a>
-        <a role="tab" href="{% url 'home_programacion' %}?seccion=programaciones" class="tab gap-2 whitespace-nowrap {% if seccion == 'programaciones' %}tab-active{% endif %}"{% if seccion == 'programaciones' %} aria-selected="true"{% endif %}>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
-            Programaciones
-        </a>
         <a role="tab" href="{% url 'home_programacion' %}?seccion=convocatorias" class="tab gap-2 whitespace-nowrap {% if seccion == 'convocatorias' %}tab-active{% endif %}"{% if seccion == 'convocatorias' %} aria-selected="true"{% endif %}>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m3 11 18-5v12L3 14v-3z" /><path stroke-linecap="round" stroke-linejoin="round" d="M11.6 16.8a3 3 0 1 1-5.8-1.6" /></svg>
             Convocatorias
+        </a>
+        <a role="tab" href="{% url 'home_programacion' %}?seccion=programaciones" class="tab gap-2 whitespace-nowrap {% if seccion == 'programaciones' %}tab-active{% endif %}"{% if seccion == 'programaciones' %} aria-selected="true"{% endif %}>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
+            Programaciones
         </a>
     </div>
 
@@ -63,7 +52,7 @@
     <div id="convocatoria-modal-wrapper"></div>
 
     {% if seccion == 'calendario' %}
-        {% include "partials/agenda/calendario.html" %}
+        {% include "partials/agenda/panel.html" %}
     {% elif seccion == 'programaciones' %}
         {% include "partials/programacion/buscador.html" %}
         {% include "partials/programacion/tabla.html" %}

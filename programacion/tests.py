@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from escuela.models import Distrito, Escuela
-from .agenda import armar_calendario, tonos_por_auxiliar
+from .agenda import agenda_de_convocatoria, convocatoria_por_defecto, tonos_por_auxiliar
 from .forms import ProgramacionForm
 from .models import Auxiliar, Ausencia, Convocatoria, Horario, Programacion
 
@@ -152,7 +152,7 @@ class ProgramacionHorarioValidationTests(TestCase):
 
 class AgendaBase(TestCase):
 	def setUp(self):
-		# Un día de la próxima semana, para que ninguna hora haya "pasado".
+		# Un día de la próxima semana, para que ningún bloque haya "pasado".
 		self.dia = timezone.localdate() + timedelta(days=7)
 		distrito = Distrito.objects.create(nombre='Distrito agenda')
 		self.escuela = Escuela.objects.create(
@@ -173,46 +173,72 @@ class AgendaBase(TestCase):
 
 	def _dia(self, convocatoria=None):
 		auxiliares = [self.auxiliar]
-		return armar_calendario('dia', self.dia, auxiliares, tonos_por_auxiliar(auxiliares), convocatoria)
+		return agenda_de_convocatoria(
+			convocatoria or self.convocatoria, 'dia', self.dia, auxiliares, tonos_por_auxiliar(auxiliares),
+		)
+
+	def _programar(self, hora, convocatoria=None):
+		return Programacion.objects.create(
+			convocatoria=convocatoria or self.convocatoria, auxiliar=self.auxiliar, escuela=self.escuela,
+			fecha_programada=self.dia, hora_programada=hora,
+		)
 
 
 class AgendaTests(AgendaBase):
-	def test_horas_libres_respetan_el_horario(self):
+	def test_todos_los_bloques_del_periodo_se_pueden_programar(self):
 		calendario = self._dia()
-		self.assertEqual(self._celda(calendario, 9)['hora_libre'], time(9, 30))
-		self.assertEqual(self._celda(calendario, 9)['auxiliar_libre'], self.auxiliar.pk)
-		self.assertNotIn('hora_libre', self._celda(calendario, 12))
-		self.assertFalse(self._celda(calendario, 12)['trabaja'])
+		self.assertEqual([fila['hora'] for fila in calendario['filas']], [time(hora) for hora in range(7, 17)])
+		self.assertTrue(all(fila['celdas'][0]['puede_programar'] for fila in calendario['filas']))
 
-	def test_una_programacion_ocupa_su_hora(self):
-		programacion = Programacion.objects.create(
-			convocatoria=self.convocatoria, auxiliar=self.auxiliar, escuela=self.escuela,
-			fecha_programada=self.dia, hora_programada=time(10, 15),
-		)
-		celda = self._celda(self._dia(), 10)
-		self.assertEqual(celda['programaciones'], [programacion])
-		self.assertNotIn('hora_libre', celda)
-
-	def test_ausencia_bloquea_el_dia(self):
-		Ausencia.objects.create(auxiliar=self.auxiliar, fecha=self.dia, motivo='Enfermedad')
+	def test_disponibilidad_segun_el_horario(self):
 		calendario = self._dia()
-		self.assertFalse(calendario['hay_horarios'])
-		self.assertNotIn('hora_libre', self._celda(calendario, 9))
+		# El horario 9:30–12:00 se cruza con los bloques de 9, 10 y 11.
+		self.assertEqual(self._celda(calendario, 9)['disponibles'], [self.auxiliar])
+		self.assertEqual(self._celda(calendario, 11)['disponibles'], [self.auxiliar])
+		self.assertEqual(self._celda(calendario, 12)['disponibles'], [])
 
-	def test_fuera_del_periodo_de_la_convocatoria_no_se_programa(self):
+	def test_una_visita_ocupa_su_bloque_incluso_en_otra_convocatoria(self):
 		otra = Convocatoria.objects.create(
+			nombre='Otra', descripcion='', fecha_inicio=self.dia, fecha_fin=self.dia,
+		)
+		self._programar(time(10), convocatoria=otra)
+		propia = self._programar(time(11))
+		calendario = self._dia()
+		self.assertEqual(self._celda(calendario, 10)['programaciones'], [])
+		self.assertEqual(self._celda(calendario, 10)['disponibles'], [])
+		self.assertEqual(self._celda(calendario, 11)['programaciones'], [propia])
+
+	def test_ausencia_quita_la_disponibilidad(self):
+		Ausencia.objects.create(auxiliar=self.auxiliar, fecha=self.dia, motivo='Enfermedad')
+		self.assertEqual(self._celda(self._dia(), 10)['disponibles'], [])
+
+	def test_fuera_del_periodo_no_se_programa(self):
+		pasada = Convocatoria.objects.create(
 			nombre='Pasada', descripcion='', fecha_inicio=self.dia - timedelta(days=30), fecha_fin=self.dia - timedelta(days=20),
 		)
-		celda = self._celda(self._dia(otra), 9)
+		celda = self._celda(self._dia(pasada), 9)
 		self.assertTrue(celda['fuera_periodo'])
-		self.assertNotIn('hora_libre', celda)
+		self.assertFalse(celda['puede_programar'])
 
-	def test_vista_de_mes_cuenta_disponibles(self):
+	def test_franja_de_la_convocatoria_en_la_semana(self):
+		corta = Convocatoria.objects.create(
+			nombre='Corta', descripcion='x', fecha_inicio=self.dia, fecha_fin=self.dia + timedelta(days=1),
+		)
 		auxiliares = [self.auxiliar]
-		calendario = armar_calendario('mes', self.dia, auxiliares, tonos_por_auxiliar(auxiliares))
-		dia = next(d for semana in calendario['semanas'] for d in semana if d['fecha'] == self.dia)
-		self.assertEqual(dia['disponibles'], 1)
-		self.assertTrue(dia['puede_programar'])
+		calendario = agenda_de_convocatoria(corta, 'semana', self.dia, auxiliares, tonos_por_auxiliar(auxiliares))
+		dentro = [c for c in calendario['columnas'] if not c['fuera_periodo']]
+		self.assertTrue(dentro[0]['inicia_tramo'])
+		self.assertTrue(dentro[-1]['cierra_tramo'])
+		self.assertEqual(sum(c['inicia_tramo'] for c in calendario['columnas']), 1)
+
+	def test_convocatoria_por_defecto(self):
+		hoy = timezone.localdate()
+		Convocatoria.objects.all().delete()
+		self.assertIsNone(convocatoria_por_defecto(hoy))
+		proxima = Convocatoria.objects.create(nombre='Próxima', descripcion='x', fecha_inicio=hoy + timedelta(days=5), fecha_fin=hoy + timedelta(days=9))
+		self.assertEqual(convocatoria_por_defecto(hoy), proxima)
+		en_curso = Convocatoria.objects.create(nombre='En curso', descripcion='x', fecha_inicio=hoy - timedelta(days=1), fecha_fin=hoy + timedelta(days=1))
+		self.assertEqual(convocatoria_por_defecto(hoy), en_curso)
 
 
 class ProgramacionPaginaTests(AgendaBase):
@@ -221,44 +247,83 @@ class ProgramacionPaginaTests(AgendaBase):
 		get_user_model().objects.create_user('agenda', password='Clave-2026')
 		self.client.login(username='agenda', password='Clave-2026')
 
-	def test_secciones_y_modos_cargan(self):
-		for parametros in ({'modo': 'mes'}, {'modo': 'semana'}, {'modo': 'dia'}, {'seccion': 'programaciones'}, {'seccion': 'convocatorias'}):
+	def _datos(self, **extra):
+		return {
+			'convocatoria': self.convocatoria.pk, 'auxiliar': self.auxiliar.pk, 'escuela': self.escuela.pk,
+			'fecha_programada': self.dia.isoformat(), 'hora_programada': '10:00:00', 'estado': 'pendiente', **extra,
+		}
+
+	def test_calendario_abre_la_agenda_semanal_de_la_convocatoria(self):
+		respuesta = self.client.get(reverse('home_programacion'))
+		self.assertEqual(respuesta.status_code, 200)
+		self.assertEqual(respuesta.context['convocatoria'], self.convocatoria)
+		self.assertEqual(respuesta.context['modo'], 'semana')
+		self.assertContains(respuesta, 'Estás programando en la convocatoria')
+
+	def test_agenda_en_cada_modo_y_listas(self):
+		for parametros in ({'modo': 'mes'}, {'modo': 'semana'}, {'modo': 'dia'}, {'seccion': 'convocatorias'}, {'seccion': 'programaciones'}):
 			with self.subTest(**parametros):
-				respuesta = self.client.get(reverse('home_programacion'), {'fecha': self.dia.isoformat(), **parametros})
+				respuesta = self.client.get(reverse('home_programacion'), {
+					'convocatoria': self.convocatoria.pk, 'fecha': self.dia.isoformat(), **parametros,
+				})
 				self.assertEqual(respuesta.status_code, 200)
+
+	def test_sin_convocatorias_invita_a_crear_una(self):
+		Convocatoria.objects.all().delete()
+		self.assertContains(self.client.get(reverse('home_programacion')), 'Aún no hay convocatorias')
 
 	def test_rutas_anteriores_redirigen(self):
 		self.assertRedirects(self.client.get(reverse('home_calendario')), reverse('home_programacion'))
 		self.assertRedirects(
 			self.client.get(reverse('home_convocatorias')), f"{reverse('home_programacion')}?seccion=convocatorias",
 		)
+		self.assertRedirects(
+			self.client.get(reverse('convocatoria_agenda', args=[self.convocatoria.pk])),
+			f"{reverse('home_programacion')}?convocatoria={self.convocatoria.pk}",
+		)
 
-	def test_espacio_libre_abre_el_formulario_prellenado(self):
+	def test_crear_convocatoria_desde_el_calendario_lleva_a_su_agenda(self):
+		respuesta = self.client.post(f"{reverse('convocatoria_nueva')}?origen=calendario", {
+			'nombre': 'Nueva', 'descripcion': 'Prueba', 'fecha_inicio': self.dia.isoformat(), 'fecha_fin': self.dia.isoformat(),
+		})
+		nueva = Convocatoria.objects.get(nombre='Nueva')
+		self.assertEqual(respuesta['HX-Redirect'], f"{reverse('home_programacion')}?convocatoria={nueva.pk}")
+
+	def test_bloque_abre_el_formulario_con_la_convocatoria_fija(self):
 		respuesta = self.client.get(reverse('programacion_nueva'), {
-			'origen': 'calendario', 'fecha': self.dia.isoformat(), 'hora': '09:30', 'auxiliar': self.auxiliar.pk,
+			'origen': 'convocatoria', 'convocatoria': self.convocatoria.pk,
+			'fecha': self.dia.isoformat(), 'hora': '10:00', 'auxiliar': self.auxiliar.pk,
 		})
-		inicial = respuesta.context['form'].initial
-		self.assertEqual(inicial['fecha_programada'], self.dia)
-		self.assertEqual(inicial['hora_programada'], time(9, 30))
-		self.assertEqual(inicial['auxiliar'], self.auxiliar.pk)
-		# Solo una convocatoria cubre ese día: se propone sola.
-		self.assertEqual(inicial['convocatoria'], self.convocatoria.pk)
+		form = respuesta.context['form']
+		self.assertEqual(form.initial['hora_programada'], time(10))
+		self.assertEqual(form.fields['convocatoria'].initial, self.convocatoria.pk)
+		self.assertTrue(form.fields['convocatoria'].widget.is_hidden)
+		self.assertEqual(respuesta.context['disponibles_bloque'], [self.auxiliar])
 
-	def test_guardar_desde_el_calendario_avisa_para_refrescarlo(self):
-		url = f"{reverse('programacion_nueva')}?origen=calendario"
-		respuesta = self.client.post(url, {
-			'convocatoria': self.convocatoria.pk, 'auxiliar': self.auxiliar.pk, 'escuela': self.escuela.pk,
-			'fecha_programada': self.dia.isoformat(), 'hora_programada': '10:00', 'estado': 'pendiente',
-		})
+	def test_guardar_desde_la_agenda_avisa_para_refrescarla(self):
+		url = f"{reverse('programacion_nueva')}?origen=convocatoria&convocatoria={self.convocatoria.pk}"
+		respuesta = self.client.post(url, self._datos())
 		self.assertEqual(respuesta['HX-Trigger'], 'agenda-actualizada')
 		self.assertNotContains(respuesta, 'listado-programaciones')
-		self.assertTrue(Programacion.objects.filter(hora_programada='10:00').exists())
+		self.assertTrue(Programacion.objects.filter(hora_programada=time(10)).exists())
+
+	def test_rechaza_fecha_fuera_del_periodo(self):
+		fuera = self.convocatoria.fecha_fin + timedelta(days=1)
+		Horario.objects.create(auxiliar=self.auxiliar, fecha=fuera, hora_inicio=time(8), hora_fin=time(12))
+		respuesta = self.client.post(reverse('programacion_nueva'), self._datos(fecha_programada=fuera.isoformat()))
+		self.assertIn('fecha_programada', respuesta.context['form'].errors)
+
+	def test_rechaza_auxiliar_ocupado_en_el_mismo_bloque(self):
+		self._programar(time(10, 15))
+		respuesta = self.client.post(reverse('programacion_nueva'), self._datos())
+		self.assertIn('Este auxiliar ya tiene otra programación asignada en esa fecha y hora.', respuesta.context['form'].non_field_errors())
+
+	def test_eliminar_convocatoria_desde_su_agenda_vuelve_al_calendario(self):
+		respuesta = self.client.post(f"{reverse('convocatoria_eliminar', args=[self.convocatoria.pk])}?origen=convocatoria")
+		self.assertEqual(respuesta['HX-Redirect'], reverse('home_programacion'))
 
 	def test_cambio_rapido_de_estado(self):
-		programacion = Programacion.objects.create(
-			convocatoria=self.convocatoria, auxiliar=self.auxiliar, escuela=self.escuela,
-			fecha_programada=self.dia, hora_programada=time(10),
-		)
+		programacion = self._programar(time(10))
 		respuesta = self.client.post(reverse('programacion_estado', args=[programacion.pk]), {'estado': 'completado'})
 		self.assertEqual(respuesta['HX-Trigger'], 'agenda-actualizada')
 		programacion.refresh_from_db()

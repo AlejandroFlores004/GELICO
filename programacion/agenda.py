@@ -1,18 +1,21 @@
-"""Calendario interactivo de programaciones: arma las vistas de mes, semana y día.
+"""Agenda por bloques de hora de una convocatoria.
 
-Las filas de semana y día son horas; una hora está "disponible" para un auxiliar si tiene
-un Horario que la cubre, no está ausente ese día y no tiene otra programación en esa hora.
+Cada día del periodo de la convocatoria se divide en bloques de una hora; en cada bloque se
+asignan programaciones. Un auxiliar está "disponible" en un bloque si tiene un Horario que lo
+cubre, no está ausente ese día y no tiene otra programación en esa hora.
 """
 from calendar import Calendar
 from collections import defaultdict
 from datetime import datetime, time, timedelta
 
+from django.db.models import Count, Q
 from django.utils import timezone
 
-from .models import Ausencia, Convocatoria, Horario, Programacion
+from .models import Auxiliar, Ausencia, Convocatoria, Horario, Programacion
 
 MODOS = ('mes', 'semana', 'dia')
-HORAS_POR_DEFECTO = range(7, 17)
+# Bloques de la agenda: de 7:00 a 17:00, una hora cada uno.
+PRIMERA_HORA, ULTIMA_HORA = 7, 17
 FIN_DE_SEMANA = (6, 7)  # isoweekday: sábado y domingo
 
 # Colores por auxiliar. Se evitan success/warning/error porque esos indican el estado.
@@ -23,10 +26,35 @@ TONOS_AUXILIAR = [
     {'tarjeta': 'border-secondary bg-secondary/12', 'punto': 'bg-secondary'},
     {'tarjeta': 'border-neutral/60 bg-neutral/8', 'punto': 'bg-neutral'},
 ]
+# Colores de las barras de convocatoria en el calendario principal.
+TONOS_CONVOCATORIA = [
+    {'barra': 'bg-primary text-primary-content', 'punto': 'bg-primary'},
+    {'barra': 'bg-info text-info-content', 'punto': 'bg-info'},
+    {'barra': 'bg-accent text-accent-content', 'punto': 'bg-accent'},
+    {'barra': 'bg-secondary text-secondary-content', 'punto': 'bg-secondary'},
+    {'barra': 'bg-neutral text-neutral-content', 'punto': 'bg-neutral'},
+]
+
+
+def bloques():
+    """Horas de inicio de cada bloque de la agenda."""
+    return [time(hora) for hora in range(PRIMERA_HORA, ULTIMA_HORA)]
+
+
+def fin_de_bloque(hora):
+    return time(hora.hour + 1, hora.minute) if hora.hour < 23 else time.max
+
+
+def etiqueta_bloque(hora):
+    return f'{hora:%H:%M} – {fin_de_bloque(hora):%H:%M}'
+
+
+def tono_convocatoria(convocatoria):
+    return TONOS_CONVOCATORIA[convocatoria.pk % len(TONOS_CONVOCATORIA)]
 
 
 def inicio_semana(dia):
-    """Domingo con que empieza la semana de una fecha (igual que el calendario anterior)."""
+    """Domingo con que empieza la semana de una fecha."""
     return dia - timedelta(days=dia.isoweekday() % 7)
 
 
@@ -35,10 +63,14 @@ def sumar_meses(dia, meses):
     return dia.replace(year=total // 12, month=total % 12 + 1, day=1)
 
 
+def _semanas_del_mes(dia):
+    return Calendar(firstweekday=6).monthdatescalendar(dia.year, dia.month)
+
+
 def rango_visible(modo, dia):
     """Primer y último día que se ven en pantalla."""
     if modo == 'mes':
-        semanas = Calendar(firstweekday=6).monthdatescalendar(dia.year, dia.month)
+        semanas = _semanas_del_mes(dia)
         return semanas[0][0], semanas[-1][-1]
     if modo == 'semana':
         inicio = inicio_semana(dia)
@@ -54,16 +86,71 @@ def _minutos(hora):
     return hora.hour * 60 + hora.minute
 
 
-def _ya_paso(dia, hora):
-    """Una hora del calendario ya pasó cuando terminó (hasta entonces aún se puede programar)."""
-    fin = datetime.combine(dia, time(hora)) + timedelta(hours=1)
+def bloque_paso(dia, hora):
+    """Un bloque ya pasó cuando terminó (hasta entonces aún se puede programar)."""
+    fin = datetime.combine(dia, time(hora.hour)) + timedelta(hours=1)
     return fin <= timezone.localtime().replace(tzinfo=None)
 
+
+def estado_convocatoria(convocatoria, hoy=None):
+    hoy = hoy or timezone.localdate()
+    if convocatoria.fecha_fin < hoy:
+        return 'finalizada'
+    if convocatoria.fecha_inicio > hoy:
+        return 'proxima'
+    return 'en_curso'
+
+
+# ---------------------------------------------------------------------------
+# Convocatorias
+# ---------------------------------------------------------------------------
+
+def con_conteos(convocatorias):
+    return convocatorias.annotate(
+        total_programaciones=Count('programacion'),
+        completadas=Count('programacion', filter=Q(programacion__estado='completado')),
+    )
+
+
+def convocatoria_por_defecto(hoy=None):
+    """La que está en curso (la que termina primero); si no hay, la próxima; si no, la última que terminó."""
+    hoy = hoy or timezone.localdate()
+    return (
+        Convocatoria.objects.filter(fecha_inicio__lte=hoy, fecha_fin__gte=hoy).order_by('fecha_fin', 'pk').first()
+        or Convocatoria.objects.filter(fecha_inicio__gt=hoy).order_by('fecha_inicio', 'pk').first()
+        or Convocatoria.objects.order_by('-fecha_fin', '-pk').first()
+    )
+
+
+def convocatorias_agrupadas(hoy=None):
+    """Opciones del selector: en curso, próximas y finalizadas."""
+    hoy = hoy or timezone.localdate()
+    grupos = {'en_curso': [], 'proxima': [], 'finalizada': []}
+    for convocatoria in Convocatoria.objects.order_by('fecha_inicio', 'pk'):
+        grupos[estado_convocatoria(convocatoria, hoy)].append(convocatoria)
+    grupos['finalizada'].reverse()  # las más recientes primero
+    return [
+        ('En curso', grupos['en_curso']),
+        ('Próximas', grupos['proxima']),
+        ('Finalizadas', grupos['finalizada']),
+    ]
+
+
+def otras_convocatorias(inicio, fin, convocatoria):
+    """Otras convocatorias que también caen en el periodo visible, para cambiar a ellas."""
+    return Convocatoria.objects.filter(fecha_inicio__lte=fin, fecha_fin__gte=inicio).exclude(
+        pk=convocatoria.pk,
+    ).order_by('fecha_inicio')
+
+
+# ---------------------------------------------------------------------------
+# Agenda de una convocatoria: bloques de hora
+# ---------------------------------------------------------------------------
 
 class Agenda:
     """Horarios, ausencias y programaciones de los auxiliares en un rango de fechas."""
 
-    def __init__(self, auxiliares, inicio, fin, convocatoria=None):
+    def __init__(self, auxiliares, inicio, fin, convocatoria):
         ids = [auxiliar.pk for auxiliar in auxiliares]
 
         self.horarios = defaultdict(list)
@@ -71,7 +158,7 @@ class Agenda:
             self.horarios[(horario.auxiliar_id, horario.fecha)].append(horario)
 
         self.ausencias = {
-            (ausencia.auxiliar_id, ausencia.fecha): ausencia
+            (ausencia.auxiliar_id, ausencia.fecha)
             for ausencia in Ausencia.objects.filter(auxiliar__in=ids, fecha__range=(inicio, fin))
         }
 
@@ -79,52 +166,44 @@ class Agenda:
             auxiliar__in=ids, fecha_programada__range=(inicio, fin),
         ).select_related('convocatoria', 'auxiliar', 'escuela').order_by('fecha_programada', 'hora_programada')
 
-        # La ocupación no depende del filtro: un auxiliar no puede estar en dos visitas a la vez.
+        # Un auxiliar ocupado en otra convocatoria tampoco está disponible en ese bloque.
         self.ocupadas = set()
         self.programaciones = []
         for programacion in todas:
             self.ocupadas.add((programacion.auxiliar_id, programacion.fecha_programada, programacion.hora_programada.hour))
-            if convocatoria is None or programacion.convocatoria_id == convocatoria.pk:
+            if programacion.convocatoria_id == convocatoria.pk:
                 self.programaciones.append(programacion)
 
     def ausente(self, auxiliar_id, dia):
         return (auxiliar_id, dia) in self.ausencias
 
-    def trabaja(self, auxiliar_id, dia):
-        return bool(self.horarios[(auxiliar_id, dia)]) and not self.ausente(auxiliar_id, dia)
+    def tiene_horario(self, auxiliar_id, dia):
+        return bool(self.horarios[(auxiliar_id, dia)])
 
-    def horas(self, auxiliar_id, dia):
-        """Horas (enteras) que cubre algún horario del auxiliar ese día."""
-        horas = set()
-        for horario in self.horarios[(auxiliar_id, dia)]:
-            inicio, fin = _minutos(horario.hora_inicio), _minutos(horario.hora_fin)
-            horas.update(hora for hora in range(24) if inicio < (hora + 1) * 60 and fin > hora * 60)
-        return horas
-
-    def libre(self, auxiliar_id, dia, hora):
-        """Primera hora exacta en que se le puede programar dentro de esa hora, o None."""
-        if self.ausente(auxiliar_id, dia) or (auxiliar_id, dia, hora) in self.ocupadas or _ya_paso(dia, hora):
-            return None
-        for horario in self.horarios[(auxiliar_id, dia)]:
-            inicio, fin = _minutos(horario.hora_inicio), _minutos(horario.hora_fin)
-            if inicio < (hora + 1) * 60 and fin > hora * 60:
-                return max(time(hora), horario.hora_inicio)
-        return None
+    def disponible(self, auxiliar_id, dia, hora):
+        """Tiene un horario que cubre el bloque, no está ausente y no tiene otra visita a esa hora."""
+        if self.ausente(auxiliar_id, dia) or (auxiliar_id, dia, hora.hour) in self.ocupadas:
+            return False
+        inicio, fin = _minutos(hora), _minutos(hora) + 60
+        return any(
+            _minutos(horario.hora_inicio) < fin and _minutos(horario.hora_fin) > inicio
+            for horario in self.horarios[(auxiliar_id, dia)]
+        )
 
 
 def _en_periodo(dia, convocatoria):
-    return convocatoria is None or convocatoria.fecha_inicio <= dia <= convocatoria.fecha_fin
+    return convocatoria.fecha_inicio <= dia <= convocatoria.fecha_fin
 
 
 def _columnas_semana(dia, auxiliares, agenda):
     columnas = []
     for desplazamiento in range(7):
         fecha = inicio_semana(dia) + timedelta(days=desplazamiento)
-        # Sábado y domingo solo aparecen si alguien trabaja o hay programaciones.
+        # Sábado y domingo solo aparecen si alguien tiene horario o hay visitas ese día.
         if fecha.isoweekday() in FIN_DE_SEMANA:
-            hay_trabajo = any(agenda.trabaja(auxiliar.pk, fecha) for auxiliar in auxiliares)
+            hay_horario = any(agenda.tiene_horario(auxiliar.pk, fecha) for auxiliar in auxiliares)
             hay_visitas = any(programacion.fecha_programada == fecha for programacion in agenda.programaciones)
-            if not (hay_trabajo or hay_visitas):
+            if not (hay_horario or hay_visitas):
                 continue
         columnas.append({'fecha': fecha, 'auxiliar': None, 'auxiliares': auxiliares})
     return columnas
@@ -138,64 +217,46 @@ def _columnas_dia(dia, auxiliares, agenda):
     columnas = [
         {'fecha': dia, 'auxiliar': auxiliar, 'auxiliares': [auxiliar]}
         for auxiliar in auxiliares
-        if agenda.horarios[(auxiliar.pk, dia)] or agenda.ausente(auxiliar.pk, dia) or auxiliar.pk in con_visitas
+        if agenda.tiene_horario(auxiliar.pk, dia) or agenda.ausente(auxiliar.pk, dia) or auxiliar.pk in con_visitas
     ]
     return columnas or [{'fecha': dia, 'auxiliar': None, 'auxiliares': auxiliares}]
 
 
-def _horas_visibles(columnas, agenda):
-    horas = {programacion.hora_programada.hour for programacion in agenda.programaciones}
-    for columna in columnas:
-        for auxiliar in columna['auxiliares']:
-            horas.update(agenda.horas(auxiliar.pk, columna['fecha']))
-    if not horas:
-        return HORAS_POR_DEFECTO
-    return range(min(min(horas), HORAS_POR_DEFECTO.start), max(max(horas), HORAS_POR_DEFECTO.stop - 1) + 1)
+def _horas_visibles(agenda):
+    horas = {bloque.hour for bloque in bloques()}
+    # Si alguna visita quedó fuera de los bloques (p. ej. a las 18:00), se agrega su hora.
+    horas |= {programacion.hora_programada.hour for programacion in agenda.programaciones}
+    return sorted(horas)
 
 
 def _celda(columna, hora, agenda, convocatoria):
     fecha = columna['fecha']
     ids = {auxiliar.pk for auxiliar in columna['auxiliares']}
+    disponibles = [auxiliar for auxiliar in columna['auxiliares'] if agenda.disponible(auxiliar.pk, fecha, hora)]
     celda = {
         'fecha': fecha,
-        'hora': time(hora),
+        'hora': hora,
         'programaciones': [
             programacion for programacion in agenda.programaciones
             if programacion.fecha_programada == fecha
             and programacion.auxiliar_id in ids
-            and programacion.hora_programada.hour == hora
+            and programacion.hora_programada.hour == hora.hour
         ],
-        'trabaja': any(
-            hora in agenda.horas(auxiliar.pk, fecha) and not agenda.ausente(auxiliar.pk, fecha)
-            for auxiliar in columna['auxiliares']
-        ),
+        'disponibles': disponibles,
+        'de_un_auxiliar': columna['auxiliar'] is not None,
         'fuera_periodo': not _en_periodo(fecha, convocatoria),
-        'paso': _ya_paso(fecha, hora),
+        'paso': bloque_paso(fecha, hora),
     }
-    if celda['fuera_periodo']:
-        return celda
-
-    libres = {}
-    for auxiliar in columna['auxiliares']:
-        libre = agenda.libre(auxiliar.pk, fecha, hora)
-        if libre:
-            libres[auxiliar.pk] = libre
-    if libres:
-        celda['hora_libre'] = min(libres.values())
-        # El formulario se abre con el auxiliar elegido si solo uno está libre.
-        if columna['auxiliar']:
-            celda['auxiliar_libre'] = columna['auxiliar'].pk
-        elif len(libres) == 1:
-            celda['auxiliar_libre'] = next(iter(libres))
-        celda['total_libres'] = len(libres)
+    celda['puede_programar'] = not celda['fuera_periodo'] and not celda['paso']
+    # El formulario se abre con el auxiliar elegido si la columna es suya o es el único disponible.
+    if columna['auxiliar']:
+        celda['auxiliar_sugerido'] = columna['auxiliar'].pk
+    elif len(disponibles) == 1:
+        celda['auxiliar_sugerido'] = disponibles[0].pk
     return celda
 
 
-def _ausentes(fecha, auxiliares, agenda):
-    return [auxiliar for auxiliar in auxiliares if agenda.ausente(auxiliar.pk, fecha)]
-
-
-def armar_calendario(modo, dia, auxiliares, tonos, convocatoria=None):
+def agenda_de_convocatoria(convocatoria, modo, dia, auxiliares, tonos):
     inicio, fin = rango_visible(modo, dia)
     agenda = Agenda(auxiliares, inicio, fin, convocatoria)
     for programacion in agenda.programaciones:
@@ -203,20 +264,24 @@ def armar_calendario(modo, dia, auxiliares, tonos, convocatoria=None):
 
     hoy = timezone.localdate()
     if modo == 'mes':
-        semanas = []
-        for semana in Calendar(firstweekday=6).monthdatescalendar(dia.year, dia.month):
-            semanas.append([
+        semanas = [
+            [
                 {
                     'fecha': fecha,
                     'en_mes': fecha.month == dia.month,
                     'programaciones': [p for p in agenda.programaciones if p.fecha_programada == fecha],
-                    'disponibles': sum(agenda.trabaja(auxiliar.pk, fecha) for auxiliar in auxiliares),
-                    'ausentes': _ausentes(fecha, auxiliares, agenda),
+                    'disponibles': sum(
+                        agenda.tiene_horario(auxiliar.pk, fecha) and not agenda.ausente(auxiliar.pk, fecha)
+                        for auxiliar in auxiliares
+                    ),
+                    'ausentes': [auxiliar for auxiliar in auxiliares if agenda.ausente(auxiliar.pk, fecha)],
                     'fuera_periodo': not _en_periodo(fecha, convocatoria),
                     'puede_programar': fecha >= hoy and _en_periodo(fecha, convocatoria),
                 }
                 for fecha in semana
-            ])
+            ]
+            for semana in _semanas_del_mes(dia)
+        ]
         return {'semanas': semanas, 'total': len(agenda.programaciones), 'programaciones': agenda.programaciones}
 
     if modo == 'semana':
@@ -224,26 +289,40 @@ def armar_calendario(modo, dia, auxiliares, tonos, convocatoria=None):
     else:
         columnas = _columnas_dia(dia, auxiliares, agenda)
     for columna in columnas:
-        columna['ausentes'] = _ausentes(columna['fecha'], columna['auxiliares'], agenda)
+        columna['ausentes'] = [auxiliar for auxiliar in columna['auxiliares'] if agenda.ausente(auxiliar.pk, columna['fecha'])]
         columna['fuera_periodo'] = not _en_periodo(columna['fecha'], convocatoria)
         if columna['auxiliar']:
             columna['tono'] = tonos.get(columna['auxiliar'].pk, TONOS_AUXILIAR[0])
 
+    # Franja con el nombre de la convocatoria sobre los días de su periodo: cada tramo
+    # empieza donde la columna anterior queda fuera (o al inicio) y termina donde la siguiente sale.
+    for indice, columna in enumerate(columnas):
+        anterior = columnas[indice - 1] if indice else None
+        siguiente = columnas[indice + 1] if indice + 1 < len(columnas) else None
+        dentro = not columna['fuera_periodo']
+        columna['inicia_tramo'] = dentro and (anterior is None or anterior['fuera_periodo'])
+        columna['cierra_tramo'] = dentro and (siguiente is None or siguiente['fuera_periodo'])
+
     filas = [
-        {'hora': time(hora), 'celdas': [_celda(columna, hora, agenda, convocatoria) for columna in columnas]}
-        for hora in _horas_visibles(columnas, agenda)
+        {'hora': time(hora), 'celdas': [_celda(columna, time(hora), agenda, convocatoria) for columna in columnas]}
+        for hora in _horas_visibles(agenda)
     ]
     return {
         'columnas': columnas,
         'filas': filas,
         'total': len(agenda.programaciones),
         'programaciones': agenda.programaciones,
-        'hay_horarios': any(celda['trabaja'] for fila in filas for celda in fila['celdas']),
     }
 
 
-def convocatorias_en_rango(inicio, fin):
-    return Convocatoria.objects.filter(fecha_inicio__lte=fin, fecha_fin__gte=inicio).order_by('fecha_inicio')
+def disponibles_en_bloque(fecha, hora, excluir=None):
+    """Auxiliares que pueden tomar un bloque, para sugerirlos en el formulario."""
+    auxiliares = list(Auxiliar.objects.order_by('apellido', 'nombre'))
+    agenda = Agenda(auxiliares, fecha, fecha, Convocatoria(pk=0))
+    if excluir is not None:
+        # Al editar, la propia visita no cuenta como ocupación.
+        agenda.ocupadas.discard((excluir.auxiliar_id, excluir.fecha_programada, excluir.hora_programada.hour))
+    return [auxiliar for auxiliar in auxiliares if agenda.disponible(auxiliar.pk, fecha, hora)]
 
 
 def resumen_estados(programaciones):

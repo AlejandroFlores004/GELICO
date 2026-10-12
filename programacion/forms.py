@@ -1,9 +1,10 @@
 from django import forms
 from django_select2.forms import Select2Widget
 from django.urls import reverse_lazy
-from django.utils.dateparse import parse_date
+from django.utils.dateparse import parse_date, parse_time
 
 from escuela.models import Escuela
+from .agenda import bloques, etiqueta_bloque, fin_de_bloque
 from .models import Auxiliar, Ausencia, Convocatoria, Horario, Programacion
 
 
@@ -109,12 +110,47 @@ class HorarioForm(forms.ModelForm):
 
 
 class ProgramacionForm(forms.ModelForm):
+    """Visita de un auxiliar a una escuela en un bloque de una hora dentro de una convocatoria."""
+
+    # Se elige de una lista de bloques, pero se acepta cualquier hora válida (visitas anteriores a los bloques).
+    hora_programada = forms.TimeField(
+        label='Bloque de hora',
+        widget=forms.Select(attrs={'class': 'select select-bordered w-full'}),
+    )
+
+    def __init__(self, *args, convocatoria_fija=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        opciones = bloques()
+        # Una visita guardada antes de los bloques (p. ej. 10:15) conserva su hora como opción.
+        actual = self.instance.hora_programada if self.instance.pk else None
+        if isinstance(actual, str):
+            actual = parse_time(actual)
+        if actual and actual not in opciones:
+            opciones = sorted([*opciones, actual])
+        self.fields['hora_programada'].widget.choices = [('', 'Selecciona un bloque')] + [
+            (hora.strftime('%H:%M:%S'), etiqueta_bloque(hora)) for hora in opciones
+        ]
+
+        # Dentro de la agenda de una convocatoria, la visita siempre es de esa convocatoria.
+        self.convocatoria_fija = convocatoria_fija
+        if convocatoria_fija:
+            self.fields['convocatoria'].widget = forms.HiddenInput()
+            self.fields['convocatoria'].initial = convocatoria_fija.pk
+
     def clean(self):
         cleaned_data = super().clean()
+        convocatoria = cleaned_data.get('convocatoria')
         auxiliar = cleaned_data.get('auxiliar')
         fecha = cleaned_data.get('fecha_programada')
         hora = cleaned_data.get('hora_programada')
         escuela = cleaned_data.get('escuela')
+
+        if convocatoria and fecha and not convocatoria.fecha_inicio <= fecha <= convocatoria.fecha_fin:
+            self.add_error(
+                'fecha_programada',
+                f'La fecha debe estar dentro del periodo de la convocatoria '
+                f'({convocatoria.fecha_inicio:%d/%m/%Y} al {convocatoria.fecha_fin:%d/%m/%Y}).',
+            )
 
         horario_sin_cambios = self.instance.pk and (
             auxiliar == self.instance.auxiliar
@@ -122,32 +158,31 @@ class ProgramacionForm(forms.ModelForm):
             and hora == self.instance.hora_programada
         )
 
+        # Basta con que algún horario del auxiliar se cruce con el bloque.
         if auxiliar and fecha and hora and not horario_sin_cambios and not Horario.objects.filter(
             auxiliar=auxiliar,
             fecha=fecha,
-            hora_inicio__lte=hora,
+            hora_inicio__lt=fin_de_bloque(hora),
             hora_fin__gt=hora,
         ).exists():
             self.add_error(
                 None,
-                'La hora seleccionada está fuera del horario registrado para este auxiliar en esa fecha.',
+                'El auxiliar no tiene horario registrado en ese bloque de esa fecha.',
             )
 
-        programaciones_mismo_horario = Programacion.objects.filter(
+        programaciones_mismo_bloque = Programacion.objects.filter(
             fecha_programada=fecha,
-            hora_programada=hora,
+            hora_programada__hour=hora.hour if hora else None,
         )
         if self.instance.pk:
-            programaciones_mismo_horario = programaciones_mismo_horario.exclude(
-                pk=self.instance.pk
-            )
+            programaciones_mismo_bloque = programaciones_mismo_bloque.exclude(pk=self.instance.pk)
 
-        if auxiliar and programaciones_mismo_horario.filter(auxiliar=auxiliar).exists():
+        if auxiliar and hora and programaciones_mismo_bloque.filter(auxiliar=auxiliar).exists():
             self.add_error(
                 None,
                 'Este auxiliar ya tiene otra programación asignada en esa fecha y hora.',
             )
-        if escuela and programaciones_mismo_horario.filter(escuela=escuela).exists():
+        if escuela and hora and programaciones_mismo_bloque.filter(escuela=escuela).exists():
             self.add_error(
                 None,
                 'Esta escuela ya tiene otra programación asignada en esa fecha y hora.',
@@ -189,10 +224,6 @@ class ProgramacionForm(forms.ModelForm):
             'fecha_programada': forms.DateInput(format='%Y-%m-%d', attrs={
                 'class': 'input input-bordered w-full',
                 'type': 'date',
-            }),
-            'hora_programada': forms.TimeInput(format='%H:%M', attrs={
-                'class': 'input input-bordered w-full',
-                'type': 'time',
             }),
             'escuela': Select2Widget(attrs={
                 'data-placeholder': 'Seleccione una escuela',
@@ -271,11 +302,11 @@ class ConvocatoriaForm(forms.ModelForm):
                 'placeholder': 'Descripción de la convocatoria',
                 'rows': 4,
             }),
-            'fecha_inicio': forms.DateInput(attrs={
+            'fecha_inicio': forms.DateInput(format='%Y-%m-%d', attrs={
                 'class': 'input input-bordered w-full',
                 'type': 'date',
             }),
-            'fecha_fin': forms.DateInput(attrs={
+            'fecha_fin': forms.DateInput(format='%Y-%m-%d', attrs={
                 'class': 'input input-bordered w-full',
                 'type': 'date',
             }),
