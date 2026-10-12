@@ -58,8 +58,8 @@
         </a>
       </li>
 
-      <!-- Programación -->
-      <li class="menu-title"><span class="gelico-sidebar-label">Programación</span></li>
+      <!-- Convocatorias -->
+      <li class="menu-title"><span class="gelico-sidebar-label">Convocatorias</span></li>
       <li>
         <a href="{% url 'home_convocatorias' %}" class="{% if url_name == 'home_convocatorias' %}menu-active{% endif %}" title="Convocatorias">
           <span class="gelico-sidebar-icon">
@@ -104,8 +104,11 @@
           <span class="gelico-sidebar-label">Calendario</span>
         </a>
       </li>
+
+      <!-- Personal -->
+      <li class="menu-title"><span class="gelico-sidebar-label">Personal</span></li>
       <li>
-        <a href="{% url 'home_auxiliar' %}" class="{% if url_name == 'home_auxiliar' %}menu-active{% endif %}" title="Auxiliar">
+        <a href="{% url 'home_auxiliar' %}" class="{% if url_name == 'home_auxiliar' %}menu-active{% endif %}" title="Auxiliares">
           <span class="gelico-sidebar-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
                 stroke-width="2" fill="none" stroke="currentColor">
@@ -115,9 +118,10 @@
               <path d="M9 16h6"/>
             </svg>
           </span>
-          <span class="gelico-sidebar-label">Auxiliar</span>
+          <span class="gelico-sidebar-label">Auxiliares</span>
         </a>
       </li>
+
       <!-- Liquidaciones -->
       <li class="menu-title"><span class="gelico-sidebar-label">Liquidaciones</span></li>
       <li>
