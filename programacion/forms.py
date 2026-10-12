@@ -1,7 +1,6 @@
 from django import forms
 from django_select2.forms import Select2Widget
 from django.urls import reverse_lazy
-from django.urls import reverse_lazy
 from django.utils.dateparse import parse_date
 
 from escuela.models import Escuela
