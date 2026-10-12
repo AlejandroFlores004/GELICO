@@ -1,0 +1,69 @@
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body gap-1 p-5">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-base-content/60">Cambios hoy</span>
+                <span class="bg-primary/10 text-primary rounded-lg p-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                    </svg>
+                </span>
+            </div>
+            <p class="text-2xl font-bold tabular-nums">{{ indicadores.cambios_hoy }}</p>
+            <p class="text-xs text-base-content/60">{{ indicadores.cambios_semana }} en los últimos 7 días</p>
+        </div>
+    </div>
+
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body gap-1 p-5">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-base-content/60">Inicios de sesión hoy</span>
+                <span class="bg-success/10 text-success rounded-lg p-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
+                    </svg>
+                </span>
+            </div>
+            <p class="text-2xl font-bold tabular-nums">{{ indicadores.accesos_hoy }}</p>
+            <p class="text-xs text-base-content/60 truncate">
+                {% if indicadores.ultimo_acceso %}
+                Último: {{ indicadores.ultimo_acceso_usuario }}, {{ indicadores.ultimo_acceso.datetime|timesince }}
+                {% else %}
+                Sin inicios de sesión registrados
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <a href="{% url 'home_auditoria' %}?vista=accesos&tipo_acceso=2" class="card bg-base-100 shadow-xl border {% if indicadores.fallidos_mes %}border-error/30{% else %}border-base-300{% endif %} hover:bg-base-200 transition-colors">
+        <div class="card-body gap-1 p-5">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-base-content/60">Intentos fallidos</span>
+                <span class="{% if indicadores.fallidos_mes %}bg-error/10 text-error{% else %}bg-base-200 text-base-content/40{% endif %} rounded-lg p-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                    </svg>
+                </span>
+            </div>
+            <p class="text-2xl font-bold tabular-nums {% if indicadores.fallidos_mes %}text-error{% endif %}">{{ indicadores.fallidos_mes }}</p>
+            <p class="text-xs text-base-content/60">Contraseñas incorrectas en los últimos 30 días</p>
+        </div>
+    </a>
+
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body gap-1 p-5">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-base-content/60">Usuarios activos hoy</span>
+                <span class="bg-info/10 text-info rounded-lg p-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                    </svg>
+                </span>
+            </div>
+            <p class="text-2xl font-bold tabular-nums">{{ indicadores.usuarios_activos_hoy }}</p>
+            <p class="text-xs text-base-content/60">{{ indicadores.solicitudes_hoy }} páginas visitadas hoy</p>
+        </div>
+    </div>
+
+</div>

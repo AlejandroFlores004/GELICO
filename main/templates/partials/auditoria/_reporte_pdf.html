@@ -1,0 +1,153 @@
+{% load static %}<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <title>Bitácora de auditoría</title>
+    <style>
+        @page {
+            size: letter landscape;
+            margin: 1.2cm 1.3cm 1.5cm;
+            @bottom-left { content: "Impreso el {{ fecha_impresion|date:'d/m/Y' }} a las {{ fecha_impresion|date:'h:i A' }}"; font-family: Arial, Helvetica, sans-serif; font-size: 7px; color: #555; }
+            @bottom-right { content: "Página " counter(page) " de " counter(pages); font-family: Arial, Helvetica, sans-serif; font-size: 8px; }
+        }
+        body { font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 9.5px; margin: 0; }
+
+        /* Encabezado */
+        .encabezado { width: 100%; border-collapse: collapse; }
+        .encabezado td { border: none; padding: 0; vertical-align: top; }
+        .logo { width: 2.2cm; height: 2cm; text-align: center; }
+        .logo img { max-width: 100%; max-height: 100%; }
+        .titulos { text-align: center; }
+        .titulos .t1 { font-size: 15px; font-weight: bold; }
+        .titulos .t2 { font-size: 14px; font-weight: bold; margin-top: 2px; }
+        .titulos .t3 { font-size: 13px; font-weight: bold; margin-top: 2px; }
+        .fila-sub { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 11px; }
+        .fila-sub td { border: none; padding: 0; }
+        .filtros { margin-top: 6px; font-size: 10px; }
+        .aviso { margin-top: 6px; padding: 4px 6px; border: 1px solid #000; font-size: 10px; }
+
+        /* Tablas */
+        table.datos { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        table.datos th, table.datos td { border: 1px solid #000; padding: 3px 5px; vertical-align: top; }
+        table.datos th { font-weight: bold; text-align: center; }
+        table.datos th.izq { text-align: left; }
+        table.datos thead { display: table-header-group; }
+        table.datos tr { page-break-inside: avoid; }
+        .centro { text-align: center; }
+        .nowrap { white-space: nowrap; }
+        .mono { font-family: "DejaVu Sans Mono", monospace; font-size: 8.5px; word-break: break-all; }
+        .tenue { color: #555; }
+        .vacio { font-style: italic; color: #444; }
+    </style>
+</head>
+<body>
+    <table class="encabezado">
+        <tr>
+            <td style="width: 2.6cm;"><div class="logo"><img src="{% static 'instituciones/ministerio-educacion-sello.png' %}" alt="Ministerio de Educación"></div></td>
+            <td class="titulos">
+                <div class="t1">MINISTERIO DE EDUCACION</div>
+                <div class="t2">GESTIÓN DE LIQUIDACIONES Y CONVOCATORIAS</div>
+                <div class="t3">Bitácora de auditoría: {{ titulo|lower }}</div>
+            </td>
+            <td style="width: 2.6cm;"><div class="logo"><img src="{% static 'brand/gelico-mark-primary.svg' %}" alt="GELICO"></div></td>
+        </tr>
+    </table>
+    <table class="fila-sub">
+        <tr>
+            <td style="width: 2.6cm;"></td>
+            <td><b>Total de eventos:</b>&nbsp;&nbsp;&nbsp;{{ total }}</td>
+            <td style="text-align: right;">{{ fecha_impresion|date:"d/m/Y" }}</td>
+        </tr>
+    </table>
+    {% if filtros %}
+    <div class="filtros">
+        <b>Filtros aplicados:</b>
+        {% for etiqueta, valor in filtros %}{{ etiqueta }}: {{ valor }}{% if not forloop.last %} · {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+    {% if total > limite %}
+    <div class="aviso">
+        Se muestran los {{ limite }} eventos más recientes de {{ total }}. Usa los filtros (fechas, usuario, módulo) para acotar el reporte.
+    </div>
+    {% endif %}
+
+    <table class="datos">
+        {% if vista == 'cambios' %}
+        <thead>
+            <tr>
+                <th style="width: 4%;">Nº</th>
+                <th style="width: 12%;">Fecha</th>
+                <th class="izq" style="width: 13%;">Usuario</th>
+                <th style="width: 10%;">Acción</th>
+                <th class="izq" style="width: 15%;">Módulo</th>
+                <th class="izq">Registro</th>
+                <th class="izq" style="width: 22%;">Campos modificados</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for evento in eventos %}
+            <tr>
+                <td class="centro">{{ forloop.counter }}</td>
+                <td class="centro nowrap">{{ evento.datetime|date:"d/m/Y h:i A" }}</td>
+                <td>{{ evento.usuario_nombre }}</td>
+                <td class="centro">{{ evento.accion }}</td>
+                <td>{{ evento.app }} · {{ evento.modulo }}</td>
+                <td>{{ evento.object_repr }} <span class="tenue">(#{{ evento.object_id }})</span></td>
+                <td>{{ evento.campos|join:", " }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="vacio">No existen registros.</td></tr>
+            {% endfor %}
+        </tbody>
+        {% elif vista == 'accesos' %}
+        <thead>
+            <tr>
+                <th style="width: 5%;">Nº</th>
+                <th style="width: 18%;">Fecha</th>
+                <th class="izq">Usuario</th>
+                <th style="width: 20%;">Evento</th>
+                <th style="width: 20%;">Dirección IP</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for evento in eventos %}
+            <tr>
+                <td class="centro">{{ forloop.counter }}</td>
+                <td class="centro nowrap">{{ evento.datetime|date:"d/m/Y h:i:s A" }}</td>
+                <td>{{ evento.usuario_nombre }}{% if evento.username and evento.username != evento.usuario_nombre %} <span class="tenue">({{ evento.username }})</span>{% endif %}</td>
+                <td class="centro">{{ evento.tipo }}</td>
+                <td class="centro">{{ evento.remote_ip|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="vacio">No existen registros.</td></tr>
+            {% endfor %}
+        </tbody>
+        {% else %}
+        <thead>
+            <tr>
+                <th style="width: 4%;">Nº</th>
+                <th style="width: 13%;">Fecha</th>
+                <th class="izq" style="width: 15%;">Usuario</th>
+                <th style="width: 7%;">Método</th>
+                <th class="izq">Ruta</th>
+                <th style="width: 12%;">Dirección IP</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for evento in eventos %}
+            <tr>
+                <td class="centro">{{ forloop.counter }}</td>
+                <td class="centro nowrap">{{ evento.datetime|date:"d/m/Y h:i:s A" }}</td>
+                <td>{{ evento.usuario_nombre }}</td>
+                <td class="centro">{{ evento.method }}</td>
+                <td class="mono">{{ evento.url }}{% if evento.query_string %}?{{ evento.query_string }}{% endif %}</td>
+                <td class="centro">{{ evento.remote_ip|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="vacio">No existen registros.</td></tr>
+            {% endfor %}
+        </tbody>
+        {% endif %}
+    </table>
+</body>
+</html>

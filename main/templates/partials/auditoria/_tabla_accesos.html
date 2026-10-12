@@ -1,0 +1,32 @@
+<table class="table w-full">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Usuario</th>
+            <th>Evento</th>
+            <th>Dirección IP</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for evento in eventos %}
+        <tr class="hover">
+            <td class="whitespace-nowrap">
+                <div class="font-medium tabular-nums">{{ evento.datetime|date:"d/m/Y" }}</div>
+                <div class="text-xs text-base-content/60 tabular-nums">{{ evento.datetime|date:"h:i:s A" }}</div>
+            </td>
+            <td>
+                <div class="font-medium">{{ evento.usuario_nombre }}</div>
+                {% if evento.username and evento.username != evento.usuario_nombre %}
+                <div class="text-xs text-base-content/60">{{ evento.username }}</div>
+                {% endif %}
+            </td>
+            <td>
+                <span class="badge badge-soft badge-sm whitespace-nowrap {% if evento.login_type == 0 %}badge-success{% elif evento.login_type == 2 %}badge-error{% else %}badge-neutral{% endif %}">{{ evento.tipo }}</span>
+            </td>
+            <td class="font-mono text-sm">{{ evento.remote_ip|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center text-base-content/60 py-6">No existen registros.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>

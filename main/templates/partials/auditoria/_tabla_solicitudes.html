@@ -1,0 +1,35 @@
+<table class="table w-full">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Usuario</th>
+            <th>Método</th>
+            <th>Ruta</th>
+            <th>Dirección IP</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for evento in eventos %}
+        <tr class="hover">
+            <td class="whitespace-nowrap">
+                <div class="font-medium tabular-nums">{{ evento.datetime|date:"d/m/Y" }}</div>
+                <div class="text-xs text-base-content/60 tabular-nums">{{ evento.datetime|date:"h:i:s A" }}</div>
+            </td>
+            <td class="whitespace-nowrap">
+                <span class="{% if not evento.user %}text-base-content/60 italic{% endif %}">{{ evento.usuario_nombre }}</span>
+            </td>
+            <td>
+                <span class="badge badge-soft badge-sm font-mono {% if evento.method == 'GET' %}badge-neutral{% else %}badge-warning{% endif %}">{{ evento.method }}</span>
+            </td>
+            <td>
+                <div class="font-mono text-sm max-w-md truncate" title="{{ evento.url }}{% if evento.query_string %}?{{ evento.query_string }}{% endif %}">
+                    {{ evento.url }}{% if evento.query_string %}<span class="text-base-content/50">?{{ evento.query_string }}</span>{% endif %}
+                </div>
+            </td>
+            <td class="font-mono text-sm">{{ evento.remote_ip|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-base-content/60 py-6">No existen registros.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>

@@ -1,0 +1,58 @@
+<table class="table w-full">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Usuario</th>
+            <th>Acción</th>
+            <th>Registro</th>
+            <th>Campos modificados</th>
+            <th class="text-right">Detalle</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for evento in eventos %}
+        <tr class="hover">
+            <td class="whitespace-nowrap">
+                <div class="font-medium tabular-nums">{{ evento.datetime|date:"d/m/Y" }}</div>
+                <div class="text-xs text-base-content/60 tabular-nums">{{ evento.datetime|date:"h:i:s A" }}</div>
+            </td>
+            <td class="whitespace-nowrap">
+                <span class="{% if not evento.user %}text-base-content/60 italic{% endif %}">{{ evento.usuario_nombre }}</span>
+            </td>
+            <td>
+                <span class="badge badge-soft badge-sm whitespace-nowrap {% if evento.event_type == 1 %}badge-success{% elif evento.event_type == 2 %}badge-info{% elif evento.event_type == 3 %}badge-error{% else %}badge-neutral{% endif %}">{{ evento.accion }}</span>
+            </td>
+            <td>
+                <div class="text-xs text-base-content/60">{{ evento.app }} · {{ evento.modulo }}</div>
+                <div class="text-sm font-medium max-w-xs truncate" title="{{ evento.object_repr }}">{{ evento.object_repr|default:"—" }}</div>
+            </td>
+            <td>
+                {% if evento.campos %}
+                <div class="flex flex-wrap gap-1 max-w-xs">
+                    {% for campo in evento.campos|slice:":3" %}
+                    <span class="badge badge-ghost badge-sm">{{ campo }}</span>
+                    {% endfor %}
+                    {% if evento.campos|length > 3 %}
+                    <span class="badge badge-ghost badge-sm" title="{{ evento.campos|join:', ' }}">+{{ evento.campos|length|add:"-3" }}</span>
+                    {% endif %}
+                </div>
+                {% else %}
+                <span class="text-base-content/40">—</span>
+                {% endif %}
+            </td>
+            <td>
+                <div class="flex justify-end">
+                    <button hx-get="{% url 'auditoria_detalle' evento.pk %}" hx-target="#auditoria-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm btn-square" title="Ver detalle" aria-label="Ver detalle del cambio en {{ evento.object_repr }}">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+                    </button>
+                </div>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-base-content/60 py-6">No existen registros.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>

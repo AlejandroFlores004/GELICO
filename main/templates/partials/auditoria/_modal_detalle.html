@@ -1,0 +1,152 @@
+<div id="auditoria-modal-wrapper">
+    <dialog id="auditoria-modal" class="modal">
+        <div class="modal-box max-w-4xl">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
+            </form>
+
+            <div class="flex items-start gap-3 pr-8">
+                <span class="mt-1 rounded-lg p-2 shrink-0 {% if evento.event_type == 1 %}bg-success/10 text-success{% elif evento.event_type == 3 %}bg-error/10 text-error{% elif evento.event_type == 2 %}bg-info/10 text-info{% else %}bg-base-200 text-base-content/60{% endif %}">
+                    {% if evento.event_type == 1 %}
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                    {% elif evento.event_type == 3 %}
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                    {% else %}
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" /></svg>
+                    {% endif %}
+                </span>
+                <div class="min-w-0">
+                    <p class="text-sm text-base-content/60">{{ evento.accion }} · {{ evento.app }} · {{ evento.modulo }}</p>
+                    <h3 class="font-bold text-xl break-words">{{ evento.object_repr|default:"(sin nombre)" }}</h3>
+                </div>
+            </div>
+
+            <dl class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5 rounded-lg border border-base-300 bg-base-200/40 p-4 text-sm">
+                <div>
+                    <dt class="text-xs text-base-content/60">Fecha y hora</dt>
+                    <dd class="font-medium tabular-nums">{{ evento.datetime|date:"d/m/Y h:i:s A" }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs text-base-content/60">Usuario</dt>
+                    <dd class="font-medium">{{ evento.usuario_nombre }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs text-base-content/60">Módulo</dt>
+                    <dd class="font-medium">{{ evento.modulo }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs text-base-content/60">ID del registro</dt>
+                    <dd class="font-medium font-mono">{{ evento.object_id }}</dd>
+                </div>
+            </dl>
+
+            <div class="mt-6">
+                {% if tipo_detalle == 'cambios' %}
+                <h4 class="font-semibold">Campos modificados</h4>
+                <p class="text-xs text-base-content/60 mb-2">Valor que tenía cada campo antes del cambio y el valor con el que quedó.</p>
+                <div class="overflow-x-auto rounded-lg border border-base-300">
+                    <table class="table table-sm w-full">
+                        <thead>
+                            <tr>
+                                <th class="w-1/4">Campo</th>
+                                <th>Antes</th>
+                                <th>Después</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fila in filas %}
+                            <tr>
+                                <td class="font-medium align-top">{{ fila.campo }}</td>
+                                <td class="align-top"><span class="text-error/80 line-through decoration-error/40 break-words">{{ fila.antes }}</span></td>
+                                <td class="align-top"><span class="text-success font-medium break-words">{{ fila.despues }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <h4 class="font-semibold">
+                    {% if evento.event_type == 1 %}Datos con los que se creó el registro
+                    {% elif evento.event_type == 3 %}Datos que tenía el registro al eliminarse
+                    {% else %}Datos del registro después del cambio{% endif %}
+                </h4>
+                {% if evento.event_type == 3 %}
+                <p class="text-xs text-base-content/60 mb-2">Esta es la única copia que queda de la información eliminada.</p>
+                {% else %}
+                <p class="text-xs text-base-content/60 mb-2">Fotografía del registro en ese momento.</p>
+                {% endif %}
+                {% if filas %}
+                <div class="overflow-x-auto rounded-lg border border-base-300">
+                    <table class="table table-sm w-full">
+                        <thead>
+                            <tr>
+                                <th class="w-1/4">Campo</th>
+                                <th>Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fila in filas %}
+                            <tr>
+                                <td class="font-medium align-top">{{ fila.campo }}</td>
+                                <td class="align-top break-words">{{ fila.valor }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-sm text-base-content/60 italic">No se registraron datos de los campos para este evento.</p>
+                {% endif %}
+                {% endif %}
+            </div>
+
+            {% if total_historial > 1 %}
+            <div class="mt-6">
+                <h4 class="font-semibold">Historial de este registro</h4>
+                <p class="text-xs text-base-content/60 mb-2">
+                    {% if total_historial > historial|length %}
+                    Los {{ historial|length }} movimientos más recientes de {{ total_historial }}.
+                    {% else %}
+                    {{ total_historial }} movimientos registrados.
+                    {% endif %}
+                </p>
+                <ul class="divide-y divide-base-200 rounded-lg border border-base-300">
+                    {% for item in historial %}
+                    <li>
+                        <button
+                            type="button"
+                            hx-get="{% url 'auditoria_detalle' item.pk %}"
+                            hx-target="#auditoria-modal-wrapper"
+                            hx-swap="outerHTML"
+                            class="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors {% if item.pk == evento.pk %}bg-primary/5{% else %}hover:bg-base-200{% endif %}"
+                            {% if item.pk == evento.pk %}disabled aria-current="true"{% endif %}
+                        >
+                            <span class="badge badge-soft badge-sm w-28 justify-center {% if item.event_type == 1 %}badge-success{% elif item.event_type == 2 %}badge-info{% elif item.event_type == 3 %}badge-error{% else %}badge-neutral{% endif %}">{{ item.accion }}</span>
+                            <span class="flex-1 truncate">
+                                {{ item.usuario_nombre }}
+                                {% if item.campos %}<span class="text-base-content/60">· {{ item.campos|join:", " }}</span>{% endif %}
+                            </span>
+                            <span class="text-xs text-base-content/60 tabular-nums whitespace-nowrap">{{ item.datetime|date:"d/m/Y h:i A" }}</span>
+                            {% if item.pk == evento.pk %}<span class="text-xs font-medium text-primary">Viendo</span>{% endif %}
+                        </button>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="document.getElementById('auditoria-modal').close()">Cerrar</button>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop"><button>close</button></form>
+    </dialog>
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#auditoria-modal-wrapper');
+            var dialog = wrapper.querySelector('#auditoria-modal');
+            dialog.showModal();
+            dialog.addEventListener('close', function () { wrapper.innerHTML = ''; }, { once: true });
+        })();
+    </script>
+</div>
