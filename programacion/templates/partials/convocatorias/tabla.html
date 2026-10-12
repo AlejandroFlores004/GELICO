@@ -57,13 +57,13 @@
         <div class="flex justify-center py-4">
             <div class="join">
                 {% if convocatorias.has_previous %}
-                <a href="{% url 'home_convocatorias' %}{% querystring page=convocatorias.previous_page_number %}" hx-get="{% url 'buscar_convocatorias' %}{% querystring page=convocatorias.previous_page_number %}" hx-target="#listado-convocatorias" hx-swap="outerHTML" class="join-item btn btn-sm">«</a>
+                <a href="{% url 'home_programacion' %}{% querystring seccion='convocatorias' page=convocatorias.previous_page_number %}" hx-get="{% url 'buscar_convocatorias' %}{% querystring page=convocatorias.previous_page_number %}" hx-target="#listado-convocatorias" hx-swap="outerHTML" class="join-item btn btn-sm">«</a>
                 {% else %}<button class="join-item btn btn-sm btn-disabled">«</button>{% endif %}
                 {% for numero in convocatorias.paginator.page_range %}
-                <a href="{% url 'home_convocatorias' %}{% querystring page=numero %}" hx-get="{% url 'buscar_convocatorias' %}{% querystring page=numero %}" hx-target="#listado-convocatorias" hx-swap="outerHTML" class="join-item btn btn-sm {% if numero == convocatorias.number %}btn-active{% endif %}">{{ numero }}</a>
+                <a href="{% url 'home_programacion' %}{% querystring seccion='convocatorias' page=numero %}" hx-get="{% url 'buscar_convocatorias' %}{% querystring page=numero %}" hx-target="#listado-convocatorias" hx-swap="outerHTML" class="join-item btn btn-sm {% if numero == convocatorias.number %}btn-active{% endif %}">{{ numero }}</a>
                 {% endfor %}
                 {% if convocatorias.has_next %}
-                <a href="{% url 'home_convocatorias' %}{% querystring page=convocatorias.next_page_number %}" hx-get="{% url 'buscar_convocatorias' %}{% querystring page=convocatorias.next_page_number %}" hx-target="#listado-convocatorias" hx-swap="outerHTML" class="join-item btn btn-sm">»</a>
+                <a href="{% url 'home_programacion' %}{% querystring seccion='convocatorias' page=convocatorias.next_page_number %}" hx-get="{% url 'buscar_convocatorias' %}{% querystring page=convocatorias.next_page_number %}" hx-target="#listado-convocatorias" hx-swap="outerHTML" class="join-item btn btn-sm">»</a>
                 {% else %}<button class="join-item btn btn-sm btn-disabled">»</button>{% endif %}
             </div>
         </div>

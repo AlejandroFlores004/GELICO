@@ -1,0 +1,59 @@
+{# Mes: cuadrícula de días; cada día lista sus visitas y lleva a la vista de día. #}
+<div class="overflow-x-auto">
+    <div class="min-w-[48rem]">
+        <div class="grid grid-cols-7 border-b border-base-300 bg-base-200/60 text-center text-xs font-semibold uppercase tracking-wide text-base-content/60">
+            <div class="py-2">Dom</div>
+            <div class="py-2">Lun</div>
+            <div class="py-2">Mar</div>
+            <div class="py-2">Mié</div>
+            <div class="py-2">Jue</div>
+            <div class="py-2">Vie</div>
+            <div class="py-2">Sáb</div>
+        </div>
+        {% for semana in calendario.semanas %}
+        <div class="grid grid-cols-7">
+            {% for dia_mes in semana %}
+            <div class="group flex min-h-32 min-w-0 flex-col gap-1 border-b border-r border-base-300 p-1.5 last:border-r-0
+                {% if dia_mes.fuera_periodo %}bg-base-200/40 bg-[repeating-linear-gradient(135deg,transparent_0_8px,var(--color-base-300)_8px_9px)]{% elif not dia_mes.en_mes %}bg-base-200/40{% elif dia_mes.fecha == hoy %}bg-primary/[0.04]{% endif %}">
+                <div class="flex items-center justify-between gap-1">
+                    <a href="{{ dia_mes.url_dia }}" {% include "partials/agenda/_navegar.html" with url=dia_mes.url_dia %}
+                       class="flex size-7 items-center justify-center rounded-full text-sm font-semibold tabular-nums transition {% if dia_mes.fecha == hoy %}bg-primary text-primary-content{% elif not dia_mes.en_mes %}text-base-content/40 hover:bg-base-200{% else %}hover:bg-base-200{% endif %}"
+                       aria-label="Ver el {{ dia_mes.fecha|date:'l j \d\e F' }}"{% if dia_mes.fecha == hoy %} aria-current="date"{% endif %}>{{ dia_mes.fecha.day }}</a>
+                    <div class="flex items-center gap-1">
+                        {% if dia_mes.ausentes %}
+                        <span class="badge badge-error badge-soft badge-xs whitespace-nowrap" title="Ausentes: {% for ausente in dia_mes.ausentes %}{{ ausente.nombre }} {{ ausente.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}">{{ dia_mes.ausentes|length }} aus.</span>
+                        {% endif %}
+                        {% if dia_mes.disponibles %}
+                        <span class="badge badge-ghost badge-xs whitespace-nowrap tabular-nums" title="{{ dia_mes.disponibles }} auxiliar{{ dia_mes.disponibles|pluralize:',es' }} con horario ese día">{{ dia_mes.disponibles }} disp.</span>
+                        {% endif %}
+                        {% if dia_mes.puede_programar %}
+                        <button
+                            type="button"
+                            hx-get="{% url 'programacion_nueva' %}?origen=calendario&fecha={{ dia_mes.fecha|date:'Y-m-d' }}{% if convocatoria %}&convocatoria={{ convocatoria.pk }}{% endif %}{% if auxiliar %}&auxiliar={{ auxiliar.pk }}{% endif %}"
+                            hx-target="#programacion-modal-wrapper"
+                            hx-swap="outerHTML"
+                            class="btn btn-ghost btn-xs btn-square text-primary opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100"
+                            title="Programar una visita este día"
+                            aria-label="Programar una visita el {{ dia_mes.fecha|date:'l j \d\e F' }}"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex min-w-0 flex-col gap-1">
+                    {% for programacion in dia_mes.programaciones|slice:":3" %}
+                        {% include "partials/agenda/_tarjeta.html" with compacta=True %}
+                    {% endfor %}
+                    {% if dia_mes.programaciones|length > 3 %}
+                    <a href="{{ dia_mes.url_dia }}" {% include "partials/agenda/_navegar.html" with url=dia_mes.url_dia %} class="px-1 text-xs font-medium text-primary hover:underline">
+                        +{{ dia_mes.programaciones|length|add:"-3" }} más
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+</div>

@@ -11,7 +11,7 @@
         </div>
 
         {% if convocatoria_vigente %}
-        <a href="{% url 'home_convocatorias' %}" class="block rounded-lg bg-primary/5 border border-primary/20 p-3 hover:bg-primary/10 transition-colors">
+        <a href="{% url 'home_programacion' %}?convocatoria={{ convocatoria_vigente.pk }}" class="block rounded-lg bg-primary/5 border border-primary/20 p-3 hover:bg-primary/10 transition-colors">
             <div class="flex items-center justify-between gap-2">
                 <span class="text-xs font-semibold uppercase tracking-wide text-primary">Convocatoria vigente</span>
                 <span class="text-xs text-base-content/60">
@@ -23,13 +23,13 @@
             <p class="text-xs text-base-content/50 mt-1">{{ convocatoria_vigente.fecha_inicio|date:"j M" }} – {{ convocatoria_vigente.fecha_fin|date:"j M Y" }}</p>
         </a>
         {% elif proxima_convocatoria %}
-        <a href="{% url 'home_convocatorias' %}" class="block rounded-lg border border-base-300 p-3 hover:bg-base-200 transition-colors">
+        <a href="{% url 'home_programacion' %}?modo=mes&fecha={{ proxima_convocatoria.fecha_inicio|date:'Y-m-d' }}&convocatoria={{ proxima_convocatoria.pk }}" class="block rounded-lg border border-base-300 p-3 hover:bg-base-200 transition-colors">
             <span class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Próxima convocatoria</span>
             <p class="font-semibold mt-1">{{ proxima_convocatoria.nombre }}</p>
             <p class="text-xs text-base-content/50">Inicia el {{ proxima_convocatoria.fecha_inicio|date:"j \d\e F" }} (en {{ proxima_convocatoria.fecha_inicio|timeuntil }})</p>
         </a>
         {% else %}
-        <a href="{% url 'home_convocatorias' %}" class="block rounded-lg border border-dashed border-base-300 p-3 text-sm text-base-content/60 hover:bg-base-200 transition-colors">
+        <a href="{% url 'home_programacion' %}?seccion=convocatorias" class="block rounded-lg border border-dashed border-base-300 p-3 text-sm text-base-content/60 hover:bg-base-200 transition-colors">
             No hay convocatorias vigentes ni próximas.
         </a>
         {% endif %}

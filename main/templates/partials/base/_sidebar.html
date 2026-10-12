@@ -61,34 +61,7 @@
       <!-- Convocatorias -->
       <li class="menu-title"><span class="gelico-sidebar-label">Convocatorias</span></li>
       <li>
-        <a href="{% url 'home_convocatorias' %}" class="{% if url_name == 'home_convocatorias' %}menu-active{% endif %}" title="Convocatorias">
-          <span class="gelico-sidebar-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
-                stroke-width="2" fill="none" stroke="currentColor">
-              <path d="m3 11 18-5v12L3 14v-3z"/>
-              <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
-            </svg>
-          </span>
-          <span class="gelico-sidebar-label">Convocatorias</span>
-        </a>
-      </li>
-      <li>
-        <a href="{% url 'home_programacion' %}" class="{% if url_name == 'home_programacion' %}menu-active{% endif %}" title="Programaciones">
-          <span class="gelico-sidebar-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
-                stroke-width="2" fill="none" stroke="currentColor">
-              <rect x="3" y="4" width="18" height="18" rx="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
-              <path d="m9 16 2 2 4-4"/>
-            </svg>
-          </span>
-          <span class="gelico-sidebar-label">Programaciones</span>
-        </a>
-      </li>
-      <li>
-        <a href="{% url 'home_calendario' %}" class="{% if url_name == 'home_calendario' %}menu-active{% endif %}" title="Calendario">
+        <a href="{% url 'home_programacion' %}" class="{% if url_name == 'home_programacion' %}menu-active{% endif %}" title="Programación">
           <span class="gelico-sidebar-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
                 stroke-width="2" fill="none" stroke="currentColor">
@@ -101,7 +74,7 @@
               <path d="M16 14h.01"/>
             </svg>
           </span>
-          <span class="gelico-sidebar-label">Calendario</span>
+          <span class="gelico-sidebar-label">Programación</span>
         </a>
       </li>
 

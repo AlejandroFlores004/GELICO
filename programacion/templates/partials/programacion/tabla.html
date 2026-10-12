@@ -58,13 +58,13 @@
         <div class="flex justify-center py-4">
             <div class="join">
                 {% if programaciones.has_previous %}
-                <a href="{% url 'home_programacion' %}{% querystring page=programaciones.previous_page_number %}" hx-get="{% url 'buscar_programaciones' %}{% querystring page=programaciones.previous_page_number %}" hx-target="#listado-programaciones" hx-swap="outerHTML" class="join-item btn btn-sm">«</a>
+                <a href="{% url 'home_programacion' %}{% querystring seccion='programaciones' page=programaciones.previous_page_number %}" hx-get="{% url 'buscar_programaciones' %}{% querystring page=programaciones.previous_page_number %}" hx-target="#listado-programaciones" hx-swap="outerHTML" class="join-item btn btn-sm">«</a>
                 {% else %}<button class="join-item btn btn-sm btn-disabled">«</button>{% endif %}
                 {% for numero in programaciones.paginator.page_range %}
-                <a href="{% url 'home_programacion' %}{% querystring page=numero %}" hx-get="{% url 'buscar_programaciones' %}{% querystring page=numero %}" hx-target="#listado-programaciones" hx-swap="outerHTML" class="join-item btn btn-sm {% if numero == programaciones.number %}btn-active{% endif %}">{{ numero }}</a>
+                <a href="{% url 'home_programacion' %}{% querystring seccion='programaciones' page=numero %}" hx-get="{% url 'buscar_programaciones' %}{% querystring page=numero %}" hx-target="#listado-programaciones" hx-swap="outerHTML" class="join-item btn btn-sm {% if numero == programaciones.number %}btn-active{% endif %}">{{ numero }}</a>
                 {% endfor %}
                 {% if programaciones.has_next %}
-                <a href="{% url 'home_programacion' %}{% querystring page=programaciones.next_page_number %}" hx-get="{% url 'buscar_programaciones' %}{% querystring page=programaciones.next_page_number %}" hx-target="#listado-programaciones" hx-swap="outerHTML" class="join-item btn btn-sm">»</a>
+                <a href="{% url 'home_programacion' %}{% querystring seccion='programaciones' page=programaciones.next_page_number %}" hx-get="{% url 'buscar_programaciones' %}{% querystring page=programaciones.next_page_number %}" hx-target="#listado-programaciones" hx-swap="outerHTML" class="join-item btn btn-sm">»</a>
                 {% else %}<button class="join-item btn btn-sm btn-disabled">»</button>{% endif %}
             </div>
         </div>

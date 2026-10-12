@@ -1,0 +1,63 @@
+{# Semana o día: una fila por hora; columnas por día (semana) o por auxiliar (día). #}
+<div class="overflow-x-auto">
+    <table class="w-full table-fixed border-collapse text-sm {% if calendario.columnas|length > 3 %}min-w-[56rem]{% endif %}">
+        <thead>
+            <tr>
+                <th scope="col" class="w-20 border-b border-base-300 bg-base-200/60"><span class="sr-only">Hora</span></th>
+                {% for columna in calendario.columnas %}
+                <th scope="col" class="border-b border-l border-base-300 bg-base-200/60 px-2 py-2 text-center font-medium {% if columna.fuera_periodo %}text-base-content/50{% endif %}">
+                    {% if columna.auxiliar and calendario.columnas|length > 1 %}
+                    <span class="inline-flex max-w-full items-center gap-2 px-1 py-2">
+                        <span class="size-2.5 shrink-0 rounded-full {{ columna.tono.punto }}" aria-hidden="true"></span>
+                        <span class="truncate font-semibold" title="{{ columna.auxiliar.nombre }} {{ columna.auxiliar.apellido }}">{{ columna.auxiliar.nombre }} {{ columna.auxiliar.apellido }}</span>
+                    </span>
+                    {% if columna.ausentes %}<span class="badge badge-error badge-soft badge-xs">Ausente</span>{% endif %}
+                    {% else %}
+                    <a href="{{ columna.url_dia }}" {% include "partials/agenda/_navegar.html" with url=columna.url_dia %}
+                       class="inline-flex flex-col items-center gap-0.5 rounded-xl px-3 py-1 transition hover:bg-base-100"
+                       aria-label="Ver el {{ columna.fecha|date:'l j \d\e F' }}">
+                        <span class="text-xs font-medium text-base-content/60">{{ columna.fecha|date:'l'|capfirst }}</span>
+                        <span class="flex size-9 items-center justify-center rounded-full text-lg font-bold tabular-nums {% if columna.fecha == hoy %}bg-primary text-primary-content{% endif %}"{% if columna.fecha == hoy %} aria-current="date"{% endif %}>{{ columna.fecha|date:'j' }}</span>
+                    </a>
+                    {% if columna.ausentes %}
+                    <span class="badge badge-error badge-soft badge-xs" title="Ausentes: {% for ausente in columna.ausentes %}{{ ausente.nombre }} {{ ausente.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+                        {{ columna.ausentes|length }} ausente{{ columna.ausentes|length|pluralize }}
+                    </span>
+                    {% endif %}
+                    {% endif %}
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for fila in calendario.filas %}
+            <tr>
+                <th scope="row" class="w-20 whitespace-nowrap border-t border-base-300 px-2 pt-2 text-right align-top text-xs font-medium tabular-nums text-base-content/60">{{ fila.hora|time:'g:i A' }}</th>
+                {% for celda in fila.celdas %}
+                <td class="group h-24 border-l border-t border-base-300 p-1 align-top
+                    {% if celda.fuera_periodo or not celda.trabaja %}bg-base-200/40 bg-[repeating-linear-gradient(135deg,transparent_0_8px,var(--color-base-300)_8px_9px)]{% elif celda.fecha == hoy %}bg-primary/[0.04]{% endif %}">
+                    <div class="flex h-full min-h-20 gap-1">
+                        {% for programacion in celda.programaciones %}
+                            {% include "partials/agenda/_tarjeta.html" %}
+                        {% endfor %}
+                        {% if celda.hora_libre %}
+                        <button
+                            type="button"
+                            hx-get="{% url 'programacion_nueva' %}?origen=calendario&fecha={{ celda.fecha|date:'Y-m-d' }}&hora={{ celda.hora_libre|time:'H:i' }}{% if celda.auxiliar_libre %}&auxiliar={{ celda.auxiliar_libre }}{% endif %}{% if convocatoria %}&convocatoria={{ convocatoria.pk }}{% endif %}"
+                            hx-target="#programacion-modal-wrapper"
+                            hx-swap="outerHTML"
+                            class="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-primary/30 text-primary/60 opacity-50 transition hover:border-primary hover:bg-primary/5 hover:text-primary group-hover:opacity-100 focus-visible:opacity-100 {% if celda.programaciones %}w-8 shrink-0{% else %}w-full{% endif %}"
+                            title="Programar a las {{ celda.hora_libre|time:'g:i A' }}{% if celda.total_libres > 1 %} ({{ celda.total_libres }} auxiliares libres){% endif %}"
+                            aria-label="Programar una visita el {{ celda.fecha|date:'l j \d\e F' }} a las {{ celda.hora_libre|time:'g:i A' }}"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

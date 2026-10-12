@@ -1,2 +1,2 @@
 <div id="convocatoria-modal-wrapper"></div>
-{% include "partials/convocatorias/tabla.html" with oob=True %}
+{% if not desde_calendario %}{% include "partials/convocatorias/tabla.html" with oob=True %}{% endif %}
