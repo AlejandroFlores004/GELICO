@@ -1,0 +1,149 @@
+<div id="grupo-modal-wrapper">
+    <dialog id="grupo-modal" class="modal">
+        <div class="modal-box max-w-4xl">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
+            </form>
+            <h3 class="font-bold text-xl">{% if instance %}Editar Grupo{% else %}Agregar Grupo{% endif %}</h3>
+
+            <form
+                hx-post="{% if instance %}{% url 'grupo_editar' instance.pk %}{% else %}{% url 'grupo_nuevo' %}{% endif %}{% querystring %}"
+                hx-target="#grupo-modal-wrapper"
+                hx-swap="outerHTML"
+                class="space-y-6 mt-4"
+            >
+                {% csrf_token %}
+
+                {% include "partials/usuario/_campo.html" with field=form.name %}
+
+                <section>
+                    <div class="flex flex-wrap items-end justify-between gap-2 mb-2">
+                        <div>
+                            <h4 class="text-sm font-semibold text-base-content/70">Permisos</h4>
+                            <p class="text-xs text-base-content/50">Qué pueden hacer los usuarios del grupo en cada módulo. <span data-contador-permisos class="font-medium"></span></p>
+                        </div>
+                        <div class="join">
+                            <button type="button" class="btn btn-xs join-item" data-marcar="lectura">Solo lectura</button>
+                            <button type="button" class="btn btn-xs join-item" data-marcar="todos">Todos</button>
+                            <button type="button" class="btn btn-xs join-item" data-marcar="ninguno">Ninguno</button>
+                        </div>
+                    </div>
+                    {% if form.permissions.errors %}<span class="block text-error text-xs mb-2">{{ form.permissions.errors.0 }}</span>{% endif %}
+
+                    <div class="overflow-x-auto max-h-96 overflow-y-auto rounded-lg border border-base-300">
+                        <table class="table table-sm table-pin-rows w-full">
+                            {% for app in form.matriz_permisos %}
+                            <thead>
+                                <tr class="bg-base-200">
+                                    <th class="text-base-content">{{ app.app }}</th>
+                                    {% for accion, etiqueta in acciones_permiso %}<th class="text-center w-20">{{ etiqueta }}</th>{% endfor %}
+                                    <th class="text-center w-16">Todo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fila in app.filas %}
+                                <tr class="hover" data-fila-permisos>
+                                    <td>
+                                        <span class="font-medium">{{ fila.modelo }}</span>
+                                        {% for otro in fila.otros %}
+                                        <label class="flex items-center gap-2 mt-1 text-xs text-base-content/70 cursor-pointer">
+                                            <input type="checkbox" name="permissions" value="{{ otro.id }}" class="checkbox checkbox-xs checkbox-primary"{% if otro.marcado %} checked{% endif %}>
+                                            {{ otro.nombre }}
+                                        </label>
+                                        {% endfor %}
+                                    </td>
+                                    {% for celda in fila.celdas %}
+                                    <td class="text-center">
+                                        {% if celda %}
+                                        <input type="checkbox" name="permissions" value="{{ celda.id }}" data-accion="{{ celda.accion }}" class="checkbox checkbox-sm checkbox-primary" title="{{ celda.nombre }}" aria-label="{{ celda.nombre }}"{% if celda.marcado %} checked{% endif %}>
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                    <td class="text-center">
+                                        <input type="checkbox" data-fila-todo class="checkbox checkbox-sm" aria-label="Todos los permisos de {{ fila.modelo }}">
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            {% endfor %}
+                        </table>
+                    </div>
+                </section>
+
+                <section>
+                    <h4 class="text-sm font-semibold text-base-content/70">Usuarios del grupo</h4>
+                    <p class="text-xs text-base-content/50 mb-2">Los usuarios marcados reciben todos los permisos de este grupo.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto rounded-lg border border-base-300 p-3">
+                        {% for opcion in form.usuarios %}
+                        <label class="flex items-center gap-2 cursor-pointer text-sm">
+                            {{ opcion.tag }}
+                            <span>{{ opcion.choice_label }}</span>
+                        </label>
+                        {% empty %}
+                        <span class="text-sm text-base-content/60">No hay usuarios registrados.</span>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('grupo-modal').close()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop"><button>close</button></form>
+    </dialog>
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#grupo-modal-wrapper');
+            var dialog = wrapper.querySelector('#grupo-modal');
+            var permisos = function (raiz) { return Array.prototype.slice.call((raiz || wrapper).querySelectorAll('input[name="permissions"]')); };
+            var contador = wrapper.querySelector('[data-contador-permisos]');
+
+            function actualizarFila(fila) {
+                var cajas = permisos(fila);
+                var marcadas = cajas.filter(function (c) { return c.checked; }).length;
+                var todo = fila.querySelector('[data-fila-todo]');
+                todo.checked = cajas.length > 0 && marcadas === cajas.length;
+                todo.indeterminate = marcadas > 0 && marcadas < cajas.length;
+            }
+
+            function actualizarTodo() {
+                wrapper.querySelectorAll('[data-fila-permisos]').forEach(actualizarFila);
+                var total = permisos().filter(function (c) { return c.checked; }).length;
+                contador.textContent = total ? '(' + total + ' seleccionado' + (total === 1 ? '' : 's') + ')' : '';
+            }
+
+            wrapper.querySelectorAll('[data-fila-permisos]').forEach(function (fila) {
+                fila.querySelector('[data-fila-todo]').addEventListener('change', function (evento) {
+                    permisos(fila).forEach(function (c) { c.checked = evento.target.checked; });
+                    actualizarTodo();
+                });
+                permisos(fila).forEach(function (caja) {
+                    caja.addEventListener('change', function () {
+                        // Agregar, modificar o eliminar sin poder ver el registro no tiene sentido: se marca "Ver".
+                        var ver = fila.querySelector('[data-accion="view"]');
+                        if (caja.checked && caja.dataset.accion && caja.dataset.accion !== 'view' && ver) {
+                            ver.checked = true;
+                        }
+                        actualizarTodo();
+                    });
+                });
+            });
+
+            wrapper.querySelectorAll('[data-marcar]').forEach(function (boton) {
+                boton.addEventListener('click', function () {
+                    var modo = boton.dataset.marcar;
+                    permisos().forEach(function (c) {
+                        c.checked = modo === 'todos' || (modo === 'lectura' && c.dataset.accion === 'view');
+                    });
+                    actualizarTodo();
+                });
+            });
+
+            actualizarTodo();
+            dialog.showModal();
+            dialog.addEventListener('close', function () { wrapper.innerHTML = ''; }, { once: true });
+        })();
+    </script>
+</div>

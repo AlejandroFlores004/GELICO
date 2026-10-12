@@ -1,0 +1,43 @@
+<div id="usuario-modal-wrapper">
+    <dialog id="usuario-modal" class="modal">
+        <div class="modal-box max-w-lg">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
+            </form>
+            <h3 class="font-bold text-xl">Cambiar contraseña</h3>
+            <p class="text-sm text-base-content/60">
+                {{ instance.get_full_name|default:instance.username }} ({{ instance.username }})
+            </p>
+            {% if instance.pk == request.user.pk %}
+            <p class="text-xs text-base-content/60 mt-2">Es tu propia cuenta: seguirás con la sesión abierta después del cambio.</p>
+            {% else %}
+            <p class="text-xs text-base-content/60 mt-2">Comunícale la nueva contraseña al usuario por un medio seguro.</p>
+            {% endif %}
+
+            <form
+                hx-post="{% url 'usuario_contrasena' instance.pk %}{% querystring %}"
+                hx-target="#usuario-modal-wrapper"
+                hx-swap="outerHTML"
+                class="space-y-4 mt-4"
+                autocomplete="off"
+            >
+                {% csrf_token %}
+                {% include "partials/usuario/_campo.html" with field=form.new_password1 %}
+                {% include "partials/usuario/_campo.html" with field=form.new_password2 %}
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('usuario-modal').close()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar contraseña</button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop"><button>close</button></form>
+    </dialog>
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#usuario-modal-wrapper');
+            var dialog = wrapper.querySelector('#usuario-modal');
+            dialog.showModal();
+            dialog.addEventListener('close', function () { wrapper.innerHTML = ''; }, { once: true });
+        })();
+    </script>
+</div>

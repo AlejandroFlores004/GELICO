@@ -1,0 +1,43 @@
+<div id="usuario-modal-wrapper">
+    <dialog id="usuario-modal" class="modal">
+        <div class="modal-box max-w-md">
+            <form method="dialog"><button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button></form>
+            <h3 class="font-bold text-lg">{% if instance.is_active %}Desactivar usuario{% else %}Activar usuario{% endif %}</h3>
+
+            {% if es_propio %}
+            <div role="alert" class="alert alert-warning alert-soft text-sm mt-4">No puedes desactivar tu propia cuenta.</div>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="document.getElementById('usuario-modal').close()">Cerrar</button>
+            </div>
+            {% else %}
+            <p class="py-4">
+                ¿Estás seguro que deseas {% if instance.is_active %}desactivar{% else %}activar{% endif %}
+                a <strong>{{ instance.get_full_name|default:instance.username }}</strong> ({{ instance.username }})?
+            </p>
+            <p class="text-sm text-base-content/60">
+                {% if instance.is_active %}
+                No podrá iniciar sesión, pero se conservan sus datos, grupos e historial. Puedes reactivarlo cuando quieras.
+                {% else %}
+                Podrá volver a iniciar sesión con su contraseña actual.
+                {% endif %}
+            </p>
+            <form hx-post="{% url 'usuario_toggle' instance.pk %}{% querystring %}" hx-target="#usuario-modal-wrapper" hx-swap="outerHTML">
+                {% csrf_token %}
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('usuario-modal').close()">Cancelar</button>
+                    <button type="submit" class="btn {% if instance.is_active %}btn-warning{% else %}btn-success{% endif %}">{% if instance.is_active %}Desactivar{% else %}Activar{% endif %}</button>
+                </div>
+            </form>
+            {% endif %}
+        </div>
+        <form method="dialog" class="modal-backdrop"><button>close</button></form>
+    </dialog>
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#usuario-modal-wrapper');
+            var dialog = wrapper.querySelector('#usuario-modal');
+            dialog.showModal();
+            dialog.addEventListener('close', function () { wrapper.innerHTML = ''; }, { once: true });
+        })();
+    </script>
+</div>

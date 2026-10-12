@@ -1,0 +1,8 @@
+<label class="flex items-start gap-3 rounded-lg border {% if field.errors %}border-error{% else %}border-base-300{% endif %} p-3 cursor-pointer" for="{{ field.id_for_label }}">
+    {{ field }}
+    <span class="flex-1">
+        <span class="block text-sm font-medium">{{ field.label }}</span>
+        <span class="block text-xs text-base-content/60">{{ field.help_text }}</span>
+        {% if field.errors %}<span class="block text-error text-xs mt-1">{{ field.errors.0 }}</span>{% endif %}
+    </span>
+</label>

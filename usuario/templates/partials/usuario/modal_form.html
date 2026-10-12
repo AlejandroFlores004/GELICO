@@ -1,0 +1,90 @@
+<div id="usuario-modal-wrapper">
+    <dialog id="usuario-modal" class="modal">
+        <div class="modal-box max-w-3xl">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
+            </form>
+            <h3 class="font-bold text-xl">{% if instance %}Editar Usuario{% else %}Agregar Usuario{% endif %}</h3>
+            {% if instance %}<p class="text-sm text-base-content/60">{{ instance.username }}</p>{% endif %}
+
+            <form
+                hx-post="{% if instance %}{% url 'usuario_editar' instance.pk %}{% else %}{% url 'usuario_nuevo' %}{% endif %}{% querystring %}"
+                hx-target="#usuario-modal-wrapper"
+                hx-swap="outerHTML"
+                class="space-y-6 mt-4"
+                autocomplete="off"
+            >
+                {% csrf_token %}
+                {% if form.non_field_errors %}
+                <div role="alert" class="alert alert-warning alert-soft text-sm">
+                    <ul class="list-disc list-inside">
+                        {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <section>
+                    <h4 class="text-sm font-semibold text-base-content/70 mb-2">Datos de la cuenta</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {% include "partials/usuario/_campo.html" with field=form.username %}
+                        {% include "partials/usuario/_campo.html" with field=form.email %}
+                        {% include "partials/usuario/_campo.html" with field=form.first_name %}
+                        {% include "partials/usuario/_campo.html" with field=form.last_name %}
+                    </div>
+                </section>
+
+                {% if form.password1 %}
+                <section>
+                    <h4 class="text-sm font-semibold text-base-content/70 mb-2">Contraseña</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {% include "partials/usuario/_campo.html" with field=form.password1 %}
+                        {% include "partials/usuario/_campo.html" with field=form.password2 %}
+                    </div>
+                </section>
+                {% endif %}
+
+                <section>
+                    <h4 class="text-sm font-semibold text-base-content/70">Grupos</h4>
+                    <p class="text-xs text-base-content/50 mb-2">{{ form.groups.help_text }}</p>
+                    {% if form.groups.field.queryset.exists %}
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto rounded-lg border border-base-300 p-3">
+                        {% for opcion in form.groups %}
+                        <label class="flex items-center gap-2 cursor-pointer text-sm">
+                            {{ opcion.tag }}
+                            <span>{{ opcion.choice_label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="rounded-lg border border-dashed border-base-300 p-3 text-sm text-base-content/60">
+                        Aún no hay grupos creados. Puedes crearlos en <a href="{% url 'home_grupos' %}" class="link link-primary">Grupos</a>.
+                    </div>
+                    {% endif %}
+                </section>
+
+                <section>
+                    <h4 class="text-sm font-semibold text-base-content/70 mb-2">Rol y estado</h4>
+                    <div class="space-y-2">
+                        {% include "partials/usuario/_interruptor.html" with field=form.is_active %}
+                        {% include "partials/usuario/_interruptor.html" with field=form.is_staff %}
+                        {% if form.is_superuser %}{% include "partials/usuario/_interruptor.html" with field=form.is_superuser %}{% endif %}
+                    </div>
+                </section>
+
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('usuario-modal').close()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop"><button>close</button></form>
+    </dialog>
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#usuario-modal-wrapper');
+            var dialog = wrapper.querySelector('#usuario-modal');
+            dialog.showModal();
+            dialog.addEventListener('close', function () { wrapper.innerHTML = ''; }, { once: true });
+        })();
+    </script>
+</div>

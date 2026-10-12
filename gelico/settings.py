@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'programacion',
     'escuela',
     'liquidacion',
+    'usuario',
     'tailwind',
     'theme',
     'easyaudit',
