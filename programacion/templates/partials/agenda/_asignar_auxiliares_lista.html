@@ -1,6 +1,7 @@
 {% comment %}
-  Lista del modal de auxiliares de un día: los asignados (con "Quitar") y los que tienen horario ese
-  día (con "Agregar"). Cada botón guarda al momento y vuelve a pintar solo esta lista.
+  Lista del modal de auxiliares de un día: los asignados (con "No llegó" / "Sí llegó" y "Quitar") y
+  los que tienen horario ese día (con "Agregar"). Cada botón guarda al momento y vuelve a pintar
+  solo esta lista.
 {% endcomment %}
 <div id="asignar-auxiliares-lista" class="mt-4 space-y-4"
      hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
@@ -12,25 +13,62 @@
 
     <section>
         <h4 class="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/60">Asignados a este día · {{ asignados|length }}</h4>
+        {% if asignados and not del_dia.se_puede_registrar_inasistencia %}
+        <p class="mb-2 text-xs text-base-content/60">Si alguien no llega, podrás registrarlo a partir de ese día.</p>
+        {% endif %}
         <ul class="divide-y divide-base-200 rounded-lg border border-base-300">
             {% for fila in asignados %}
-            <li class="flex items-center gap-3 px-3 py-2.5">
-                <span class="min-w-0 flex-1">
-                    <span class="block truncate font-medium">{{ fila.auxiliar.nombre }} {{ fila.auxiliar.apellido }}</span>
-                    <span class="block truncate text-xs text-base-content/60">{{ fila.auxiliar.institucion }}</span>
-                </span>
-                {% if fila.ausente %}<span class="badge badge-error badge-soft badge-sm whitespace-nowrap">Ausente</span>{% endif %}
-                {% for jornada in fila.jornadas %}
-                <span class="badge badge-primary badge-soft badge-sm whitespace-nowrap">{{ jornada }}</span>
-                {% empty %}
-                <span class="badge badge-warning badge-soft badge-sm whitespace-nowrap" title="Su horario actual no incluye este día, así que no cubre visitas">Sin horario este día</span>
-                {% endfor %}
-                <button type="button" class="btn btn-ghost btn-sm text-error"
-                        hx-post="{% url 'convocatoria_dia_auxiliares' convocatoria.pk %}?fecha={{ fecha|date:'Y-m-d' }}"
-                        hx-vals='{"quitar": "{{ fila.auxiliar.pk }}"}'
-                        aria-label="Quitar a {{ fila.auxiliar.nombre }} {{ fila.auxiliar.apellido }} de este día">
-                    Quitar
-                </button>
+            <li class="px-3 py-2.5 {% if fila.ausencia %}bg-error/5{% endif %}">
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <span class="min-w-0 flex-1">
+                        <span class="block truncate font-medium {% if fila.ausencia %}line-through decoration-error/60{% endif %}">{{ fila.auxiliar.nombre }} {{ fila.auxiliar.apellido }}</span>
+                        <span class="block truncate text-xs text-base-content/60">{{ fila.auxiliar.institucion }}</span>
+                    </span>
+                    {% for jornada in fila.jornadas %}
+                    <span class="badge badge-primary badge-soft badge-sm whitespace-nowrap">{{ jornada }}</span>
+                    {% empty %}
+                    <span class="badge badge-warning badge-soft badge-sm whitespace-nowrap" title="Su horario actual no incluye este día, así que no cubre visitas">Sin horario este día</span>
+                    {% endfor %}
+                    <div class="flex items-center gap-1">
+                        {% if fila.ausencia %}
+                            {% if perms.programacion.delete_ausencia %}
+                            <button type="button" class="btn btn-ghost btn-sm"
+                                    hx-post="{% url 'convocatoria_dia_auxiliares' convocatoria.pk %}?fecha={{ fecha|date:'Y-m-d' }}"
+                                    hx-vals='{"si_llego": "{{ fila.auxiliar.pk }}"}'
+                                    title="Deshacer: sí llegó"
+                                    aria-label="Deshacer la inasistencia de {{ fila.auxiliar.nombre }} {{ fila.auxiliar.apellido }}">
+                                Sí llegó
+                            </button>
+                            {% endif %}
+                        {% elif del_dia.se_puede_registrar_inasistencia and perms.programacion.add_ausencia %}
+                        <button type="button" class="btn btn-ghost btn-sm text-error"
+                                onclick="var f = this.closest('li').querySelector('[data-no-llego]'); f.classList.toggle('hidden'); if (!f.classList.contains('hidden')) f.querySelector('input').focus();"
+                                aria-label="Registrar que {{ fila.auxiliar.nombre }} {{ fila.auxiliar.apellido }} no llegó">
+                            No llegó
+                        </button>
+                        {% endif %}
+                        <button type="button" class="btn btn-ghost btn-sm"
+                                hx-post="{% url 'convocatoria_dia_auxiliares' convocatoria.pk %}?fecha={{ fecha|date:'Y-m-d' }}"
+                                hx-vals='{"quitar": "{{ fila.auxiliar.pk }}"}'
+                                aria-label="Quitar a {{ fila.auxiliar.nombre }} {{ fila.auxiliar.apellido }} de este día">
+                            Quitar
+                        </button>
+                    </div>
+                </div>
+                {% if fila.ausencia %}
+                <p class="mt-1.5 flex items-start gap-1.5 text-xs">
+                    <span class="badge badge-error badge-sm shrink-0">No llegó</span>
+                    <span class="text-base-content/70 break-words">{{ fila.ausencia.motivo }}</span>
+                </p>
+                {% elif del_dia.se_puede_registrar_inasistencia and perms.programacion.add_ausencia %}
+                <form data-no-llego class="hidden mt-2 flex gap-2"
+                      hx-post="{% url 'convocatoria_dia_auxiliares' convocatoria.pk %}?fecha={{ fecha|date:'Y-m-d' }}">
+                    <input type="hidden" name="no_llego" value="{{ fila.auxiliar.pk }}">
+                    <input type="text" name="motivo" maxlength="255" class="input input-bordered input-sm flex-1"
+                           placeholder="Motivo (opcional): {{ del_dia.MOTIVO_POR_DEFECTO|lower }}" aria-label="Motivo de la inasistencia">
+                    <button type="submit" class="btn btn-error btn-sm">Registrar</button>
+                </form>
+                {% endif %}
             </li>
             {% empty %}
             <li class="px-3 py-4 text-center text-sm text-base-content/60">Nadie asignado todavía.</li>
@@ -47,12 +85,12 @@
                     <span class="block truncate font-medium">{{ fila.auxiliar.nombre }} {{ fila.auxiliar.apellido }}</span>
                     <span class="block truncate text-xs text-base-content/60">{{ fila.auxiliar.institucion }}</span>
                 </span>
-                {% if fila.ausente %}<span class="badge badge-error badge-soft badge-sm whitespace-nowrap">Ausente</span>{% endif %}
+                {% if fila.ausente %}<span class="badge badge-error badge-soft badge-sm whitespace-nowrap" title="{{ fila.ausencia.motivo }}">No llegó</span>{% endif %}
                 {% for jornada in fila.jornadas %}<span class="badge badge-primary badge-soft badge-sm whitespace-nowrap">{{ jornada }}</span>{% endfor %}
                 <button type="button" class="btn btn-outline btn-primary btn-sm"
                         hx-post="{% url 'convocatoria_dia_auxiliares' convocatoria.pk %}?fecha={{ fecha|date:'Y-m-d' }}"
                         hx-vals='{"agregar": "{{ fila.auxiliar.pk }}"}'
-                        {% if not fila.puede_agregarse %}disabled title="Está ausente ese día"{% endif %}
+                        {% if not fila.puede_agregarse %}disabled title="Tiene registrado que no llegó ese día"{% endif %}
                         aria-label="Agregar a {{ fila.auxiliar.nombre }} {{ fila.auxiliar.apellido }} a este día">
                     Agregar
                 </button>

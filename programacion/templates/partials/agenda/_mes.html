@@ -22,7 +22,7 @@
                        aria-label="Ver el {{ dia_mes.fecha|date:'l j \d\e F' }}"{% if dia_mes.fecha == hoy %} aria-current="date"{% endif %}>{{ dia_mes.fecha.day }}</a>
                     <div class="flex items-center gap-1">
                         {% if dia_mes.ausentes %}
-                        <span class="badge badge-error badge-soft badge-xs whitespace-nowrap" title="Ausentes: {% for ausente in dia_mes.ausentes %}{{ ausente.nombre }} {{ ausente.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}">{{ dia_mes.ausentes|length }} aus.</span>
+                        <span class="badge badge-error badge-soft badge-xs whitespace-nowrap" title="No llegaron: {% for ausente in dia_mes.ausentes %}{{ ausente.nombre }} {{ ausente.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}">{{ dia_mes.ausentes|length }} no llegó</span>
                         {% endif %}
                         {% include "partials/agenda/_cubren.html" with cubren=dia_mes.asignados %}
                         {% if not dia_mes.fuera_periodo %}

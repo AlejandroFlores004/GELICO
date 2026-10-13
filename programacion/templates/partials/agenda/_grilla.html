@@ -32,8 +32,8 @@
                         <span class="flex size-9 items-center justify-center rounded-full text-lg font-bold tabular-nums {% if columna.fecha == hoy %}bg-primary text-primary-content{% endif %}"{% if columna.fecha == hoy %} aria-current="date"{% endif %}>{{ columna.fecha|date:'j' }}</span>
                     </a>
                     {% if columna.ausentes %}
-                    <span class="badge badge-error badge-soft badge-xs" title="Ausentes: {% for ausente in columna.ausentes %}{{ ausente.nombre }} {{ ausente.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}">
-                        {{ columna.ausentes|length }} ausente{{ columna.ausentes|length|pluralize }}
+                    <span class="badge badge-error badge-soft badge-xs" title="No llegaron: {% for ausente in columna.ausentes %}{{ ausente.nombre }} {{ ausente.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+                        {{ columna.ausentes|length }} no llegó
                     </span>
                     {% endif %}
                     {% if not columna.fuera_periodo %}

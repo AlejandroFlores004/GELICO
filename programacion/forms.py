@@ -1,6 +1,7 @@
 from django import forms
 from django_select2.forms import Select2Widget
 from django.urls import reverse_lazy
+from django.utils import timezone
 
 from escuela.models import Escuela
 from .models import Auxiliar, Ausencia, Convocatoria, ConvocatoriaAuxiliar, Horario, Jornada, Programacion, jornadas_que_se_cruzan
@@ -22,6 +23,71 @@ class AuxiliarForm(forms.ModelForm):
             }),
             'institucion': forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Nombre de la institución'}),
         }
+
+
+CLASE_SELECT = 'select select-bordered w-full'
+
+
+class FiltrarAuxiliaresForm(forms.Form):
+    """Filtros del listado de auxiliares. Fecha, día y jornada se refieren a su horario semanal:
+    con ellos, "con horario" significa que trabaja esa fecha / ese día / esa jornada."""
+
+    HORARIO = [
+        ('', 'Todos'),
+        ('con', 'Con horario'),
+        ('sin', 'Sin horario'),
+        ('vigente', 'Con horario vigente hoy'),
+        ('vencido', 'Con horario ya vencido'),
+    ]
+
+    q = forms.CharField(
+        required=False,
+        label='Buscar',
+        widget=forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Nombre, apellido, correo o teléfono'}),
+    )
+    institucion = forms.ChoiceField(required=False, label='Institución', widget=forms.Select(attrs={'class': CLASE_SELECT}))
+    horario = forms.ChoiceField(required=False, label='Horario', choices=HORARIO, widget=forms.Select(attrs={'class': CLASE_SELECT}))
+    fecha = forms.DateField(
+        required=False,
+        label='Trabaja el día',
+        widget=forms.DateInput(format='%Y-%m-%d', attrs={'class': 'input input-bordered w-full', 'type': 'date'}),
+    )
+    dia = forms.TypedChoiceField(
+        required=False,
+        label='Día de la semana',
+        coerce=int,
+        empty_value=None,
+        choices=[('', 'Cualquiera'), *Horario.Dia.choices],
+        widget=forms.Select(attrs={'class': CLASE_SELECT}),
+    )
+    jornada = forms.ChoiceField(
+        required=False,
+        label='Jornada',
+        choices=[('', 'Cualquiera'), *Jornada.choices],
+        widget=forms.Select(attrs={'class': CLASE_SELECT}),
+    )
+    convocatoria = forms.ModelChoiceField(
+        queryset=Convocatoria.objects.order_by('-fecha_inicio'),
+        required=False,
+        label='Asignado en la convocatoria',
+        widget=Select2Widget(attrs={
+            'data-placeholder': 'Cualquier convocatoria',
+            'style': 'width: 100%',
+            'class': 'select2-daisy',
+            'data-allow-clear': 'true',
+        }),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        instituciones = Auxiliar.objects.order_by('institucion').values_list('institucion', flat=True).distinct()
+        self.fields['institucion'].choices = [('', 'Todas'), *[(nombre, nombre) for nombre in instituciones]]
+
+    def filtros_activos(self):
+        """Cuántos filtros hay aplicados, para mostrarlo junto al título."""
+        if not self.is_valid():
+            return 0
+        return sum(1 for valor in self.cleaned_data.values() if valor not in (None, ''))
 
 
 class AusenciaForm(forms.ModelForm):
@@ -227,14 +293,25 @@ class AuxiliaresDelDia:
     """Gestión de los auxiliares asignados a un día de una convocatoria.
 
     Se puede agregar a quien tiene horario ese día y no está ausente; se puede quitar a cualquiera
-    de los asignados (aunque su horario haya cambiado después de asignarlo)."""
+    de los asignados (aunque su horario haya cambiado después de asignarlo). A los asignados se les
+    registra la inasistencia ("no llegó") a partir de ese día, como una Ausencia de esa fecha."""
+
+    MOTIVO_POR_DEFECTO = 'No se presentó'
 
     def __init__(self, convocatoria, fecha):
         self.convocatoria, self.fecha = convocatoria, fecha
         self.horarios = {}
         for horario in Horario.objects.del_dia(fecha):
             self.horarios.setdefault(horario.auxiliar_id, []).append(horario)
-        self.ausentes = set(Ausencia.objects.filter(fecha=fecha).values_list('auxiliar_id', flat=True))
+        self._cargar_ausencias()
+
+    def _cargar_ausencias(self):
+        self.ausencias = {ausencia.auxiliar_id: ausencia for ausencia in Ausencia.objects.filter(fecha=self.fecha)}
+        self.ausentes = set(self.ausencias)
+
+    @property
+    def se_puede_registrar_inasistencia(self):
+        return self.fecha <= timezone.localdate()
 
     def asignados_ids(self):
         return set(self.convocatoria.asignaciones.filter(fecha=self.fecha).values_list('auxiliar_id', flat=True))
@@ -251,6 +328,7 @@ class AuxiliaresDelDia:
                 'auxiliar': auxiliar,
                 'jornadas': [horario.get_jornada_display() for horario in self.horarios.get(auxiliar.pk, [])],
                 'ausente': auxiliar.pk in self.ausentes,
+                'ausencia': self.ausencias.get(auxiliar.pk),
                 'puede_agregarse': self.puede_agregarse(auxiliar.pk),
             }
             for auxiliar in auxiliares
@@ -268,7 +346,7 @@ class AuxiliaresDelDia:
         if auxiliar.pk in self.asignados_ids():
             return None
         if not self.puede_agregarse(auxiliar.pk):
-            motivo = 'está ausente' if auxiliar.pk in self.ausentes else 'no tiene horario'
+            motivo = 'tiene registrado que no llegó' if auxiliar.pk in self.ausentes else 'no tiene horario'
             return f'No se puede asignar a {auxiliar.nombre} {auxiliar.apellido}: {motivo} ese día.'
         ConvocatoriaAuxiliar.objects.create(convocatoria=self.convocatoria, auxiliar=auxiliar, fecha=self.fecha)
         return None
@@ -277,6 +355,23 @@ class AuxiliaresDelDia:
         # delete() por objeto para que la auditoría registre la baja.
         for asignacion in self.convocatoria.asignaciones.filter(fecha=self.fecha, auxiliar_id=auxiliar_id):
             asignacion.delete()
+
+    def registrar_inasistencia(self, auxiliar_id, motivo=''):
+        """Marca que un auxiliar asignado no llegó ese día. Devuelve un mensaje de error, o None."""
+        if not self.se_puede_registrar_inasistencia:
+            return 'La inasistencia se registra a partir de ese día.'
+        if int(auxiliar_id) not in self.asignados_ids():
+            return 'Solo se registra la inasistencia de auxiliares asignados a este día.'
+        if int(auxiliar_id) not in self.ausentes:
+            Ausencia.objects.create(auxiliar_id=auxiliar_id, fecha=self.fecha, motivo=motivo.strip() or self.MOTIVO_POR_DEFECTO)
+            self._cargar_ausencias()
+        return None
+
+    def quitar_inasistencia(self, auxiliar_id):
+        """Deshace el "no llegó": borra la ausencia de ese día."""
+        for ausencia in Ausencia.objects.filter(auxiliar_id=auxiliar_id, fecha=self.fecha):
+            ausencia.delete()
+        self._cargar_ausencias()
 
 
 class ProgramacionEstadoForm(forms.ModelForm):

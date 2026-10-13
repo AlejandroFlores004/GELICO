@@ -3,8 +3,9 @@ from datetime import timedelta
 from urllib.parse import urlencode
 
 from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseRedirect
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, Exists, OuterRef, Prefetch, Q
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -22,10 +23,10 @@ from .agenda import (
 )
 
 from .forms import (
-    AuxiliarForm, AuxiliaresDelDia, AusenciaForm, ConvocatoriaForm, HorarioForm, ProgramacionEstadoForm,
+    AuxiliarForm, AuxiliaresDelDia, AusenciaForm, ConvocatoriaForm, FiltrarAuxiliaresForm, HorarioForm, ProgramacionEstadoForm,
     ProgramacionFiltroForm, ProgramacionForm,
 )
-from .models import ORDEN_JORNADA, Auxiliar, Ausencia, Convocatoria, Horario, Jornada, Programacion
+from .models import ORDEN_JORNADA, Auxiliar, Ausencia, Convocatoria, ConvocatoriaAuxiliar, Horario, Jornada, Programacion
 
 
 def _programaciones_filtradas(request, paginar=True):
@@ -451,53 +452,97 @@ def programacion_imprimir(request):
 
 
 def _auxiliares_filtrados(request):
-    search = request.GET.get("q", "").strip()
+    """Auxiliares filtrados, sin paginar (los usa el listado y el "Imprimir")."""
+    filtro_form = FiltrarAuxiliaresForm(request.GET or None)
     auxiliares = Auxiliar.objects.prefetch_related(
         Prefetch(
             'horario_set',
             queryset=Horario.objects.order_by('dia', ORDEN_JORNADA, 'fecha_inicio'),
             to_attr='horarios',
         ),
-        Prefetch(
-            'ausencia_set',
-            queryset=Ausencia.objects.order_by('-fecha'),
-            to_attr='ausencias',
-        ),
     ).order_by('apellido', 'nombre')
-    if search:
-        auxiliares = auxiliares.filter(
-            nombre__icontains=search
-        ) | auxiliares.filter(
-            apellido__icontains=search
-        ) | auxiliares.filter(
-            email__icontains=search
-        ) | auxiliares.filter(
-            institucion__icontains=search
-        )
+    if not filtro_form.is_valid():
+        return filtro_form, auxiliares
 
-    return search, auxiliares
+    datos = filtro_form.cleaned_data
+    hoy = timezone.localdate()
+    fecha, dia, jornada = datos['fecha'], datos['dia'], datos['jornada']
+
+    if datos['q']:
+        texto = datos['q'].strip()
+        auxiliares = auxiliares.filter(
+            Q(nombre__icontains=texto) | Q(apellido__icontains=texto) | Q(email__icontains=texto)
+            | Q(telefono__icontains=texto) | Q(institucion__icontains=texto)
+        )
+    if datos['institucion']:
+        auxiliares = auxiliares.filter(institucion=datos['institucion'])
+
+    # Horarios del auxiliar que cumplen la fecha, el día y la jornada pedidos.
+    horarios = Horario.objects.filter(auxiliar=OuterRef('pk'))
+    if fecha:
+        horarios = horarios.del_dia(fecha)
+    if dia:
+        horarios = horarios.filter(dia=dia)
+    if jornada:
+        # Quien trabaja todo el día también trabaja en la mañana y en la tarde.
+        horarios = horarios.filter(jornada__in=[jornada] if jornada == Jornada.COMPLETA else [jornada, Jornada.COMPLETA])
+    # Elegir fecha, día o jornada sin decir nada del horario se entiende como "trabaja entonces".
+    estado = datos['horario'] or ('con' if fecha or dia or jornada else '')
+    if estado == 'con':
+        auxiliares = auxiliares.filter(Exists(horarios))
+    elif estado == 'sin':
+        auxiliares = auxiliares.filter(~Exists(horarios))
+    elif estado == 'vigente':
+        auxiliares = auxiliares.filter(Exists(horarios.filter(fecha_inicio__lte=hoy, fecha_fin__gte=hoy)))
+    elif estado == 'vencido':
+        auxiliares = auxiliares.filter(Exists(horarios)).exclude(Exists(horarios.filter(fecha_fin__gte=hoy)))
+
+    # Con fecha, las asignaciones se miran solo ese día.
+    if datos['convocatoria']:
+        asignaciones = ConvocatoriaAuxiliar.objects.filter(auxiliar=OuterRef('pk'), convocatoria=datos['convocatoria'])
+        if fecha:
+            asignaciones = asignaciones.filter(fecha=fecha)
+        auxiliares = auxiliares.filter(Exists(asignaciones))
+
+    return filtro_form, auxiliares
+
+
+def _con_estado_horario(auxiliares):
+    """Marca cada auxiliar según su horario: sin horario, vigente hoy, por empezar o vencido."""
+    hoy = timezone.localdate()
+    for auxiliar in auxiliares:
+        if not auxiliar.horarios:
+            auxiliar.estado_horario = 'sin'
+        elif any(h.fecha_inicio <= hoy <= h.fecha_fin for h in auxiliar.horarios):
+            auxiliar.estado_horario = 'vigente'
+        elif any(h.fecha_inicio > hoy for h in auxiliar.horarios):
+            auxiliar.estado_horario = 'futuro'
+        else:
+            auxiliar.estado_horario = 'vencido'
+    return auxiliares
 
 
 def _filtrar_auxiliares(request):
-    search, auxiliares_list = _auxiliares_filtrados(request)
+    filtro_form, auxiliares_list = _auxiliares_filtrados(request)
 
     paginator = Paginator(auxiliares_list, 20)
     auxiliares = paginator.get_page(request.GET.get("page"))
+    _con_estado_horario(auxiliares)
 
-    return search, auxiliares
+    return filtro_form, auxiliares
 
 
 @permiso_requerido('programacion.view_auxiliar')
 def auxiliarHomeView(request):
-    search, auxiliares = _filtrar_auxiliares(request)
+    filtro_form, auxiliares = _filtrar_auxiliares(request)
 
     return render(
         request,
         "auxiliar/auxiliarHome.html",
         {
             "auxiliares": auxiliares,
-            "search": search,
-            "form_media": HorarioForm().media + AusenciaForm().media,
+            "filtro_form": filtro_form,
+            "form_media": HorarioForm().media + filtro_form.media,
         },
     )
 
@@ -813,34 +858,52 @@ def convocatoria_form(request, pk=None):
     )
 
 
+# Acciones del modal de auxiliares de un día y el permiso extra que pide cada una
+# (agregar y quitar ya los exige el decorador de la vista).
+ACCIONES_DIA = {
+    'agregar': None,
+    'quitar': None,
+    'no_llego': 'programacion.add_ausencia',
+    'si_llego': 'programacion.delete_ausencia',
+}
+
+
 @permiso_requerido('programacion.add_convocatoriaauxiliar', 'programacion.delete_convocatoriaauxiliar')
 def convocatoria_dia_auxiliares(request, pk):
-    """Agregar y quitar auxiliares de un día de la convocatoria. Cada acción se guarda al momento:
-    se vuelve a pintar la lista del modal (que sigue abierto) y se avisa a la agenda para refrescarse."""
+    """Agregar y quitar auxiliares de un día de la convocatoria, y registrar si no llegaron. Cada acción
+    se guarda al momento: se vuelve a pintar la lista del modal (que sigue abierto) y se avisa a la
+    agenda para refrescarse."""
     convocatoria = get_object_or_404(Convocatoria, pk=pk)
     fecha = _fecha(request.GET.get('fecha'))
     if not fecha or not convocatoria.fecha_inicio <= fecha <= convocatoria.fecha_fin:
         return HttpResponse('El día debe estar dentro de las fechas de la convocatoria.', status=400)
     del_dia = AuxiliaresDelDia(convocatoria, fecha)
 
+    contexto = {"convocatoria": convocatoria, "fecha": fecha, "del_dia": del_dia}
     if request.method == "POST":
         error = None
-        if request.POST.get('agregar'):
-            error = del_dia.agregar(request.POST['agregar'])
-        elif request.POST.get('quitar'):
-            del_dia.quitar(request.POST['quitar'])
-        asignados, disponibles = del_dia.opciones()
-        respuesta = render(request, "partials/agenda/_asignar_auxiliares_lista.html", {
-            "convocatoria": convocatoria, "fecha": fecha, "asignados": asignados, "disponibles": disponibles, "error": error,
-        })
+        # Cada botón manda una sola acción con el id del auxiliar: {"agregar": id}, {"no_llego": id}...
+        accion = next((nombre for nombre in ACCIONES_DIA if request.POST.get(nombre, '').isdigit()), None)
+        auxiliar_id = int(request.POST[accion]) if accion else None
+        permiso = ACCIONES_DIA.get(accion)
+        if permiso and not request.user.has_perm(permiso):
+            raise PermissionDenied
+        if accion == 'agregar':
+            error = del_dia.agregar(auxiliar_id)
+        elif accion == 'quitar':
+            del_dia.quitar(auxiliar_id)
+        elif accion == 'no_llego':
+            error = del_dia.registrar_inasistencia(auxiliar_id, request.POST.get('motivo', ''))
+        elif accion == 'si_llego':
+            del_dia.quitar_inasistencia(auxiliar_id)
+        contexto['asignados'], contexto['disponibles'] = del_dia.opciones()
+        respuesta = render(request, "partials/agenda/_asignar_auxiliares_lista.html", {**contexto, "error": error})
         if not error:
             respuesta['HX-Trigger'] = EVENTO_AGENDA
         return respuesta
 
-    asignados, disponibles = del_dia.opciones()
-    return render(request, "partials/agenda/modal_asignar_auxiliares.html", {
-        "convocatoria": convocatoria, "fecha": fecha, "asignados": asignados, "disponibles": disponibles,
-    })
+    contexto['asignados'], contexto['disponibles'] = del_dia.opciones()
+    return render(request, "partials/agenda/modal_asignar_auxiliares.html", contexto)
 
 
 @permiso_requerido('programacion.delete_convocatoria')

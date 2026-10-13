@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
@@ -246,7 +247,7 @@ class AsignarAuxiliaresDiaTests(AgendaBase):
 		sin_horario = Auxiliar.objects.create(nombre='Eva', apellido='Paz', email='eva.paz@example.com', institucion='UES')
 		ausente = self._auxiliar('Leo', 'Sol', 'completa')
 		Ausencia.objects.create(auxiliar=ausente, fecha=self.dia, motivo='Enfermedad')
-		for auxiliar, motivo in ((sin_horario, 'no tiene horario'), (ausente, 'está ausente')):
+		for auxiliar, motivo in ((sin_horario, 'no tiene horario'), (ausente, 'no llegó')):
 			with self.subTest(auxiliar=auxiliar.nombre):
 				respuesta = self.client.post(self.url, {'agregar': auxiliar.pk})
 				self.assertIn(motivo, respuesta.context['error'])
@@ -270,6 +271,57 @@ class AsignarAuxiliaresDiaTests(AgendaBase):
 		self.assertEqual(self._auxiliares(respuesta, 'asignados'), [self.auxiliar])
 		self.client.post(self.url, {'quitar': self.auxiliar.pk})
 		self.assertEqual(self._asignados(), set())
+
+	def _hoy_asignado(self):
+		"""Luis con horario y asignado hoy (la inasistencia solo se registra desde ese día)."""
+		hoy = timezone.localdate()
+		Horario.objects.create(auxiliar=self.auxiliar, dia=hoy.isoweekday(), fecha_inicio=hoy, fecha_fin=hoy, jornada='completa')
+		self._asignar(self.auxiliar, hoy)
+		return hoy, f"{reverse('convocatoria_dia_auxiliares', args=[self.convocatoria.pk])}?fecha={hoy.isoformat()}"
+
+	def test_registrar_que_no_llego_y_deshacerlo(self):
+		hoy, url = self._hoy_asignado()
+		visita = Programacion.objects.create(convocatoria=self.convocatoria, escuela=self.escuela, fecha_programada=hoy, jornada='manana')
+		self.assertTrue(AuxiliaresDelDia(self.convocatoria, hoy).asignados_ids())
+
+		respuesta = self.client.post(url, {'no_llego': self.auxiliar.pk, 'motivo': 'Enfermo'})
+		self.assertEqual(respuesta['HX-Trigger'], 'agenda-actualizada')
+		self.assertEqual(Ausencia.objects.get(auxiliar=self.auxiliar, fecha=hoy).motivo, 'Enfermo')
+		fila = respuesta.context['asignados'][0]
+		self.assertEqual(fila['ausencia'].motivo, 'Enfermo')
+		self.assertContains(respuesta, 'Sí llegó')
+		# Sigue asignado, pero ya no cubre la visita.
+		detalle = self.client.get(reverse('programacion_detalle', args=[visita.pk]))
+		self.assertEqual(detalle.context['cubren'], [])
+
+		self.client.post(url, {'si_llego': self.auxiliar.pk})
+		self.assertFalse(Ausencia.objects.filter(auxiliar=self.auxiliar, fecha=hoy).exists())
+		self.assertEqual(self.client.get(reverse('programacion_detalle', args=[visita.pk])).context['cubren'], [self.auxiliar])
+
+	def test_motivo_por_defecto(self):
+		hoy, url = self._hoy_asignado()
+		self.client.post(url, {'no_llego': self.auxiliar.pk, 'motivo': '  '})
+		self.assertEqual(Ausencia.objects.get(auxiliar=self.auxiliar, fecha=hoy).motivo, AuxiliaresDelDia.MOTIVO_POR_DEFECTO)
+
+	def test_no_se_registra_en_un_dia_que_no_ha_llegado(self):
+		respuesta = self.client.post(self.url, {'no_llego': self.auxiliar.pk})  # self.dia es la próxima semana
+		self.assertIn('a partir de ese día', respuesta.context['error'])
+		self.assertFalse(Ausencia.objects.exists())
+		self.assertFalse(self.client.get(self.url).context['del_dia'].se_puede_registrar_inasistencia)
+
+	def test_solo_se_registra_a_asignados(self):
+		hoy, url = self._hoy_asignado()
+		otra = self._auxiliar('Ana', 'Ruiz', 'tarde')
+		respuesta = self.client.post(url, {'no_llego': otra.pk})
+		self.assertIn('asignados', respuesta.context['error'])
+
+	def test_inasistencia_pide_permiso_de_ausencias(self):
+		hoy, url = self._hoy_asignado()
+		usuario = get_user_model().objects.create_user('coordinador', password='Clave-2026')
+		usuario.user_permissions.add(*Permission.objects.filter(codename__in=['add_convocatoriaauxiliar', 'delete_convocatoriaauxiliar']))
+		self.client.force_login(usuario)
+		self.assertEqual(self.client.post(url, {'no_llego': self.auxiliar.pk}).status_code, 403)
+		self.assertFalse(Ausencia.objects.exists())
 
 	def test_rechaza_dia_fuera_de_la_convocatoria(self):
 		fuera = self.convocatoria.fecha_fin + timedelta(days=1)
@@ -503,3 +555,84 @@ class HorarioSemanalTests(TestCase):
 		self.assertIn('fecha', respuesta.context['form'].errors)
 		self.client.post(reverse('ausencia_nueva'), {**datos, 'fecha': '2026-05-11'})
 		self.assertTrue(Ausencia.objects.filter(auxiliar=self.auxiliar, fecha=date(2026, 5, 11)).exists())
+
+
+class FiltrosAuxiliaresTests(TestCase):
+	def setUp(self):
+		self.client.force_login(get_user_model().objects.create_superuser('filtros', password='Clave-2026'))
+		self.hoy = timezone.localdate()
+		self.lunes = self.hoy + timedelta(days=(1 - self.hoy.isoweekday()) % 7 or 7)  # próximo lunes
+
+		def auxiliar(nombre, institucion='UES'):
+			return Auxiliar.objects.create(nombre=nombre, apellido='Prueba', email=f'{nombre.lower()}.filtro@example.com', institucion=institucion)
+
+		def horario(aux, dia, jornada, inicio, fin):
+			Horario.objects.create(auxiliar=aux, dia=dia, jornada=jornada, fecha_inicio=inicio, fecha_fin=fin)
+
+		mes = timedelta(days=30)
+		self.manana = auxiliar('Mañanero')
+		horario(self.manana, Horario.Dia.LUNES, 'manana', self.hoy - mes, self.hoy + mes)
+		self.completo = auxiliar('Completo', 'UCA')
+		horario(self.completo, Horario.Dia.LUNES, 'completa', self.hoy - mes, self.hoy + mes)
+		self.vencido = auxiliar('Vencido')
+		horario(self.vencido, Horario.Dia.LUNES, 'tarde', self.hoy - 3 * mes, self.hoy - 2 * mes)
+		self.sin_horario = auxiliar('Libre', 'UCA')
+
+	def _nombres(self, **filtros):
+		respuesta = self.client.get(reverse('buscar_auxiliares'), filtros)
+		self.assertEqual(respuesta.status_code, 200)
+		return {auxiliar.nombre for auxiliar in respuesta.context['auxiliares']}
+
+	def test_sin_filtros_lista_todos(self):
+		self.assertEqual(self._nombres(), {'Mañanero', 'Completo', 'Vencido', 'Libre'})
+
+	def test_con_y_sin_horario(self):
+		self.assertEqual(self._nombres(horario='con'), {'Mañanero', 'Completo', 'Vencido'})
+		self.assertEqual(self._nombres(horario='sin'), {'Libre'})
+		self.assertEqual(self._nombres(horario='vigente'), {'Mañanero', 'Completo'})
+		self.assertEqual(self._nombres(horario='vencido'), {'Vencido'})
+
+	def test_por_fecha(self):
+		lunes = self.lunes.isoformat()
+		self.assertEqual(self._nombres(fecha=lunes), {'Mañanero', 'Completo'})
+		# "Sin horario" con fecha: los que no trabajan ese día.
+		self.assertEqual(self._nombres(fecha=lunes, horario='sin'), {'Vencido', 'Libre'})
+		martes = (self.lunes + timedelta(days=1)).isoformat()
+		self.assertEqual(self._nombres(fecha=martes), set())
+
+	def test_por_dia_y_jornada(self):
+		self.assertEqual(self._nombres(dia=Horario.Dia.LUNES), {'Mañanero', 'Completo', 'Vencido'})
+		# Quien trabaja todo el día también cuenta para la mañana y la tarde.
+		self.assertEqual(self._nombres(jornada='manana'), {'Mañanero', 'Completo'})
+		self.assertEqual(self._nombres(jornada='tarde'), {'Completo', 'Vencido'})
+		self.assertEqual(self._nombres(jornada='completa'), {'Completo'})
+		self.assertEqual(self._nombres(fecha=self.lunes.isoformat(), jornada='tarde'), {'Completo'})
+
+	def test_texto_e_institucion(self):
+		self.assertEqual(self._nombres(q='libre'), {'Libre'})
+		self.assertEqual(self._nombres(institucion='UCA'), {'Completo', 'Libre'})
+		self.assertEqual(self._nombres(institucion='UCA', horario='sin'), {'Libre'})
+
+	def test_asignados_en_convocatoria(self):
+		convocatoria = Convocatoria.objects.create(nombre='Filtro', descripcion='', fecha_inicio=self.lunes, fecha_fin=self.lunes + timedelta(days=6))
+		ConvocatoriaAuxiliar.objects.create(convocatoria=convocatoria, auxiliar=self.completo, fecha=self.lunes)
+		self.assertEqual(self._nombres(convocatoria=convocatoria.pk), {'Completo'})
+		self.assertEqual(self._nombres(convocatoria=convocatoria.pk, fecha=(self.lunes + timedelta(days=7)).isoformat()), set())
+
+	def test_estado_del_horario_en_el_listado(self):
+		respuesta = self.client.get(reverse('home_auxiliar'))
+		estados = {auxiliar.nombre: auxiliar.estado_horario for auxiliar in respuesta.context['auxiliares']}
+		self.assertEqual(estados, {'Mañanero': 'vigente', 'Completo': 'vigente', 'Vencido': 'vencido', 'Libre': 'sin'})
+		self.assertContains(respuesta, 'Sin horario')
+
+	def test_imprimir_respeta_los_filtros(self):
+		respuesta = self.client.get(reverse('auxiliar_imprimir'), {'horario': 'sin'})
+		self.assertEqual(respuesta['Content-Type'], 'application/pdf')
+
+	def test_al_crear_devuelve_el_listado_para_actualizarlo(self):
+		respuesta = self.client.post(f"{reverse('auxiliar_nuevo')}?horario=sin", {
+			'nombre': 'Nuevo', 'apellido': 'Prueba', 'email': 'nuevo.filtro@example.com', 'telefono': '', 'institucion': 'UES',
+		})
+		self.assertContains(respuesta, 'id="listado-auxiliares" hx-swap-oob="true"')
+		# El listado vuelve con los filtros que estaban aplicados.
+		self.assertEqual({a.nombre for a in respuesta.context['auxiliares']}, {'Libre', 'Nuevo'})
