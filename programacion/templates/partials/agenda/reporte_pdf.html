@@ -76,7 +76,7 @@
                 <th class="izq" style="width: 8%;">Código</th>
                 <th class="izq">Escuela</th>
                 <th class="izq" style="width: 13%;">Distrito</th>
-                {% if not auxiliar %}<th class="izq" style="width: 16%;">Auxiliar</th>{% endif %}
+                {% if not auxiliar %}<th class="izq" style="width: 16%;">Auxiliares que cubren</th>{% endif %}
                 <th style="width: 9%;">Estado</th>
                 {% if para_campo %}
                 <th style="width: 9%;">Hora de llegada</th>
@@ -92,7 +92,7 @@
                 <td>{{ programacion.escuela.codigo }}</td>
                 <td class="campo">{{ programacion.escuela.nombre }}</td>
                 <td>{{ programacion.escuela.distrito.nombre }}</td>
-                {% if not auxiliar %}<td>{% if programacion.auxiliar %}{{ programacion.auxiliar.nombre }} {{ programacion.auxiliar.apellido }}{% else %}<span class="vacio">Sin asignar</span>{% endif %}</td>{% endif %}
+                {% if not auxiliar %}<td>{% for aux in programacion.cubren %}{{ aux.nombre }} {{ aux.apellido }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="vacio">Sin cobertura</span>{% endfor %}</td>{% endif %}
                 <td class="centro">{{ programacion.get_estado_display }}</td>
                 {% if para_campo %}
                 <td></td>

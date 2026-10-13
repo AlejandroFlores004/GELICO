@@ -1,11 +1,14 @@
-{# Semana o día: una fila por turno (mañana y tarde); columnas por día (semana) o por auxiliar (día).
-   Una visita de todo el día aparece en las dos filas. #}
+{% comment %}
+  Semana o día: una fila por turno (mañana y tarde) y una columna por día. Cada celda muestra
+  las visitas de ese turno y qué auxiliares de la convocatoria lo cubren según su horario.
+  Una visita de todo el día aparece en las dos filas.
+{% endcomment %}
 <div class="overflow-x-auto">
     <table class="w-full table-fixed border-collapse text-sm {% if calendario.columnas|length > 3 %}min-w-[56rem]{% endif %}">
         <thead>
             {# Franja de la convocatoria: muestra en qué días de lo visible corre la convocatoria elegida. #}
             <tr>
-                <th class="w-20 bg-base-200/60"><span class="sr-only">Convocatoria</span></th>
+                <th class="w-28 bg-base-200/60"><span class="sr-only">Convocatoria</span></th>
                 {% for columna in calendario.columnas %}
                 <th class="bg-base-200/60 p-0 pt-2 font-normal">
                     {% if columna.fuera_periodo %}
@@ -19,21 +22,9 @@
                 {% endfor %}
             </tr>
             <tr>
-                <th scope="col" class="w-20 border-b border-base-300 bg-base-200/60"><span class="sr-only">Jornada</span></th>
+                <th scope="col" class="w-28 border-b border-base-300 bg-base-200/60"><span class="sr-only">Jornada</span></th>
                 {% for columna in calendario.columnas %}
                 <th scope="col" class="border-b border-l border-base-300 bg-base-200/60 px-2 py-2 text-center font-medium {% if columna.fuera_periodo %}text-base-content/50{% endif %}">
-                    {% if columna.solo_sin_auxiliar %}
-                    <span class="inline-flex max-w-full items-center gap-2 px-1 py-2">
-                        <span class="size-2.5 shrink-0 rounded-full border border-dashed border-base-content/40" aria-hidden="true"></span>
-                        <span class="truncate font-semibold text-base-content/70">Sin auxiliar asignado</span>
-                    </span>
-                    {% elif columna.auxiliar and calendario.columnas|length > 1 %}
-                    <span class="inline-flex max-w-full items-center gap-2 px-1 py-2">
-                        <span class="size-2.5 shrink-0 rounded-full {{ columna.tono.punto }}" aria-hidden="true"></span>
-                        <span class="truncate font-semibold" title="{{ columna.auxiliar.nombre }} {{ columna.auxiliar.apellido }}">{{ columna.auxiliar.nombre }} {{ columna.auxiliar.apellido }}</span>
-                    </span>
-                    {% if columna.ausentes %}<span class="badge badge-error badge-soft badge-xs">Ausente</span>{% endif %}
-                    {% else %}
                     <a href="{{ columna.url_dia }}" {% include "partials/agenda/_navegar.html" with url=columna.url_dia %}
                        class="inline-flex flex-col items-center gap-0.5 rounded-xl px-3 py-1 transition hover:bg-base-100"
                        aria-label="Ver el {{ columna.fecha|date:'l j \d\e F' }}">
@@ -45,6 +36,11 @@
                         {{ columna.ausentes|length }} ausente{{ columna.ausentes|length|pluralize }}
                     </span>
                     {% endif %}
+                    {% if not columna.fuera_periodo %}
+                    <div class="mt-1 flex flex-wrap items-center justify-center gap-1">
+                        {% include "partials/agenda/_cubren.html" with cubren=columna.asignados %}
+                        {% include "partials/agenda/_boton_asignar.html" with fecha=columna.fecha asignados=columna.asignados %}
+                    </div>
                     {% endif %}
                 </th>
                 {% endfor %}
@@ -53,37 +49,42 @@
         <tbody>
             {% for fila in calendario.filas %}
             <tr>
-                <th scope="row" class="w-20 whitespace-nowrap border-t border-base-300 px-2 pt-2 text-right align-top text-xs font-semibold text-base-content/70">
+                <th scope="row" class="w-28 whitespace-nowrap border-t border-base-300 px-2 pt-2 text-right align-top text-xs font-semibold text-base-content/70">
                     {{ fila.etiqueta }}
                     <span class="block font-normal tabular-nums text-base-content/40">{{ fila.inicio|time:'G:i' }} – {{ fila.fin|time:'G:i' }}</span>
                 </th>
                 {% for celda in fila.celdas %}
                 <td class="group h-40 border-l border-t border-base-300 p-1 align-top
                     {% if celda.fuera_periodo %}bg-base-200/40 bg-[repeating-linear-gradient(135deg,transparent_0_8px,var(--color-base-300)_8px_9px)]{% elif celda.paso %}bg-base-200/30{% elif celda.fecha == hoy %}bg-primary/[0.04]{% endif %}">
-                    <div class="flex h-full min-h-36 gap-1">
+                    <div class="flex h-full min-h-36 flex-col gap-1">
+                    <div class="flex min-h-0 flex-1 gap-1">
                         {% for programacion in celda.programaciones %}
                             {% include "partials/agenda/_tarjeta.html" %}
                         {% endfor %}
                         {% if celda.puede_programar %}
                         <button
                             type="button"
-                            hx-get="{% url 'programacion_nueva' %}?origen=convocatoria&convocatoria={{ convocatoria.pk }}&fecha={{ celda.fecha|date:'Y-m-d' }}&jornada={{ celda.turno }}{% if celda.auxiliar_sugerido %}&auxiliar={{ celda.auxiliar_sugerido }}{% endif %}"
+                            hx-get="{% url 'programacion_nueva' %}?origen=convocatoria&convocatoria={{ convocatoria.pk }}&fecha={{ celda.fecha|date:'Y-m-d' }}&jornada={{ celda.turno }}"
                             hx-target="#programacion-modal-wrapper"
                             hx-swap="outerHTML"
                             class="flex cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed transition hover:border-primary hover:bg-primary/5 hover:text-primary focus-visible:outline-2 focus-visible:outline-primary
-                                {% if celda.disponibles %}border-primary/40 text-primary/70{% else %}border-base-300 text-base-content/40{% endif %}
+                                {% if celda.cubren %}border-primary/40 text-primary/70{% else %}border-base-300 text-base-content/40{% endif %}
                                 {% if celda.programaciones %}w-9 shrink-0{% else %}w-full{% endif %}"
-                            title="Asignar una visita en la jornada de la {{ fila.etiqueta|lower }} · {% if celda.disponibles %}Disponibles: {% for aux in celda.disponibles %}{{ aux.nombre }} {{ aux.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}ningún auxiliar con horario en esta jornada{% endif %}"
+                            title="Asignar una visita en la jornada de la {{ fila.etiqueta|lower }} · {% if celda.cubren %}La cubren: {% for aux in celda.cubren %}{{ aux.nombre }} {{ aux.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}ningún auxiliar asignado a este día trabaja esta jornada{% endif %}"
                             aria-label="Asignar una visita el {{ celda.fecha|date:'l j \d\e F' }} en la jornada de la {{ fila.etiqueta|lower }}"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                             {% if not celda.programaciones %}
                             <span class="text-[11px] font-medium leading-none">
-                                {% if celda.solo_sin_auxiliar %}sin asignar{% elif not celda.disponibles %}sin horario{% elif celda.de_un_auxiliar %}libre{% else %}{{ celda.disponibles|length }} disp.{% endif %}
+                                {% if celda.cubren %}agregar visita{% else %}sin cobertura{% endif %}
                             </span>
                             {% endif %}
                         </button>
                         {% endif %}
+                    </div>
+                    {% if not celda.fuera_periodo %}
+                    {% include "partials/agenda/_cubren.html" with cubren=celda.cubren_con_tono %}
+                    {% endif %}
                     </div>
                 </td>
                 {% endfor %}

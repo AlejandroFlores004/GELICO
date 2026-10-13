@@ -8,7 +8,7 @@ urlpatterns = [
     path('programaciones/buscar/', views.buscar_programaciones, name='buscar_programaciones'),
     path('programaciones/imprimir/', views.programacion_imprimir, name='programacion_imprimir'),
     path('programaciones/agenda/imprimir/', views.agenda_imprimir, name='agenda_imprimir'),
-    path('programaciones/auxiliar-horario/', views.programacion_auxiliar_horario, name='programacion_auxiliar_horario'),
+    path('programaciones/cobertura/', views.programacion_cobertura, name='programacion_cobertura'),
     path('programaciones/nueva/', views.programacion_form, name='programacion_nueva'),
     path('programaciones/<int:pk>/editar/', views.programacion_form, name='programacion_editar'),
     path('programaciones/<int:pk>/eliminar/', views.programacion_eliminar, name='programacion_eliminar'),
@@ -33,5 +33,6 @@ urlpatterns = [
     path('convocatorias/nueva/', views.convocatoria_form, name='convocatoria_nueva'),
     path('convocatorias/<int:pk>/', views.convocatoria_agenda, name='convocatoria_agenda'),
     path('convocatorias/<int:pk>/editar/', views.convocatoria_form, name='convocatoria_editar'),
+    path('convocatorias/<int:pk>/dia/auxiliares/', views.convocatoria_dia_auxiliares, name='convocatoria_dia_auxiliares'),
     path('convocatorias/<int:pk>/eliminar/', views.convocatoria_eliminar, name='convocatoria_eliminar'),
 ]

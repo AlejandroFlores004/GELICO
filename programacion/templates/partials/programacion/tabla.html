@@ -18,7 +18,6 @@
                     <tr>
                         <th>Fecha y jornada</th>
                         <th>Convocatoria</th>
-                        <th>Auxiliar</th>
                         <th>Escuela</th>
                         <th>Estado</th>
                         <th class="text-right">Acciones</th>
@@ -32,7 +31,6 @@
                             <span class="block text-sm text-base-content/70">{{ programacion.get_jornada_display }}</span>
                         </td>
                         <td class="font-medium">{{ programacion.convocatoria.nombre }}</td>
-                        <td>{% if programacion.auxiliar %}{{ programacion.auxiliar.nombre }} {{ programacion.auxiliar.apellido }}{% else %}<span class="italic text-base-content/50">Sin asignar</span>{% endif %}</td>
                         <td>{{ programacion.escuela.nombre_corto }}</td>
                         <td>
                             <span class="badge {% if programacion.estado == 'completado' %}badge-success{% elif programacion.estado == 'no asistio' %}badge-error{% else %}badge-warning{% endif %}">{{ programacion.get_estado_display }}</span>

@@ -1,8 +1,9 @@
 from django import forms
 from django_select2.forms import Select2Widget
 from django.urls import reverse_lazy
+
 from escuela.models import Escuela
-from .models import Auxiliar, Ausencia, Convocatoria, Horario, Jornada, Programacion, jornadas_que_se_cruzan, turnos_de
+from .models import Auxiliar, Ausencia, Convocatoria, ConvocatoriaAuxiliar, Horario, Jornada, Programacion, jornadas_que_se_cruzan
 
 
 class AuxiliarForm(forms.ModelForm):
@@ -150,16 +151,14 @@ class HorarioForm(forms.ModelForm):
 
 
 class ProgramacionForm(forms.ModelForm):
-    """Visita de un auxiliar a una escuela en la jornada de la mañana, de la tarde o todo el día."""
+    """Visita a una escuela en la jornada de la mañana, de la tarde o todo el día. No lleva auxiliar:
+    la cubren los auxiliares de la convocatoria que trabajan esa jornada según su horario."""
 
     # Campo explícito para que los radios no incluyan la opción vacía "---------".
     jornada = forms.ChoiceField(label='Jornada', choices=Jornada.choices, widget=forms.RadioSelect)
 
     def __init__(self, *args, convocatoria_fija=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['auxiliar'].label = 'Auxiliar (opcional)'
-        self.fields['auxiliar'].required = False
-
         # Dentro de la agenda de una convocatoria, la visita siempre es de esa convocatoria.
         self.convocatoria_fija = convocatoria_fija
         if convocatoria_fija:
@@ -173,7 +172,6 @@ class ProgramacionForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         convocatoria = cleaned_data.get('convocatoria')
-        auxiliar = cleaned_data.get('auxiliar')
         fecha = cleaned_data.get('fecha_programada')
         jornada = cleaned_data.get('jornada')
         escuela = cleaned_data.get('escuela')
@@ -185,34 +183,13 @@ class ProgramacionForm(forms.ModelForm):
                 f'({convocatoria.fecha_inicio:%d/%m/%Y} al {convocatoria.fecha_fin:%d/%m/%Y}).',
             )
 
-        horario_sin_cambios = self.instance.pk and (
-            auxiliar == self.instance.auxiliar
-            and fecha == self.instance.fecha_programada
-            and jornada == self.instance.jornada
-        )
-
-        # El horario semanal del auxiliar ese día debe cubrir todos los turnos de la jornada
-        # (para "todo el día" sirve un horario de todo el día, o uno de mañana y otro de tarde).
-        if auxiliar and fecha and jornada and not horario_sin_cambios:
-            turnos_con_horario = {
-                turno
-                for horario in Horario.objects.filter(auxiliar=auxiliar).del_dia(fecha)
-                for turno in horario.turnos
-            }
-            if not set(turnos_de(jornada)) <= turnos_con_horario:
-                self.add_error(None, 'El auxiliar no tiene horario en esa jornada de esa fecha.')
-
-        if fecha and jornada:
-            # Se cruzan las visitas del mismo día que comparten turno (la mañana se cruza con "todo el día").
-            mismo_turno = Programacion.objects.filter(
-                fecha_programada=fecha,
-                jornada__in=jornadas_que_se_cruzan(jornada),
-            ).exclude(pk=self.instance.pk)
-
-            if auxiliar and mismo_turno.filter(auxiliar=auxiliar).exists():
-                self.add_error(None, 'Este auxiliar ya tiene otra programación asignada en esa fecha y jornada.')
-            if escuela and mismo_turno.filter(escuela=escuela).exists():
-                self.add_error(None, 'Esta escuela ya tiene otra programación asignada en esa fecha y jornada.')
+        # Una escuela no recibe dos visitas el mismo día en jornadas que se cruzan (la mañana se cruza con "todo el día").
+        if escuela and fecha and jornada and Programacion.objects.filter(
+            escuela=escuela,
+            fecha_programada=fecha,
+            jornada__in=jornadas_que_se_cruzan(jornada),
+        ).exclude(pk=self.instance.pk).exists():
+            self.add_error(None, 'Esta escuela ya tiene otra programación asignada en esa fecha y jornada.')
 
         return cleaned_data
 
@@ -220,10 +197,9 @@ class ProgramacionForm(forms.ModelForm):
         model = Programacion
         fields = [
             'convocatoria',
-            'auxiliar',
+            'escuela',
             'fecha_programada',
             'jornada',
-            'escuela',
             'estado',
         ]
         widgets = {
@@ -231,22 +207,6 @@ class ProgramacionForm(forms.ModelForm):
                 'data-placeholder': 'Seleccione una convocatoria',
                 'style': 'width: 100%; display: none !important;',
                 'class': 'select2-daisy',
-                'hx-get': reverse_lazy('programacion_auxiliar_horario'),
-                'hx-target': '#programacion-auxiliar-horarios',
-                'hx-swap': 'outerHTML',
-                'hx-trigger': 'convocatoria-seleccionada',
-                'hx-include': 'closest form',
-            }),
-            'auxiliar': Select2Widget(attrs={
-                'data-placeholder': 'Sin asignar por ahora',
-                'data-allow-clear': 'true',
-                'style': 'width: 100%; display: none !important;',
-                'class': 'select2-daisy',
-                'hx-get': reverse_lazy('programacion_auxiliar_horario'),
-                'hx-target': '#programacion-auxiliar-horarios',
-                'hx-swap': 'outerHTML',
-                'hx-trigger': 'auxiliar-seleccionado',
-                'hx-include': 'closest form',
             }),
             'fecha_programada': forms.DateInput(format='%Y-%m-%d', attrs={
                 'class': 'input input-bordered w-full',
@@ -263,6 +223,69 @@ class ProgramacionForm(forms.ModelForm):
         }
 
 
+class AsignarAuxiliaresDiaForm(forms.Form):
+    """Auxiliares asignados a un día de una convocatoria. Solo se pueden asignar los que tienen horario
+    ese día y no están ausentes; los que ya estaban asignados se conservan aunque eso cambie."""
+
+    auxiliares = forms.ModelMultipleChoiceField(
+        queryset=Auxiliar.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+    )
+
+    def __init__(self, *args, convocatoria, fecha, **kwargs):
+        self.convocatoria, self.fecha = convocatoria, fecha
+        self.actuales = set(
+            convocatoria.asignaciones.filter(fecha=fecha).values_list('auxiliar_id', flat=True)
+        )
+        kwargs.setdefault('initial', {'auxiliares': list(self.actuales)})
+        super().__init__(*args, **kwargs)
+
+        self.horarios = {}
+        for horario in Horario.objects.filter(auxiliar__isnull=False).del_dia(fecha):
+            self.horarios.setdefault(horario.auxiliar_id, []).append(horario)
+        self.ausentes = set(Ausencia.objects.filter(fecha=fecha).values_list('auxiliar_id', flat=True))
+        # Se listan los que tienen horario ese día y los que ya estaban asignados.
+        self.fields['auxiliares'].queryset = Auxiliar.objects.filter(
+            pk__in=set(self.horarios) | self.actuales,
+        ).order_by('apellido', 'nombre')
+
+    def _puede_asignarse(self, auxiliar_id):
+        return auxiliar_id in self.horarios and auxiliar_id not in self.ausentes
+
+    def opciones(self):
+        """Cada auxiliar con su jornada de ese día, si está ausente y si se puede marcar."""
+        seleccionados = {str(valor) for valor in (self['auxiliares'].value() or [])}
+        return [
+            {
+                'auxiliar': auxiliar,
+                'jornadas': [horario.get_jornada_display() for horario in self.horarios.get(auxiliar.pk, [])],
+                'ausente': auxiliar.pk in self.ausentes,
+                'marcado': str(auxiliar.pk) in seleccionados,
+                'habilitado': self._puede_asignarse(auxiliar.pk) or auxiliar.pk in self.actuales,
+            }
+            for auxiliar in self.fields['auxiliares'].queryset
+        ]
+
+    def clean_auxiliares(self):
+        auxiliares = self.cleaned_data['auxiliares']
+        no_validos = [
+            f'{auxiliar.nombre} {auxiliar.apellido}'
+            for auxiliar in auxiliares
+            if auxiliar.pk not in self.actuales and not self._puede_asignarse(auxiliar.pk)
+        ]
+        if no_validos:
+            raise forms.ValidationError(f"No tienen horario ese día o están ausentes: {', '.join(no_validos)}.")
+        return auxiliares
+
+    def save(self):
+        elegidos = {auxiliar.pk for auxiliar in self.cleaned_data['auxiliares']}
+        self.convocatoria.asignaciones.filter(fecha=self.fecha).exclude(auxiliar__in=elegidos).delete()
+        # Uno por uno (no bulk_create) para que la auditoría registre cada asignación.
+        for auxiliar_id in elegidos - self.actuales:
+            ConvocatoriaAuxiliar.objects.create(convocatoria=self.convocatoria, auxiliar_id=auxiliar_id, fecha=self.fecha)
+
+
 class ProgramacionEstadoForm(forms.ModelForm):
     class Meta:
         model = Programacion
@@ -277,7 +300,7 @@ class ProgramacionEstadoForm(forms.ModelForm):
 class ProgramacionFiltroForm(forms.Form):
     q = forms.CharField(
         required=False,
-        label='Convocatoria, auxiliar, escuela o estado',
+        label='Convocatoria, escuela o estado',
         widget=forms.TextInput(attrs={
             'class': 'input input-bordered w-full',
             'placeholder': 'Escribe para buscar',
@@ -299,16 +322,6 @@ class ProgramacionFiltroForm(forms.Form):
         label='Escuela',
         widget=Select2Widget(attrs={
             'data-placeholder': 'Todas las escuelas',
-            'style': 'width: 100%',
-            'class': 'select2-daisy',
-        }),
-    )
-    auxiliar = forms.ModelChoiceField(
-        queryset=Auxiliar.objects.all().order_by('apellido', 'nombre'),
-        required=False,
-        label='Auxiliar',
-        widget=Select2Widget(attrs={
-            'data-placeholder': 'Todos los auxiliares',
             'style': 'width: 100%',
             'class': 'select2-daisy',
         }),

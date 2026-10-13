@@ -80,16 +80,16 @@
                     </a>
                 </li>
                 <li>
-                    <a href="{% url 'agenda_imprimir' %}?convocatoria={{ base_impresion }}&alcance=sin_auxiliar" target="_blank" class="flex items-start gap-3 py-2">
+                    <a href="{% url 'agenda_imprimir' %}?convocatoria={{ base_impresion }}&alcance=sin_cobertura" target="_blank" class="flex items-start gap-3 py-2">
                         <span class="mt-0.5 rounded-lg bg-primary/10 p-1.5 text-primary"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" /></svg></span>
                         <span class="min-w-0">
-                            <span class="block font-medium">Visitas sin auxiliar</span>
-                            <span class="block text-xs text-base-content/60">Las que todavía falta asignar a alguien.</span>
+                            <span class="block font-medium">Visitas sin cobertura</span>
+                            <span class="block text-xs text-base-content/60">Las de jornadas que ningún auxiliar asignado a ese día trabaja.</span>
                         </span>
                     </a>
                 </li>
                 {% if auxiliares %}
-                <li class="menu-title mt-1">Hoja de ruta por auxiliar</li>
+                <li class="menu-title mt-1">Hoja de ruta por auxiliar <span class="font-normal">(visitas de los días y jornadas en que está asignado)</span></li>
                 <div class="max-h-56 overflow-y-auto">
                     {% for item in leyenda %}
                     <li>
@@ -143,7 +143,7 @@
 
     {% if not auxiliares %}
     <div role="status" class="alert alert-warning alert-soft m-4 text-sm">
-        <span>No hay auxiliares registrados. Regístralos con sus horarios en <a href="{% url 'home_auxiliar' %}" class="link">Auxiliares</a> para poder asignar visitas.</span>
+        <span>Esta convocatoria todavía no tiene auxiliares asignados, así que ninguna jornada queda cubierta. Usa <b>Asignar</b> bajo cada fecha del calendario (solo aparecen los que tienen horario ese día).</span>
     </div>
     {% endif %}
 
@@ -160,8 +160,8 @@
             <span class="flex items-center gap-1.5">{% include "partials/agenda/_icono_estado.html" with estado='completado' %} Completado</span>
             <span class="flex items-center gap-1.5">{% include "partials/agenda/_icono_estado.html" with estado='no asistio' %} No asistió</span>
             <span class="flex items-center gap-1.5"><span class="inline-block h-3 w-4 rounded-sm border border-base-300 bg-base-200/40 bg-[repeating-linear-gradient(135deg,transparent_0_3px,var(--color-base-300)_3px_4px)]" aria-hidden="true"></span> Fuera del periodo</span>
-            {% if calendario.hay_sin_auxiliar %}
-            <span class="flex items-center gap-1.5"><span class="inline-block h-3 w-4 rounded-sm border-l-4 border-dashed border-base-content/30 bg-base-200/70" aria-hidden="true"></span> Sin auxiliar</span>
+            {% if calendario.hay_sin_cobertura %}
+            <span class="flex items-center gap-1.5"><span class="inline-block h-3 w-4 rounded-sm border-l-4 border-dashed border-warning bg-warning/10" aria-hidden="true"></span> Sin cobertura</span>
             {% endif %}
             {% if leyenda|length > 1 %}
             <span class="hidden h-4 border-l border-base-300 sm:block" aria-hidden="true"></span>

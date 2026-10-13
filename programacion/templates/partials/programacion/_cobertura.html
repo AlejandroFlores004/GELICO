@@ -1,0 +1,24 @@
+{% comment %}
+  Quién cubre la visita: los auxiliares asignados a ese día cuyo horario incluye esa jornada.
+  Es informativo (la visita se guarda igual); se vuelve a pintar al cambiar convocatoria, fecha o jornada.
+{% endcomment %}
+<div id="programacion-cobertura" class="md:col-span-2 rounded-lg border p-3 text-sm
+    {% if fecha_y_jornada_elegidas and not cubierta %}border-warning/40 bg-warning/5{% else %}border-base-300 bg-base-200/40{% endif %}">
+    <p class="font-medium">Auxiliares que cubren esta visita</p>
+    {% if not fecha_y_jornada_elegidas %}
+    <p class="mt-1 text-xs text-base-content/60">Elige {% if not convocatoria %}la convocatoria, {% endif %}la fecha y la jornada para ver qué auxiliares asignados a ese día trabajan en ella según su horario.</p>
+    {% else %}
+        {% if cubren %}
+        <div class="mt-2 flex flex-wrap gap-1.5">
+            {% for auxiliar in cubren %}<span class="badge badge-primary badge-soft">{{ auxiliar.nombre }} {{ auxiliar.apellido }}</span>{% endfor %}
+        </div>
+        {% endif %}
+        {% if cubierta %}
+        <p class="mt-1 text-xs text-base-content/60">Están asignados a ese día, su horario incluye esta jornada y no tienen ausencia.</p>
+        {% elif cubren %}
+        <p class="mt-1 text-xs text-warning">Cobertura parcial: algún turno de la jornada no lo trabaja ningún auxiliar asignado a ese día.</p>
+        {% else %}
+        <p class="mt-1 text-xs text-warning">Ningún auxiliar asignado a ese día trabaja esta jornada. Puedes guardarla igual y asignar auxiliares desde el calendario, con <b>Asignar</b> bajo la fecha.</p>
+        {% endif %}
+    {% endif %}
+</div>

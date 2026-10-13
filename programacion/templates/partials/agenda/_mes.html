@@ -24,13 +24,14 @@
                         {% if dia_mes.ausentes %}
                         <span class="badge badge-error badge-soft badge-xs whitespace-nowrap" title="Ausentes: {% for ausente in dia_mes.ausentes %}{{ ausente.nombre }} {{ ausente.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}">{{ dia_mes.ausentes|length }} aus.</span>
                         {% endif %}
-                        {% if dia_mes.disponibles %}
-                        <span class="badge badge-ghost badge-xs whitespace-nowrap tabular-nums" title="{{ dia_mes.disponibles }} auxiliar{{ dia_mes.disponibles|pluralize:',es' }} con horario ese día">{{ dia_mes.disponibles }} disp.</span>
+                        {% include "partials/agenda/_cubren.html" with cubren=dia_mes.asignados %}
+                        {% if not dia_mes.fuera_periodo %}
+                        {% include "partials/agenda/_boton_asignar.html" with fecha=dia_mes.fecha asignados=dia_mes.asignados %}
                         {% endif %}
                         {% if dia_mes.puede_programar %}
                         <button
                             type="button"
-                            hx-get="{% url 'programacion_nueva' %}?origen=convocatoria&convocatoria={{ convocatoria.pk }}&fecha={{ dia_mes.fecha|date:'Y-m-d' }}{% if auxiliar %}&auxiliar={{ auxiliar.pk }}{% endif %}"
+                            hx-get="{% url 'programacion_nueva' %}?origen=convocatoria&convocatoria={{ convocatoria.pk }}&fecha={{ dia_mes.fecha|date:'Y-m-d' }}"
                             hx-target="#programacion-modal-wrapper"
                             hx-swap="outerHTML"
                             class="btn btn-ghost btn-xs btn-square text-primary opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100"

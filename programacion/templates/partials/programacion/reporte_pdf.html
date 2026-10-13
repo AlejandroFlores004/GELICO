@@ -17,7 +17,7 @@
     <p>Generado el {{ fecha_generacion|date:"d/m/Y" }} · {{ programaciones|length }} registros</p>
     <table>
         <thead>
-            <tr><th>Fecha</th><th>Jornada</th><th>Convocatoria</th><th>Auxiliar</th><th>Escuela</th><th>Estado</th></tr>
+            <tr><th>Fecha</th><th>Jornada</th><th>Convocatoria</th><th>Escuela</th><th>Estado</th></tr>
         </thead>
         <tbody>
             {% for programacion in programaciones %}
@@ -25,7 +25,6 @@
                 <td>{{ programacion.fecha_programada|date:"d/m/Y" }}</td>
                 <td>{{ programacion.get_jornada_display }}</td>
                 <td>{{ programacion.convocatoria.nombre }}</td>
-                <td>{% if programacion.auxiliar %}{{ programacion.auxiliar.nombre }} {{ programacion.auxiliar.apellido }}{% else %}Sin asignar{% endif %}</td>
                 <td>{{ programacion.escuela.nombre_corto }}</td>
                 <td>{{ programacion.get_estado_display }}</td>
             </tr>

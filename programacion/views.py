@@ -1,11 +1,10 @@
-from calendar import Calendar
 from collections import defaultdict
 from datetime import timedelta
 from urllib.parse import urlencode
 
 from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseRedirect
 from django.core.paginator import Paginator
-from django.db.models import Prefetch, Q
+from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -17,38 +16,36 @@ from weasyprint import HTML
 
 from main.permisos import permiso_formulario, permiso_requerido
 from .agenda import (
-    MODOS, agenda_de_convocatoria, con_conteos, convocatoria_por_defecto, convocatorias_agrupadas,
-    disponibles_en_jornada, estado_convocatoria, etiqueta_jornada, horarios_por_fecha, otras_convocatorias, rango_visible,
+    MODOS, Agenda, agenda_de_convocatoria, auxiliares_asignados, con_conteos, convocatoria_por_defecto, convocatorias_agrupadas,
+    cubren_en_jornada, estado_convocatoria, etiqueta_jornada, otras_convocatorias, rango_visible,
     resumen_estados, sumar_meses, tono_convocatoria, tonos_por_auxiliar,
 )
 
-from .forms import AuxiliarForm, AusenciaForm, ConvocatoriaForm, HorarioForm, ProgramacionEstadoForm, ProgramacionFiltroForm, ProgramacionForm
+from .forms import (
+    AsignarAuxiliaresDiaForm, AuxiliarForm, AusenciaForm, ConvocatoriaForm, HorarioForm, ProgramacionEstadoForm,
+    ProgramacionFiltroForm, ProgramacionForm,
+)
 from .models import ORDEN_JORNADA, Auxiliar, Ausencia, Convocatoria, Horario, Jornada, Programacion
 
 
 def _programaciones_filtradas(request, paginar=True):
     filtro_form = ProgramacionFiltroForm(request.GET or None)
     programaciones = Programacion.objects.select_related(
-        'convocatoria', 'auxiliar', 'escuela'
+        'convocatoria', 'escuela'
     ).order_by('-fecha_programada', ORDEN_JORNADA.desc())
 
     if filtro_form.is_valid():
         search = filtro_form.cleaned_data.get('q', '').strip()
         convocatoria = filtro_form.cleaned_data.get('convocatoria')
         escuela = filtro_form.cleaned_data.get('escuela')
-        auxiliar = filtro_form.cleaned_data.get('auxiliar')
 
         if convocatoria:
             programaciones = programaciones.filter(convocatoria=convocatoria)
         if escuela:
             programaciones = programaciones.filter(escuela=escuela)
-        if auxiliar:
-            programaciones = programaciones.filter(auxiliar=auxiliar)
         if search:
             programaciones = programaciones.filter(
                 Q(convocatoria__nombre__icontains=search)
-                | Q(auxiliar__nombre__icontains=search)
-                | Q(auxiliar__apellido__icontains=search)
                 | Q(escuela__nombre__icontains=search)
                 | Q(escuela__nombre_corto__icontains=search)
                 | Q(estado__icontains=search)
@@ -137,7 +134,9 @@ def _contexto_agenda(request):
     modo = modo if modo in MODOS else 'semana'
     # Sin fecha, se abre en hoy si la convocatoria está en curso; si no, en su primer día.
     dia = _fecha(request.GET.get('fecha')) or (hoy if en_periodo else convocatoria.fecha_inicio)
-    auxiliar = _por_id(Auxiliar, request.GET.get('auxiliar'))
+    auxiliares = list(auxiliares_asignados(convocatoria))
+    # Solo se filtra por auxiliares asignados a algún día de la convocatoria.
+    auxiliar = next((a for a in auxiliares if str(a.pk) == request.GET.get('auxiliar')), None)
 
     def url(modo_destino, dia_destino):
         return _url_agenda(convocatoria, modo_destino, dia_destino, auxiliar)
@@ -149,10 +148,9 @@ def _contexto_agenda(request):
         anterior, siguiente = dia - paso, dia + paso
     inicio_visible, fin_visible = rango_visible(modo, dia)
 
-    auxiliares = list(Auxiliar.objects.order_by('apellido', 'nombre'))
     tonos = tonos_por_auxiliar(auxiliares)
     mostrados = [auxiliar] if auxiliar else auxiliares
-    calendario = agenda_de_convocatoria(convocatoria, modo, dia, mostrados, tonos, incluir_sin_auxiliar=not auxiliar)
+    calendario = agenda_de_convocatoria(convocatoria, modo, dia, mostrados, tonos, solo_las_que_cubren=bool(auxiliar))
     for columna in calendario.get('columnas', []):
         columna['url_dia'] = url('dia', columna['fecha'])
     for semana in calendario.get('semanas', []):
@@ -160,7 +158,11 @@ def _contexto_agenda(request):
             dia_mes['url_dia'] = url('dia', dia_mes['fecha'])
 
     programaciones = convocatoria.programacion_set.all()
-    columnas_por_auxiliar = modo == 'dia' and any(c['auxiliar'] for c in calendario.get('columnas', []))
+    # Cobertura de todo el periodo, para el contador de visitas que ningún auxiliar cubre.
+    periodo = Agenda(convocatoria, convocatoria.fecha_inicio, convocatoria.fecha_fin, auxiliares)
+    dias_asignados = dict(
+        convocatoria.asignaciones.values('auxiliar').annotate(dias=Count('fecha')).values_list('auxiliar', 'dias')
+    )
 
     return {
         'convocatoria': convocatoria,
@@ -173,8 +175,7 @@ def _contexto_agenda(request):
         'duracion': (convocatoria.fecha_fin - convocatoria.fecha_inicio).days + 1,
         'dias_restantes': (convocatoria.fecha_fin - hoy).days,
         'estados': resumen_estados(programaciones),
-        'auxiliares_asignados': programaciones.exclude(auxiliar=None).values('auxiliar').distinct().count(),
-        'sin_auxiliar': programaciones.filter(auxiliar=None).count(),
+        'sin_cobertura': sum(not programacion.cubierta for programacion in periodo.programaciones),
         'escuelas_visitadas': programaciones.values('escuela').distinct().count(),
         'modo': modo,
         'dia': dia,
@@ -190,8 +191,9 @@ def _contexto_agenda(request):
         'url_hoy': url(modo, hoy) if en_periodo else None,
         'url_primer_dia': url(modo, convocatoria.fecha_inicio),
         'modos': [(clave, etiqueta, url(clave, dia)) for clave, etiqueta in (('semana', 'Semana'), ('dia', 'Día'), ('mes', 'Mes'))],
-        'leyenda': [{'auxiliar': aux, 'tono': tonos[aux.pk]} for aux in mostrados],
-        'mostrar_auxiliar': len(mostrados) > 1 and not columnas_por_auxiliar,
+        'leyenda': [
+            {'auxiliar': aux, 'tono': tonos[aux.pk], 'dias': dias_asignados.get(aux.pk, 0)} for aux in auxiliares
+        ],
     }
 
 
@@ -242,7 +244,7 @@ def convocatoria_agenda(request, pk):
 # Impresión de la agenda: convocatoria, semana, día, hoja de ruta por auxiliar...
 # ---------------------------------------------------------------------------
 
-ALCANCES_IMPRESION = ('convocatoria', 'semana', 'dia', 'auxiliar', 'sin_auxiliar', 'pendientes')
+ALCANCES_IMPRESION = ('convocatoria', 'semana', 'dia', 'auxiliar', 'sin_cobertura', 'pendientes')
 
 
 @permiso_requerido('programacion.view_programacion')
@@ -254,7 +256,7 @@ def agenda_imprimir(request):
     auxiliar = _por_id(Auxiliar, request.GET.get('auxiliar'))
 
     programaciones = convocatoria.programacion_set.select_related(
-        'auxiliar', 'escuela__distrito',
+        'escuela__distrito',
     ).order_by('fecha_programada', ORDEN_JORNADA, 'escuela__nombre')
     inicio, fin = convocatoria.fecha_inicio, convocatoria.fecha_fin
     subtitulo = f"Del {date_format(inicio, FORMATO_FECHA)} al {date_format(fin, FORMATO_FECHA)}"
@@ -268,15 +270,24 @@ def agenda_imprimir(request):
         inicio = fin = dia
         subtitulo = capfirst(date_format(dia, FORMATO_DIA))
     elif alcance == 'auxiliar' and auxiliar:
-        programaciones = programaciones.filter(auxiliar=auxiliar)
         subtitulo = f"Hoja de ruta de {auxiliar.nombre} {auxiliar.apellido}"
-    elif alcance == 'sin_auxiliar':
-        programaciones = programaciones.filter(auxiliar=None)
-        subtitulo = 'Visitas sin auxiliar asignado'
+    elif alcance == 'sin_cobertura':
+        subtitulo = 'Visitas que ningún auxiliar cubre'
     elif alcance == 'pendientes':
         programaciones = programaciones.filter(estado='pendiente')
         subtitulo = 'Visitas pendientes'
     programaciones = list(programaciones.filter(fecha_programada__range=(inicio, fin)))
+
+    # Quién cubre cada visita: los auxiliares asignados a su día cuyo horario incluye su jornada.
+    cobertura = Agenda(convocatoria, inicio, fin, con_visitas=False)
+    for programacion in programaciones:
+        programacion.cubren = cobertura.cubren_visita(programacion)
+        programacion.cubierta = cobertura.visita_cubierta(programacion)
+    if alcance == 'auxiliar' and auxiliar:
+        # Hoja de ruta: las visitas de las jornadas en que trabaja.
+        programaciones = [programacion for programacion in programaciones if auxiliar in programacion.cubren]
+    elif alcance == 'sin_cobertura':
+        programaciones = [programacion for programacion in programaciones if not programacion.cubierta]
 
     por_dia = defaultdict(list)
     for programacion in programaciones:
@@ -325,74 +336,21 @@ def buscar_programaciones(request):
     })
 
 
-def _auxiliar_horarios_contexto(auxiliar, mes_parametro=None, convocatoria=None):
-    mes_actual = parse_date(f'{mes_parametro}-01') if mes_parametro else None
-    if mes_actual is None:
-        mes_actual = timezone.localdate().replace(day=1)
-    else:
-        mes_actual = mes_actual.replace(day=1)
-
-    if mes_actual.month == 1:
-        mes_anterior = mes_actual.replace(year=mes_actual.year - 1, month=12)
-    else:
-        mes_anterior = mes_actual.replace(month=mes_actual.month - 1)
-    if mes_actual.month == 12:
-        mes_siguiente = mes_actual.replace(year=mes_actual.year + 1, month=1)
-    else:
-        mes_siguiente = mes_actual.replace(month=mes_actual.month + 1)
-
-    semanas = Calendar(firstweekday=6).monthdatescalendar(mes_actual.year, mes_actual.month)
-    inicio, fin = semanas[0][0], semanas[-1][-1]
-    horarios = Horario.objects.filter(auxiliar=auxiliar).vigentes_entre(inicio, fin) if auxiliar else []
-    horarios_del_auxiliar = horarios_por_fecha(horarios, inicio, fin)
-
-    calendario_horarios = [
-        [
-            {
-                'fecha': fecha,
-                'en_mes': fecha.month == mes_actual.month,
-                'horarios': horarios_del_auxiliar[(auxiliar.pk, fecha)] if auxiliar else [],
-                'en_periodo_convocatoria': bool(
-                    convocatoria
-                    and convocatoria.fecha_inicio <= fecha <= convocatoria.fecha_fin
-                ),
-                'inicio_convocatoria': bool(
-                    convocatoria and fecha == convocatoria.fecha_inicio
-                ),
-                'fin_convocatoria': bool(
-                    convocatoria and fecha == convocatoria.fecha_fin
-                ),
-            }
-            for fecha in semana
-        ]
-        for semana in semanas
-    ]
-    nombres_meses = (
-        'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
-    )
-    return {
-        'auxiliar': auxiliar,
-        'convocatoria': convocatoria,
-        'calendario_horarios': calendario_horarios,
-        'mes_actual': mes_actual.strftime('%Y-%m'),
-        'mes_anterior': mes_anterior.strftime('%Y-%m'),
-        'mes_siguiente': mes_siguiente.strftime('%Y-%m'),
-        'mes_titulo': f'{nombres_meses[mes_actual.month - 1].capitalize()} {mes_actual.year}',
-    }
-
-
 @permiso_requerido('programacion.add_programacion', 'programacion.change_programacion', cualquiera=True)
-def programacion_auxiliar_horario(request):
-    auxiliar_id = request.GET.get('auxiliar')
-    convocatoria_id = request.GET.get('convocatoria')
-    auxiliar = Auxiliar.objects.filter(pk=auxiliar_id).first() if auxiliar_id else None
-    convocatoria = Convocatoria.objects.filter(pk=convocatoria_id).first() if convocatoria_id else None
-    return render(request, 'partials/programacion/auxiliar_horarios.html', _auxiliar_horarios_contexto(
-        auxiliar,
-        request.GET.get('mes'),
-        convocatoria,
+def programacion_cobertura(request):
+    """Qué auxiliares asignados a ese día cubren la jornada elegida en el formulario."""
+    return render(request, 'partials/programacion/_cobertura.html', _contexto_cobertura(
+        _por_id(Convocatoria, request.GET.get('convocatoria')),
+        _fecha(request.GET.get('fecha_programada')),
+        _jornada(request.GET.get('jornada')),
     ))
+
+
+def _contexto_cobertura(convocatoria, fecha, jornada):
+    contexto = {'convocatoria': convocatoria, 'fecha_y_jornada_elegidas': bool(convocatoria and fecha and jornada)}
+    if contexto['fecha_y_jornada_elegidas']:
+        contexto['cubren'], contexto['cubierta'] = cubren_en_jornada(convocatoria, fecha, jornada)
+    return contexto
 
 
 def _jornada(valor):
@@ -404,14 +362,11 @@ def _inicial_programacion(request):
     inicial = {}
     fecha = _fecha(request.GET.get('fecha'))
     jornada = _jornada(request.GET.get('jornada'))
-    auxiliar = _por_id(Auxiliar, request.GET.get('auxiliar'))
     if fecha:
         inicial['fecha_programada'] = fecha
     if jornada:
         inicial['jornada'] = jornada
-    if auxiliar:
-        inicial['auxiliar'] = auxiliar.pk
-    return inicial, auxiliar, fecha, jornada
+    return inicial, fecha, jornada
 
 
 @permiso_formulario('programacion.programacion')
@@ -422,21 +377,13 @@ def programacion_form(request, pk=None):
     if _origen(request) == 'convocatoria':
         convocatoria_fija = instance.convocatoria if instance else _por_id(Convocatoria, request.GET.get('convocatoria'))
 
-    auxiliar_actual = instance.auxiliar if instance else None
     convocatoria_actual = instance.convocatoria if instance else convocatoria_fija
-    mes_horarios = instance.fecha_programada.strftime('%Y-%m') if instance else None
     fecha_bloque = instance.fecha_programada if instance else None
     jornada_bloque = instance.jornada if instance else None
 
     if request.method == 'POST':
         form = ProgramacionForm(request.POST, instance=instance, convocatoria_fija=convocatoria_fija)
-        auxiliar_id = request.POST.get('auxiliar')
-        convocatoria_id = request.POST.get('convocatoria')
-        mes_horarios = request.POST.get('mes') or mes_horarios
-        if auxiliar_id:
-            auxiliar_actual = Auxiliar.objects.filter(pk=auxiliar_id).first()
-        if convocatoria_id:
-            convocatoria_actual = Convocatoria.objects.filter(pk=convocatoria_id).first()
+        convocatoria_actual = _por_id(Convocatoria, request.POST.get('convocatoria')) or convocatoria_actual
         if form.is_valid():
             form.save()
             programaciones = None if _desde_calendario(request) else _programaciones_filtradas(request)[1]
@@ -448,10 +395,8 @@ def programacion_form(request, pk=None):
     elif instance:
         form = ProgramacionForm(instance=instance, convocatoria_fija=convocatoria_fija)
     else:
-        inicial, auxiliar_actual, fecha_bloque, jornada_bloque = _inicial_programacion(request)
+        inicial, fecha_bloque, jornada_bloque = _inicial_programacion(request)
         form = ProgramacionForm(initial=inicial, convocatoria_fija=convocatoria_fija)
-        if fecha_bloque:
-            mes_horarios = fecha_bloque.strftime('%Y-%m')
 
     return render(request, 'partials/programacion/modal_form.html', {
         'form': form,
@@ -461,11 +406,7 @@ def programacion_form(request, pk=None):
         'desde_calendario': _desde_calendario(request),
         'fecha_bloque': fecha_bloque,
         'etiqueta_bloque': etiqueta_jornada(jornada_bloque) if jornada_bloque else None,
-        'disponibles_bloque': (
-            disponibles_en_jornada(fecha_bloque, jornada_bloque, excluir=instance)
-            if fecha_bloque and jornada_bloque else None
-        ),
-        **_auxiliar_horarios_contexto(auxiliar_actual, mes_horarios, convocatoria_actual),
+        **_contexto_cobertura(convocatoria_actual, fecha_bloque, jornada_bloque),
     })
 
 
@@ -857,6 +798,26 @@ def convocatoria_form(request, pk=None):
         "partials/convocatorias/modal_form.html",
         {"form": form, "instance": instance},
     )
+
+
+@permiso_requerido('programacion.add_convocatoriaauxiliar', 'programacion.delete_convocatoriaauxiliar')
+def convocatoria_dia_auxiliares(request, pk):
+    """Asignar auxiliares a un día de la convocatoria (solo los que tienen horario ese día)."""
+    convocatoria = get_object_or_404(Convocatoria, pk=pk)
+    fecha = _fecha(request.GET.get('fecha'))
+    if not fecha or not convocatoria.fecha_inicio <= fecha <= convocatoria.fecha_fin:
+        return HttpResponse('El día debe estar dentro de las fechas de la convocatoria.', status=400)
+
+    if request.method == "POST":
+        form = AsignarAuxiliaresDiaForm(request.POST, convocatoria=convocatoria, fecha=fecha)
+        if form.is_valid():
+            form.save()
+            return _respuesta_guardado(request, "partials/convocatorias/modal_form_success.html", {"convocatorias": None})
+    else:
+        form = AsignarAuxiliaresDiaForm(convocatoria=convocatoria, fecha=fecha)
+    return render(request, "partials/agenda/modal_asignar_auxiliares.html", {
+        "form": form, "convocatoria": convocatoria, "fecha": fecha,
+    })
 
 
 @permiso_requerido('programacion.delete_convocatoria')

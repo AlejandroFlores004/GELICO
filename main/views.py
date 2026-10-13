@@ -217,7 +217,7 @@ def home_view(request):
             ).count(),
         },
         'programaciones_hoy': Programacion.objects.filter(fecha_programada=hoy).select_related(
-            'auxiliar', 'escuela',
+            'convocatoria', 'escuela',
         ).order_by(ORDEN_JORNADA, 'escuela__nombre'),
         'programaciones_semana': Programacion.objects.filter(
             fecha_programada__gt=hoy, fecha_programada__lte=hoy + timedelta(days=7), estado='pendiente',

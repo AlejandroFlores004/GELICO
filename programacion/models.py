@@ -1,5 +1,6 @@
 from datetime import datetime, time
 
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Case, F, IntegerField, Q, When
 from django.utils import timezone
@@ -67,18 +68,44 @@ class Auxiliar(models.Model):
         verbose_name_plural = "Auxiliares"
 
 
+class ConvocatoriaAuxiliar(models.Model):
+    """Auxiliar asignado a un día de una convocatoria. Solo se puede asignar si ese día cae dentro de
+    la convocatoria y su horario semanal incluye ese día; la jornada en que cubre sale de su horario."""
+    convocatoria = models.ForeignKey(Convocatoria, on_delete=models.CASCADE, related_name='asignaciones')
+    auxiliar = models.ForeignKey(Auxiliar, on_delete=models.CASCADE, related_name='asignaciones')
+    fecha = models.DateField('día')
+
+    def __str__(self):
+        return f"{self.auxiliar.nombre} {self.auxiliar.apellido} en {self.convocatoria.nombre} ({self.fecha:%d/%m/%Y})"
+
+    def clean(self):
+        if not (self.convocatoria_id and self.auxiliar_id and self.fecha):
+            return
+        if not self.convocatoria.fecha_inicio <= self.fecha <= self.convocatoria.fecha_fin:
+            raise ValidationError({'fecha': 'El día debe estar dentro de las fechas de la convocatoria.'})
+        if not Horario.objects.filter(auxiliar_id=self.auxiliar_id).del_dia(self.fecha).exists():
+            raise ValidationError({'fecha': 'El auxiliar no tiene horario ese día.'})
+
+    class Meta:
+        verbose_name = "Auxiliar asignado a un día"
+        verbose_name_plural = "Auxiliares asignados a días"
+        ordering = ['convocatoria', 'fecha', 'auxiliar']
+        constraints = [
+            models.UniqueConstraint(fields=['convocatoria', 'auxiliar', 'fecha'], name='convocatoria_auxiliar_dia_unico'),
+        ]
+
+
 class Programacion(models.Model):
+    """Visita a una escuela en una jornada. No lleva auxiliar: la cubren los auxiliares de la
+    convocatoria cuyo horario incluye esa jornada ese día."""
     convocatoria = models.ForeignKey(Convocatoria, on_delete=models.CASCADE)
-    # Opcional: una visita puede programarse y asignarle el auxiliar después.
-    auxiliar = models.ForeignKey(Auxiliar, on_delete=models.CASCADE, null=True, blank=True)
     fecha_programada = models.DateField()
     jornada = models.CharField(max_length=10, choices=Jornada.choices)
     escuela = models.ForeignKey(Escuela, on_delete=models.CASCADE)
     estado = models.CharField(max_length=50, choices=[('pendiente', 'Pendiente'), ('completado', 'Completado'), ('no asistio', 'No Asistió')], default='pendiente')
 
     def __str__(self):
-        auxiliar = f"{self.auxiliar.nombre} {self.auxiliar.apellido}" if self.auxiliar else "Sin auxiliar"
-        return f"Programación: {self.convocatoria.nombre} - {auxiliar} - {self.fecha_programada} {self.get_jornada_display()} - {self.escuela.nombre} - {self.estado}"
+        return f"Programación: {self.convocatoria.nombre} - {self.fecha_programada} {self.get_jornada_display()} - {self.escuela.nombre} - {self.estado}"
 
     @property
     def turnos(self):
