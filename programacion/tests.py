@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from escuela.models import Distrito, Escuela
 from .agenda import agenda_de_convocatoria, auxiliares_asignados, convocatoria_por_defecto, tonos_por_auxiliar
-from .forms import AsignarAuxiliaresDiaForm, ProgramacionForm
+from .forms import AuxiliaresDelDia, ProgramacionForm
 from .models import Auxiliar, Ausencia, Convocatoria, ConvocatoriaAuxiliar, Horario, Programacion
 
 
@@ -209,45 +209,67 @@ class AsignarAuxiliaresDiaTests(AgendaBase):
 	def _asignados(self, fecha=None):
 		return set(self.convocatoria.asignaciones.filter(fecha=fecha or self.dia).values_list('auxiliar__nombre', flat=True))
 
-	def test_solo_se_asignan_auxiliares_con_horario_ese_dia(self):
+	def _auxiliares(self, respuesta, lista):
+		return [fila['auxiliar'] for fila in respuesta.context[lista]]
+
+	def test_lista_asignados_y_los_que_tienen_horario_ese_dia(self):
 		con_horario = self._auxiliar('Ana', 'Ruiz', 'tarde')
 		sin_horario = Auxiliar.objects.create(nombre='Eva', apellido='Paz', email='eva.paz@example.com', institucion='UES')
 		ausente = self._auxiliar('Leo', 'Sol', 'completa')
 		Ausencia.objects.create(auxiliar=ausente, fecha=self.dia, motivo='Enfermedad')
 
-		opciones = {o['auxiliar'].pk: o for o in self.client.get(self.url).context['form'].opciones()}
-		self.assertTrue(opciones[con_horario.pk]['habilitado'])
-		self.assertEqual(opciones[con_horario.pk]['jornadas'], ['Tarde'])
-		self.assertNotIn(sin_horario.pk, opciones)
-		self.assertFalse(opciones[ausente.pk]['habilitado'])
+		respuesta = self.client.get(self.url)
+		self.assertEqual(self._auxiliares(respuesta, 'asignados'), [self.auxiliar])
+		disponibles = {fila['auxiliar']: fila for fila in respuesta.context['disponibles']}
+		self.assertEqual(list(disponibles), [ausente, con_horario])  # por apellido; sin_horario no aparece
+		self.assertNotIn(sin_horario, disponibles)
+		self.assertEqual(disponibles[con_horario]['jornadas'], ['Tarde'])
+		self.assertTrue(disponibles[con_horario]['puede_agregarse'])
+		self.assertFalse(disponibles[ausente]['puede_agregarse'])
+		self.assertContains(respuesta, 'Quitar')
+		self.assertContains(respuesta, 'Agregar')
 
-		respuesta = self.client.post(self.url, {'auxiliares': [self.auxiliar.pk, con_horario.pk, ausente.pk]})
-		self.assertIn('Leo Sol', respuesta.context['form'].errors['auxiliares'][0])
-		self.assertEqual(self._asignados(), {'Luis'})
-
-		respuesta = self.client.post(self.url, {'auxiliares': [self.auxiliar.pk, con_horario.pk]})
+	def test_agregar_y_quitar(self):
+		ana = self._auxiliar('Ana', 'Ruiz', 'tarde')
+		respuesta = self.client.post(self.url, {'agregar': ana.pk})
 		self.assertEqual(respuesta['HX-Trigger'], 'agenda-actualizada')
 		self.assertEqual(self._asignados(), {'Luis', 'Ana'})
+		self.assertEqual(self._auxiliares(respuesta, 'asignados'), [self.auxiliar, ana])
+
+		respuesta = self.client.post(self.url, {'quitar': self.auxiliar.pk})
+		self.assertEqual(respuesta['HX-Trigger'], 'agenda-actualizada')
+		self.assertEqual(self._asignados(), {'Ana'})
+		# El que se quita vuelve a la lista de los que se pueden agregar.
+		self.assertIn(self.auxiliar, self._auxiliares(respuesta, 'disponibles'))
+
+	def test_no_agrega_sin_horario_o_ausente(self):
+		sin_horario = Auxiliar.objects.create(nombre='Eva', apellido='Paz', email='eva.paz@example.com', institucion='UES')
+		ausente = self._auxiliar('Leo', 'Sol', 'completa')
+		Ausencia.objects.create(auxiliar=ausente, fecha=self.dia, motivo='Enfermedad')
+		for auxiliar, motivo in ((sin_horario, 'no tiene horario'), (ausente, 'está ausente')):
+			with self.subTest(auxiliar=auxiliar.nombre):
+				respuesta = self.client.post(self.url, {'agregar': auxiliar.pk})
+				self.assertIn(motivo, respuesta.context['error'])
+				self.assertNotIn('HX-Trigger', respuesta)
+		self.assertEqual(self._asignados(), {'Luis'})
 
 	def test_la_asignacion_es_solo_de_ese_dia(self):
 		Horario.objects.filter(auxiliar=self.auxiliar).update(
 			fecha_inicio=self.convocatoria.fecha_inicio, fecha_fin=self.convocatoria.fecha_fin,
 		)
 		otro_dia = self.dia + timedelta(days=7)
-		self.assertFalse(self.convocatoria.asignaciones.filter(fecha=otro_dia).exists())
-		form = AsignarAuxiliaresDiaForm(convocatoria=self.convocatoria, fecha=otro_dia, data={'auxiliares': [self.auxiliar.pk]})
-		self.assertTrue(form.is_valid(), form.errors)
-		form.save()
-		self.assertEqual(self.convocatoria.asignaciones.filter(auxiliar=self.auxiliar).count(), 2)
-
-	def test_quitar_auxiliares_del_dia(self):
-		self.client.post(self.url, {})
-		self.assertEqual(self._asignados(), set())
-
-	def test_conserva_al_que_ya_estaba_aunque_cambie_su_horario(self):
-		Horario.objects.filter(auxiliar=self.auxiliar).delete()
-		self.client.post(self.url, {'auxiliares': [self.auxiliar.pk]})
+		self.assertIsNone(AuxiliaresDelDia(self.convocatoria, otro_dia).agregar(self.auxiliar.pk))
+		self.assertEqual(self._asignados(otro_dia), {'Luis'})
+		AuxiliaresDelDia(self.convocatoria, otro_dia).quitar(self.auxiliar.pk)
+		self.assertEqual(self._asignados(otro_dia), set())
 		self.assertEqual(self._asignados(), {'Luis'})
+
+	def test_se_puede_quitar_aunque_ya_no_tenga_horario(self):
+		Horario.objects.filter(auxiliar=self.auxiliar).delete()
+		respuesta = self.client.get(self.url)
+		self.assertEqual(self._auxiliares(respuesta, 'asignados'), [self.auxiliar])
+		self.client.post(self.url, {'quitar': self.auxiliar.pk})
+		self.assertEqual(self._asignados(), set())
 
 	def test_rechaza_dia_fuera_de_la_convocatoria(self):
 		fuera = self.convocatoria.fecha_fin + timedelta(days=1)
@@ -279,7 +301,7 @@ class ProgramacionPaginaTests(AgendaBase):
 		self.assertEqual(respuesta.context['modo'], 'semana')
 		self.assertEqual(respuesta.context['auxiliares'], [self.auxiliar])
 		self.assertContains(respuesta, 'Estás programando en la convocatoria')
-		self.assertContains(respuesta, 'Asignar auxiliares al')
+		self.assertContains(respuesta, 'Agregar o quitar auxiliares del')
 
 	def test_agenda_en_cada_modo_y_listas(self):
 		self._programar('completa')
@@ -289,6 +311,25 @@ class ProgramacionPaginaTests(AgendaBase):
 					'convocatoria': self.convocatoria.pk, 'fecha': self.dia.isoformat(), **parametros,
 				})
 				self.assertEqual(respuesta.status_code, 200)
+
+	def test_la_agenda_muestra_el_codigo_y_abre_el_detalle(self):
+		programacion = self._programar('manana')
+		respuesta = self.client.get(reverse('home_programacion'), {'convocatoria': self.convocatoria.pk, 'fecha': self.dia.isoformat()})
+		self.assertContains(respuesta, reverse('programacion_detalle', args=[programacion.pk]))
+		self.assertContains(respuesta, f'>{self.escuela.codigo}</span>', html=False)
+
+		detalle = self.client.get(reverse('programacion_detalle', args=[programacion.pk]))
+		self.assertContains(detalle, self.escuela.nombre)
+		self.assertContains(detalle, self.escuela.codigo)
+		self.assertEqual(detalle.context['cubren'], [self.auxiliar])
+		self.assertTrue(detalle.context['cubierta'])
+		self.assertContains(detalle, reverse('programacion_editar', args=[programacion.pk]))
+
+	def test_detalle_de_visita_sin_cobertura(self):
+		programacion = self._programar('tarde')  # Luis solo trabaja en la mañana
+		detalle = self.client.get(reverse('programacion_detalle', args=[programacion.pk]))
+		self.assertEqual(detalle.context['cubren'], [])
+		self.assertFalse(detalle.context['cubierta'])
 
 	def test_contador_de_visitas_sin_cobertura(self):
 		self._programar('tarde')  # Luis solo trabaja en la mañana
@@ -425,8 +466,7 @@ class HorarioSemanalTests(TestCase):
 		for dia in range(1, 32):
 			fecha = date(2026, 5, dia)
 			with self.subTest(fecha=fecha):
-				form = AsignarAuxiliaresDiaForm(convocatoria=mayo, fecha=fecha)
-				self.assertEqual(self.auxiliar in form.fields['auxiliares'].queryset, fecha in lunes_de_mayo)
+				self.assertEqual(AuxiliaresDelDia(mayo, fecha).puede_agregarse(self.auxiliar.pk), fecha in lunes_de_mayo)
 
 	def test_crear_varios_dias_a_la_vez(self):
 		respuesta = self.client.post(reverse('horario_nuevo'), self._datos(dias=['2', '4']))

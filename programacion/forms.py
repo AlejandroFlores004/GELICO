@@ -223,67 +223,60 @@ class ProgramacionForm(forms.ModelForm):
         }
 
 
-class AsignarAuxiliaresDiaForm(forms.Form):
-    """Auxiliares asignados a un día de una convocatoria. Solo se pueden asignar los que tienen horario
-    ese día y no están ausentes; los que ya estaban asignados se conservan aunque eso cambie."""
+class AuxiliaresDelDia:
+    """Gestión de los auxiliares asignados a un día de una convocatoria.
 
-    auxiliares = forms.ModelMultipleChoiceField(
-        queryset=Auxiliar.objects.none(),
-        required=False,
-        widget=forms.CheckboxSelectMultiple,
-    )
+    Se puede agregar a quien tiene horario ese día y no está ausente; se puede quitar a cualquiera
+    de los asignados (aunque su horario haya cambiado después de asignarlo)."""
 
-    def __init__(self, *args, convocatoria, fecha, **kwargs):
+    def __init__(self, convocatoria, fecha):
         self.convocatoria, self.fecha = convocatoria, fecha
-        self.actuales = set(
-            convocatoria.asignaciones.filter(fecha=fecha).values_list('auxiliar_id', flat=True)
-        )
-        kwargs.setdefault('initial', {'auxiliares': list(self.actuales)})
-        super().__init__(*args, **kwargs)
-
         self.horarios = {}
-        for horario in Horario.objects.filter(auxiliar__isnull=False).del_dia(fecha):
+        for horario in Horario.objects.del_dia(fecha):
             self.horarios.setdefault(horario.auxiliar_id, []).append(horario)
         self.ausentes = set(Ausencia.objects.filter(fecha=fecha).values_list('auxiliar_id', flat=True))
-        # Se listan los que tienen horario ese día y los que ya estaban asignados.
-        self.fields['auxiliares'].queryset = Auxiliar.objects.filter(
-            pk__in=set(self.horarios) | self.actuales,
-        ).order_by('apellido', 'nombre')
 
-    def _puede_asignarse(self, auxiliar_id):
+    def asignados_ids(self):
+        return set(self.convocatoria.asignaciones.filter(fecha=self.fecha).values_list('auxiliar_id', flat=True))
+
+    def puede_agregarse(self, auxiliar_id):
         return auxiliar_id in self.horarios and auxiliar_id not in self.ausentes
 
     def opciones(self):
-        """Cada auxiliar con su jornada de ese día, si está ausente y si se puede marcar."""
-        seleccionados = {str(valor) for valor in (self['auxiliares'].value() or [])}
-        return [
+        """(asignados, los demás con horario ese día), cada uno con su jornada y si está ausente."""
+        asignados = self.asignados_ids()
+        auxiliares = Auxiliar.objects.filter(pk__in=set(self.horarios) | asignados).order_by('apellido', 'nombre')
+        filas = [
             {
                 'auxiliar': auxiliar,
                 'jornadas': [horario.get_jornada_display() for horario in self.horarios.get(auxiliar.pk, [])],
                 'ausente': auxiliar.pk in self.ausentes,
-                'marcado': str(auxiliar.pk) in seleccionados,
-                'habilitado': self._puede_asignarse(auxiliar.pk) or auxiliar.pk in self.actuales,
+                'puede_agregarse': self.puede_agregarse(auxiliar.pk),
             }
-            for auxiliar in self.fields['auxiliares'].queryset
-        ]
-
-    def clean_auxiliares(self):
-        auxiliares = self.cleaned_data['auxiliares']
-        no_validos = [
-            f'{auxiliar.nombre} {auxiliar.apellido}'
             for auxiliar in auxiliares
-            if auxiliar.pk not in self.actuales and not self._puede_asignarse(auxiliar.pk)
         ]
-        if no_validos:
-            raise forms.ValidationError(f"No tienen horario ese día o están ausentes: {', '.join(no_validos)}.")
-        return auxiliares
+        return (
+            [fila for fila in filas if fila['auxiliar'].pk in asignados],
+            [fila for fila in filas if fila['auxiliar'].pk not in asignados],
+        )
 
-    def save(self):
-        elegidos = {auxiliar.pk for auxiliar in self.cleaned_data['auxiliares']}
-        self.convocatoria.asignaciones.filter(fecha=self.fecha).exclude(auxiliar__in=elegidos).delete()
-        # Uno por uno (no bulk_create) para que la auditoría registre cada asignación.
-        for auxiliar_id in elegidos - self.actuales:
-            ConvocatoriaAuxiliar.objects.create(convocatoria=self.convocatoria, auxiliar_id=auxiliar_id, fecha=self.fecha)
+    def agregar(self, auxiliar_id):
+        """Devuelve un mensaje de error, o None si se agregó (o ya estaba)."""
+        auxiliar = Auxiliar.objects.filter(pk=auxiliar_id).first()
+        if auxiliar is None:
+            return 'El auxiliar no existe.'
+        if auxiliar.pk in self.asignados_ids():
+            return None
+        if not self.puede_agregarse(auxiliar.pk):
+            motivo = 'está ausente' if auxiliar.pk in self.ausentes else 'no tiene horario'
+            return f'No se puede asignar a {auxiliar.nombre} {auxiliar.apellido}: {motivo} ese día.'
+        ConvocatoriaAuxiliar.objects.create(convocatoria=self.convocatoria, auxiliar=auxiliar, fecha=self.fecha)
+        return None
+
+    def quitar(self, auxiliar_id):
+        # delete() por objeto para que la auditoría registre la baja.
+        for asignacion in self.convocatoria.asignaciones.filter(fecha=self.fecha, auxiliar_id=auxiliar_id):
+            asignacion.delete()
 
 
 class ProgramacionEstadoForm(forms.ModelForm):

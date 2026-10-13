@@ -1,0 +1,80 @@
+<div id="programacion-modal-wrapper">
+    <dialog id="programacion-modal" class="modal">
+        <div class="modal-box max-w-lg">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
+            </form>
+
+            <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Visita · {{ programacion.convocatoria.nombre }}</p>
+            <h3 class="mt-1 text-xl font-bold leading-tight">{{ programacion.escuela.nombre }}</h3>
+            <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-base-content/70">
+                <span class="badge badge-ghost border-base-300 font-semibold tabular-nums">{{ programacion.escuela.codigo }}</span>
+                {% if programacion.escuela.distrito %}<span>{{ programacion.escuela.distrito.nombre }}</span>{% endif %}
+            </p>
+
+            <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div class="rounded-lg bg-base-200/60 p-3">
+                    <dt class="text-xs text-base-content/60">Fecha</dt>
+                    <dd class="font-semibold">{{ programacion.fecha_programada|date:"l j \d\e F"|capfirst }}</dd>
+                </div>
+                <div class="rounded-lg bg-base-200/60 p-3">
+                    <dt class="text-xs text-base-content/60">Jornada</dt>
+                    <dd class="font-semibold">{{ programacion.get_jornada_display }}</dd>
+                </div>
+                <div class="rounded-lg bg-base-200/60 p-3">
+                    <dt class="text-xs text-base-content/60">Estado</dt>
+                    <dd class="flex items-center gap-1.5 font-semibold">
+                        {% include "partials/agenda/_icono_estado.html" with estado=programacion.estado clase="w-4 h-4" %}
+                        {{ programacion.get_estado_display }}
+                    </dd>
+                </div>
+                <div class="rounded-lg p-3 {% if cubierta %}bg-base-200/60{% else %}bg-warning/10{% endif %}">
+                    <dt class="text-xs text-base-content/60">La cubren</dt>
+                    <dd class="font-semibold">
+                        {% for auxiliar in cubren %}{{ auxiliar.nombre }} {{ auxiliar.apellido }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-warning">Nadie</span>{% endfor %}
+                        {% if cubren and not cubierta %}<span class="block text-xs font-medium text-warning">Cobertura parcial</span>{% endif %}
+                    </dd>
+                </div>
+            </dl>
+
+            {% if programacion.ya_empezo and perms.programacion.change_programacion %}
+            <div class="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-base-300 bg-base-200/50 p-2">
+                <span class="px-1 text-sm text-base-content/70">Marcar como:</span>
+                {% for valor, etiqueta in estados_programacion %}
+                <button
+                    type="button"
+                    hx-post="{% url 'programacion_estado' programacion.pk %}"
+                    hx-vals='{"estado": "{{ valor }}"}'
+                    hx-target="#programacion-modal-wrapper"
+                    hx-swap="outerHTML"
+                    class="btn btn-sm gap-1.5 {% if programacion.estado == valor %}btn-active border-base-content/30{% else %}btn-ghost{% endif %}"
+                    {% if programacion.estado == valor %}aria-pressed="true"{% endif %}
+                >
+                    {% include "partials/agenda/_icono_estado.html" with estado=valor clase="w-4 h-4" %}
+                    {{ etiqueta }}
+                </button>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="modal-action">
+                {% if perms.programacion.delete_programacion %}
+                <button type="button" hx-get="{% url 'programacion_eliminar' programacion.pk %}?origen=convocatoria" hx-target="#programacion-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost text-error mr-auto">Eliminar</button>
+                {% endif %}
+                <button type="button" class="btn btn-ghost" onclick="document.getElementById('programacion-modal').close()">Cerrar</button>
+                {% if perms.programacion.change_programacion %}
+                <button type="button" hx-get="{% url 'programacion_editar' programacion.pk %}?origen=convocatoria" hx-target="#programacion-modal-wrapper" hx-swap="outerHTML" class="btn btn-primary">Editar</button>
+                {% endif %}
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop"><button>close</button></form>
+    </dialog>
+    <script>
+        (function () {
+            var wrapper = document.currentScript.closest('#programacion-modal-wrapper');
+            var dialog = wrapper.querySelector('#programacion-modal');
+            dialog.showModal();
+            dialog.addEventListener('close', function () { wrapper.innerHTML = ''; }, { once: true });
+        })();
+    </script>
+</div>

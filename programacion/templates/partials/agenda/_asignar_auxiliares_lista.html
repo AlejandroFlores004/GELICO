@@ -1,0 +1,67 @@
+{% comment %}
+  Lista del modal de auxiliares de un día: los asignados (con "Quitar") y los que tienen horario ese
+  día (con "Agregar"). Cada botón guarda al momento y vuelve a pintar solo esta lista.
+{% endcomment %}
+<div id="asignar-auxiliares-lista" class="mt-4 space-y-4"
+     hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+     hx-target="#asignar-auxiliares-lista"
+     hx-swap="outerHTML">
+    {% if error %}
+    <div role="alert" class="alert alert-error alert-soft text-sm">{{ error }}</div>
+    {% endif %}
+
+    <section>
+        <h4 class="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/60">Asignados a este día · {{ asignados|length }}</h4>
+        <ul class="divide-y divide-base-200 rounded-lg border border-base-300">
+            {% for fila in asignados %}
+            <li class="flex items-center gap-3 px-3 py-2.5">
+                <span class="min-w-0 flex-1">
+                    <span class="block truncate font-medium">{{ fila.auxiliar.nombre }} {{ fila.auxiliar.apellido }}</span>
+                    <span class="block truncate text-xs text-base-content/60">{{ fila.auxiliar.institucion }}</span>
+                </span>
+                {% if fila.ausente %}<span class="badge badge-error badge-soft badge-sm whitespace-nowrap">Ausente</span>{% endif %}
+                {% for jornada in fila.jornadas %}
+                <span class="badge badge-primary badge-soft badge-sm whitespace-nowrap">{{ jornada }}</span>
+                {% empty %}
+                <span class="badge badge-warning badge-soft badge-sm whitespace-nowrap" title="Su horario actual no incluye este día, así que no cubre visitas">Sin horario este día</span>
+                {% endfor %}
+                <button type="button" class="btn btn-ghost btn-sm text-error"
+                        hx-post="{% url 'convocatoria_dia_auxiliares' convocatoria.pk %}?fecha={{ fecha|date:'Y-m-d' }}"
+                        hx-vals='{"quitar": "{{ fila.auxiliar.pk }}"}'
+                        aria-label="Quitar a {{ fila.auxiliar.nombre }} {{ fila.auxiliar.apellido }} de este día">
+                    Quitar
+                </button>
+            </li>
+            {% empty %}
+            <li class="px-3 py-4 text-center text-sm text-base-content/60">Nadie asignado todavía.</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <section>
+        <h4 class="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/60">Con horario este día</h4>
+        <ul class="max-h-[40vh] divide-y divide-base-200 overflow-y-auto rounded-lg border border-base-300">
+            {% for fila in disponibles %}
+            <li class="flex items-center gap-3 px-3 py-2.5 {% if not fila.puede_agregarse %}opacity-60{% endif %}">
+                <span class="min-w-0 flex-1">
+                    <span class="block truncate font-medium">{{ fila.auxiliar.nombre }} {{ fila.auxiliar.apellido }}</span>
+                    <span class="block truncate text-xs text-base-content/60">{{ fila.auxiliar.institucion }}</span>
+                </span>
+                {% if fila.ausente %}<span class="badge badge-error badge-soft badge-sm whitespace-nowrap">Ausente</span>{% endif %}
+                {% for jornada in fila.jornadas %}<span class="badge badge-primary badge-soft badge-sm whitespace-nowrap">{{ jornada }}</span>{% endfor %}
+                <button type="button" class="btn btn-outline btn-primary btn-sm"
+                        hx-post="{% url 'convocatoria_dia_auxiliares' convocatoria.pk %}?fecha={{ fecha|date:'Y-m-d' }}"
+                        hx-vals='{"agregar": "{{ fila.auxiliar.pk }}"}'
+                        {% if not fila.puede_agregarse %}disabled title="Está ausente ese día"{% endif %}
+                        aria-label="Agregar a {{ fila.auxiliar.nombre }} {{ fila.auxiliar.apellido }} a este día">
+                    Agregar
+                </button>
+            </li>
+            {% empty %}
+            <li class="px-3 py-4 text-center text-sm text-base-content/60">
+                {% if asignados %}No hay más auxiliares con horario el {{ fecha|date:"l" }}.{% else %}Ningún auxiliar tiene horario el {{ fecha|date:"l" }} en esta fecha. Regístralo en <a href="{% url 'home_auxiliar' %}" class="link">Auxiliares</a>.{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+</div>

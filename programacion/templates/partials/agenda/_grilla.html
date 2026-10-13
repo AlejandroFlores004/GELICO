@@ -57,7 +57,7 @@
                 <td class="group h-40 border-l border-t border-base-300 p-1 align-top
                     {% if celda.fuera_periodo %}bg-base-200/40 bg-[repeating-linear-gradient(135deg,transparent_0_8px,var(--color-base-300)_8px_9px)]{% elif celda.paso %}bg-base-200/30{% elif celda.fecha == hoy %}bg-primary/[0.04]{% endif %}">
                     <div class="flex h-full min-h-36 flex-col gap-1">
-                    <div class="flex min-h-0 flex-1 gap-1">
+                    <div class="flex min-h-0 flex-1 flex-col gap-1">
                         {% for programacion in celda.programaciones %}
                             {% include "partials/agenda/_tarjeta.html" %}
                         {% endfor %}
@@ -67,14 +67,14 @@
                             hx-get="{% url 'programacion_nueva' %}?origen=convocatoria&convocatoria={{ convocatoria.pk }}&fecha={{ celda.fecha|date:'Y-m-d' }}&jornada={{ celda.turno }}"
                             hx-target="#programacion-modal-wrapper"
                             hx-swap="outerHTML"
-                            class="flex cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed transition hover:border-primary hover:bg-primary/5 hover:text-primary focus-visible:outline-2 focus-visible:outline-primary
+                            class="flex cursor-pointer items-center justify-center gap-0.5 border border-dashed transition hover:border-primary hover:bg-primary/5 hover:text-primary focus-visible:outline-2 focus-visible:outline-primary
                                 {% if celda.cubren %}border-primary/40 text-primary/70{% else %}border-base-300 text-base-content/40{% endif %}
-                                {% if celda.programaciones %}w-9 shrink-0{% else %}w-full{% endif %}"
+                                {% if celda.programaciones %}w-full rounded-md py-1 text-xs font-medium{% else %}h-full w-full flex-col rounded-lg{% endif %}"
                             title="Asignar una visita en la jornada de la {{ fila.etiqueta|lower }} · {% if celda.cubren %}La cubren: {% for aux in celda.cubren %}{{ aux.nombre }} {{ aux.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}ningún auxiliar asignado a este día trabaja esta jornada{% endif %}"
                             aria-label="Asignar una visita el {{ celda.fecha|date:'l j \d\e F' }} en la jornada de la {{ fila.etiqueta|lower }}"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                            {% if not celda.programaciones %}
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="{% if celda.programaciones %}w-3.5 h-3.5{% else %}w-5 h-5{% endif %}" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                            {% if celda.programaciones %}Agregar visita{% else %}
                             <span class="text-[11px] font-medium leading-none">
                                 {% if celda.cubren %}agregar visita{% else %}sin cobertura{% endif %}
                             </span>

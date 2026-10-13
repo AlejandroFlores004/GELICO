@@ -6,49 +6,12 @@
             </form>
             <h3 class="font-bold text-xl">Auxiliares del {{ fecha|date:"l j \d\e F"|capfirst }}</h3>
             <p class="mt-1 text-sm text-base-content/70">
-                {{ convocatoria.nombre }}. Solo aparecen los auxiliares con horario ese día; cubren las visitas de la jornada de su horario.
+                {{ convocatoria.nombre }}. Cada cambio se guarda al momento; cubren las visitas de la jornada de su horario.
             </p>
-            <form
-                hx-post="{% url 'convocatoria_dia_auxiliares' convocatoria.pk %}{% querystring %}"
-                hx-target="#convocatoria-modal-wrapper"
-                hx-swap="outerHTML"
-                class="mt-4 space-y-4"
-            >
-                {% csrf_token %}
-                {% if form.auxiliares.errors %}
-                <div role="alert" class="alert alert-error alert-soft text-sm">{{ form.auxiliares.errors.0 }}</div>
-                {% endif %}
-                <ul class="max-h-[55vh] divide-y divide-base-200 overflow-y-auto rounded-lg border border-base-300">
-                    {% for opcion in form.opciones %}
-                    <li>
-                        <label class="flex items-center gap-3 px-3 py-2.5 {% if opcion.habilitado %}cursor-pointer hover:bg-base-200/60{% else %}cursor-not-allowed opacity-60{% endif %}">
-                            <input type="checkbox" name="auxiliares" value="{{ opcion.auxiliar.pk }}" class="checkbox checkbox-primary checkbox-sm"
-                                {% if opcion.marcado %}checked{% endif %} {% if not opcion.habilitado %}disabled{% endif %}>
-                            <span class="min-w-0 flex-1">
-                                <span class="block truncate font-medium">{{ opcion.auxiliar.nombre }} {{ opcion.auxiliar.apellido }}</span>
-                                <span class="block truncate text-xs text-base-content/60">{{ opcion.auxiliar.institucion }}</span>
-                            </span>
-                            {% if opcion.ausente %}
-                            <span class="badge badge-error badge-soft badge-sm whitespace-nowrap">Ausente</span>
-                            {% endif %}
-                            {% for jornada in opcion.jornadas %}
-                            <span class="badge badge-primary badge-soft badge-sm whitespace-nowrap">{{ jornada }}</span>
-                            {% empty %}
-                            <span class="badge badge-warning badge-soft badge-sm whitespace-nowrap" title="Estaba asignado, pero su horario actual no incluye este día">Sin horario este día</span>
-                            {% endfor %}
-                        </label>
-                    </li>
-                    {% empty %}
-                    <li class="px-3 py-6 text-center text-sm text-base-content/60">
-                        Ningún auxiliar tiene horario el {{ fecha|date:"l" }} en esta fecha. Regístralo en <a href="{% url 'home_auxiliar' %}" class="link">Auxiliares</a>.
-                    </li>
-                    {% endfor %}
-                </ul>
-                <div class="modal-action">
-                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('convocatoria-modal').close()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Guardar</button>
-                </div>
-            </form>
+            {% include "partials/agenda/_asignar_auxiliares_lista.html" %}
+            <div class="modal-action">
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('convocatoria-modal').close()">Listo</button>
+            </div>
         </div>
         <form method="dialog" class="modal-backdrop"><button>close</button></form>
     </dialog>

@@ -22,7 +22,7 @@ from .agenda import (
 )
 
 from .forms import (
-    AsignarAuxiliaresDiaForm, AuxiliarForm, AusenciaForm, ConvocatoriaForm, HorarioForm, ProgramacionEstadoForm,
+    AuxiliarForm, AuxiliaresDelDia, AusenciaForm, ConvocatoriaForm, HorarioForm, ProgramacionEstadoForm,
     ProgramacionFiltroForm, ProgramacionForm,
 )
 from .models import ORDEN_JORNADA, Auxiliar, Ausencia, Convocatoria, Horario, Jornada, Programacion
@@ -311,6 +311,19 @@ def agenda_imprimir(request):
     response = HttpResponse(pdf, content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="programacion-{alcance}.pdf"'
     return response
+
+
+@permiso_requerido('programacion.view_programacion')
+def programacion_detalle(request, pk):
+    """Detalle de una visita al hacer clic en su código en la agenda."""
+    programacion = get_object_or_404(Programacion.objects.select_related('convocatoria', 'escuela__distrito'), pk=pk)
+    cobertura = Agenda(programacion.convocatoria, programacion.fecha_programada, programacion.fecha_programada, con_visitas=False)
+    return render(request, 'partials/programacion/modal_detalle.html', {
+        'programacion': programacion,
+        'cubren': cobertura.cubren_visita(programacion),
+        'cubierta': cobertura.visita_cubierta(programacion),
+        'estados_programacion': Programacion._meta.get_field('estado').choices,
+    })
 
 
 @permiso_requerido('programacion.change_programacion')
@@ -802,21 +815,31 @@ def convocatoria_form(request, pk=None):
 
 @permiso_requerido('programacion.add_convocatoriaauxiliar', 'programacion.delete_convocatoriaauxiliar')
 def convocatoria_dia_auxiliares(request, pk):
-    """Asignar auxiliares a un día de la convocatoria (solo los que tienen horario ese día)."""
+    """Agregar y quitar auxiliares de un día de la convocatoria. Cada acción se guarda al momento:
+    se vuelve a pintar la lista del modal (que sigue abierto) y se avisa a la agenda para refrescarse."""
     convocatoria = get_object_or_404(Convocatoria, pk=pk)
     fecha = _fecha(request.GET.get('fecha'))
     if not fecha or not convocatoria.fecha_inicio <= fecha <= convocatoria.fecha_fin:
         return HttpResponse('El día debe estar dentro de las fechas de la convocatoria.', status=400)
+    del_dia = AuxiliaresDelDia(convocatoria, fecha)
 
     if request.method == "POST":
-        form = AsignarAuxiliaresDiaForm(request.POST, convocatoria=convocatoria, fecha=fecha)
-        if form.is_valid():
-            form.save()
-            return _respuesta_guardado(request, "partials/convocatorias/modal_form_success.html", {"convocatorias": None})
-    else:
-        form = AsignarAuxiliaresDiaForm(convocatoria=convocatoria, fecha=fecha)
+        error = None
+        if request.POST.get('agregar'):
+            error = del_dia.agregar(request.POST['agregar'])
+        elif request.POST.get('quitar'):
+            del_dia.quitar(request.POST['quitar'])
+        asignados, disponibles = del_dia.opciones()
+        respuesta = render(request, "partials/agenda/_asignar_auxiliares_lista.html", {
+            "convocatoria": convocatoria, "fecha": fecha, "asignados": asignados, "disponibles": disponibles, "error": error,
+        })
+        if not error:
+            respuesta['HX-Trigger'] = EVENTO_AGENDA
+        return respuesta
+
+    asignados, disponibles = del_dia.opciones()
     return render(request, "partials/agenda/modal_asignar_auxiliares.html", {
-        "form": form, "convocatoria": convocatoria, "fecha": fecha,
+        "convocatoria": convocatoria, "fecha": fecha, "asignados": asignados, "disponibles": disponibles,
     })
 
 
