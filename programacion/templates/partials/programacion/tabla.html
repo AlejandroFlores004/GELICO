@@ -32,7 +32,7 @@
                             <span class="block text-sm text-base-content/70">{{ programacion.hora_programada|time:"H:i" }}</span>
                         </td>
                         <td class="font-medium">{{ programacion.convocatoria.nombre }}</td>
-                        <td>{{ programacion.auxiliar.nombre }} {{ programacion.auxiliar.apellido }}</td>
+                        <td>{% if programacion.auxiliar %}{{ programacion.auxiliar.nombre }} {{ programacion.auxiliar.apellido }}{% else %}<span class="italic text-base-content/50">Sin asignar</span>{% endif %}</td>
                         <td>{{ programacion.escuela.nombre_corto }}</td>
                         <td>
                             <span class="badge {% if programacion.estado == 'completado' %}badge-success{% elif programacion.estado == 'no asistio' %}badge-error{% else %}badge-warning{% endif %}">{{ programacion.get_estado_display }}</span>

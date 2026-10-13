@@ -21,7 +21,12 @@
                 <th scope="col" class="w-20 border-b border-base-300 bg-base-200/60"><span class="sr-only">Hora</span></th>
                 {% for columna in calendario.columnas %}
                 <th scope="col" class="border-b border-l border-base-300 bg-base-200/60 px-2 py-2 text-center font-medium {% if columna.fuera_periodo %}text-base-content/50{% endif %}">
-                    {% if columna.auxiliar and calendario.columnas|length > 1 %}
+                    {% if columna.solo_sin_auxiliar %}
+                    <span class="inline-flex max-w-full items-center gap-2 px-1 py-2">
+                        <span class="size-2.5 shrink-0 rounded-full border border-dashed border-base-content/40" aria-hidden="true"></span>
+                        <span class="truncate font-semibold text-base-content/70">Sin auxiliar asignado</span>
+                    </span>
+                    {% elif columna.auxiliar and calendario.columnas|length > 1 %}
                     <span class="inline-flex max-w-full items-center gap-2 px-1 py-2">
                         <span class="size-2.5 shrink-0 rounded-full {{ columna.tono.punto }}" aria-hidden="true"></span>
                         <span class="truncate font-semibold" title="{{ columna.auxiliar.nombre }} {{ columna.auxiliar.apellido }}">{{ columna.auxiliar.nombre }} {{ columna.auxiliar.apellido }}</span>
@@ -73,7 +78,7 @@
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                             {% if not celda.programaciones %}
                             <span class="text-[11px] font-medium leading-none">
-                                {% if not celda.disponibles %}sin horario{% elif celda.de_un_auxiliar %}libre{% else %}{{ celda.disponibles|length }} disp.{% endif %}
+                                {% if celda.solo_sin_auxiliar %}sin asignar{% elif not celda.disponibles %}sin horario{% elif celda.de_un_auxiliar %}libre{% else %}{{ celda.disponibles|length }} disp.{% endif %}
                             </span>
                             {% endif %}
                         </button>

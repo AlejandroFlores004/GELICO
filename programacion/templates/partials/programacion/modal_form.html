@@ -46,7 +46,7 @@
                 {% endif %}
                 {% if disponibles_bloque is not None %}
                 <div class="rounded-lg border border-base-300 bg-base-200/40 p-3">
-                    <p class="text-sm font-medium">Auxiliares disponibles en este bloque</p>
+                    <p class="text-sm font-medium">Auxiliares disponibles en este bloque <span class="font-normal text-base-content/60">(opcional: puedes asignarlo después)</span></p>
                     {% if disponibles_bloque %}
                     <div class="mt-2 flex flex-wrap gap-2">
                         {% for disponible in disponibles_bloque %}

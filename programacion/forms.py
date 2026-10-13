@@ -131,6 +131,9 @@ class ProgramacionForm(forms.ModelForm):
             (hora.strftime('%H:%M:%S'), etiqueta_bloque(hora)) for hora in opciones
         ]
 
+        self.fields['auxiliar'].label = 'Auxiliar (opcional)'
+        self.fields['auxiliar'].required = False
+
         # Dentro de la agenda de una convocatoria, la visita siempre es de esa convocatoria.
         self.convocatoria_fija = convocatoria_fija
         if convocatoria_fija:
@@ -212,7 +215,8 @@ class ProgramacionForm(forms.ModelForm):
                 'hx-include': 'closest form',
             }),
             'auxiliar': Select2Widget(attrs={
-                'data-placeholder': 'Seleccione un auxiliar',
+                'data-placeholder': 'Sin asignar por ahora',
+                'data-allow-clear': 'true',
                 'style': 'width: 100%; display: none !important;',
                 'class': 'select2-daisy',
                 'hx-get': reverse_lazy('programacion_auxiliar_horario'),

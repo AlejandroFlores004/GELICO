@@ -4,7 +4,7 @@
     hx-target="#programacion-modal-wrapper"
     hx-swap="outerHTML"
     class="flex w-full min-w-0 cursor-pointer flex-col rounded-md border-l-4 text-left transition hover:shadow-md focus-visible:outline-2 focus-visible:outline-primary {{ programacion.tono.tarjeta }} {% if compacta %}px-1.5 py-0.5{% else %}gap-0.5 px-2 py-1.5{% endif %} {% if programacion.estado == 'no asistio' %}opacity-60{% endif %}"
-    title="{{ programacion.hora_programada|time:'g:i A' }} · {{ programacion.escuela.nombre }} · {{ programacion.auxiliar.nombre }} {{ programacion.auxiliar.apellido }} · {{ programacion.convocatoria.nombre }} · {{ programacion.get_estado_display }}"
+    title="{{ programacion.hora_programada|time:'g:i A' }} · {{ programacion.escuela.nombre }} · {% if programacion.auxiliar %}{{ programacion.auxiliar.nombre }} {{ programacion.auxiliar.apellido }}{% else %}Sin auxiliar asignado{% endif %} · {{ programacion.convocatoria.nombre }} · {{ programacion.get_estado_display }}"
     aria-label="Editar la visita a {{ programacion.escuela.nombre_corto|default:programacion.escuela.nombre }} a las {{ programacion.hora_programada|time:'g:i A' }} ({{ programacion.get_estado_display }})"
 >
     {% if compacta %}
@@ -19,7 +19,8 @@
         {% include "partials/agenda/_icono_estado.html" with estado=programacion.estado %}
     </span>
     <span class="truncate text-[13px] font-bold leading-tight {% if programacion.estado == 'no asistio' %}line-through{% endif %}">{{ programacion.escuela.nombre_corto|default:programacion.escuela.nombre }}</span>
-    {% if mostrar_auxiliar %}<span class="truncate text-xs text-base-content/80">{{ programacion.auxiliar.nombre }} {{ programacion.auxiliar.apellido }}</span>{% endif %}
+    {% if not programacion.auxiliar %}<span class="truncate text-xs italic text-base-content/60">Sin auxiliar</span>
+    {% elif mostrar_auxiliar %}<span class="truncate text-xs text-base-content/80">{{ programacion.auxiliar.nombre }} {{ programacion.auxiliar.apellido }}</span>{% endif %}
     {% if not convocatoria %}<span class="truncate text-xs text-base-content/55">{{ programacion.convocatoria.nombre }}</span>{% endif %}
     {% endif %}
 </button>

@@ -32,14 +32,16 @@ class Auxiliar(models.Model):
 
 class Programacion(models.Model):
     convocatoria = models.ForeignKey(Convocatoria, on_delete=models.CASCADE)
-    auxiliar = models.ForeignKey(Auxiliar, on_delete=models.CASCADE)
+    # Opcional: una visita puede programarse y asignarle el auxiliar después.
+    auxiliar = models.ForeignKey(Auxiliar, on_delete=models.CASCADE, null=True, blank=True)
     fecha_programada = models.DateField()
     hora_programada = models.TimeField()
     escuela = models.ForeignKey(Escuela, on_delete=models.CASCADE)
     estado = models.CharField(max_length=50, choices=[('pendiente', 'Pendiente'), ('completado', 'Completado'), ('no asistio', 'No Asistió')], default='pendiente')
 
     def __str__(self):
-        return f"Programación: {self.convocatoria.nombre} - {self.auxiliar.nombre} {self.auxiliar.apellido} - {self.fecha_programada} {self.hora_programada} - {self.escuela.nombre} - {self.estado}"
+        auxiliar = f"{self.auxiliar.nombre} {self.auxiliar.apellido}" if self.auxiliar else "Sin auxiliar"
+        return f"Programación: {self.convocatoria.nombre} - {auxiliar} - {self.fecha_programada} {self.hora_programada} - {self.escuela.nombre} - {self.estado}"
     
     class Meta:
         verbose_name = "Programación"

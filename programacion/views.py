@@ -151,7 +151,7 @@ def _contexto_agenda(request):
     auxiliares = list(Auxiliar.objects.order_by('apellido', 'nombre'))
     tonos = tonos_por_auxiliar(auxiliares)
     mostrados = [auxiliar] if auxiliar else auxiliares
-    calendario = agenda_de_convocatoria(convocatoria, modo, dia, mostrados, tonos)
+    calendario = agenda_de_convocatoria(convocatoria, modo, dia, mostrados, tonos, incluir_sin_auxiliar=not auxiliar)
     for columna in calendario.get('columnas', []):
         columna['url_dia'] = url('dia', columna['fecha'])
     for semana in calendario.get('semanas', []):
@@ -172,7 +172,8 @@ def _contexto_agenda(request):
         'duracion': (convocatoria.fecha_fin - convocatoria.fecha_inicio).days + 1,
         'dias_restantes': (convocatoria.fecha_fin - hoy).days,
         'estados': resumen_estados(programaciones),
-        'auxiliares_asignados': programaciones.values('auxiliar').distinct().count(),
+        'auxiliares_asignados': programaciones.exclude(auxiliar=None).values('auxiliar').distinct().count(),
+        'sin_auxiliar': programaciones.filter(auxiliar=None).count(),
         'escuelas_visitadas': programaciones.values('escuela').distinct().count(),
         'modo': modo,
         'dia': dia,
@@ -231,6 +232,69 @@ def convocatoria_agenda(request, pk):
     """Enlace directo a una convocatoria: abre el calendario con ella elegida."""
     convocatoria = get_object_or_404(Convocatoria, pk=pk)
     return HttpResponseRedirect(f"{reverse('home_programacion')}?{urlencode({'convocatoria': convocatoria.pk})}")
+
+
+# ---------------------------------------------------------------------------
+# Impresión de la agenda: convocatoria, semana, día, hoja de ruta por auxiliar...
+# ---------------------------------------------------------------------------
+
+ALCANCES_IMPRESION = ('convocatoria', 'semana', 'dia', 'auxiliar', 'sin_auxiliar', 'pendientes')
+
+
+def agenda_imprimir(request):
+    convocatoria = get_object_or_404(Convocatoria, pk=request.GET.get('convocatoria') or 0)
+    alcance = request.GET.get('alcance')
+    alcance = alcance if alcance in ALCANCES_IMPRESION else 'convocatoria'
+    dia = _fecha(request.GET.get('fecha')) or convocatoria.fecha_inicio
+    auxiliar = _por_id(Auxiliar, request.GET.get('auxiliar'))
+
+    programaciones = convocatoria.programacion_set.select_related(
+        'auxiliar', 'escuela__distrito',
+    ).order_by('fecha_programada', 'hora_programada', 'escuela__nombre')
+    inicio, fin = convocatoria.fecha_inicio, convocatoria.fecha_fin
+    subtitulo = f"Del {date_format(inicio, FORMATO_FECHA)} al {date_format(fin, FORMATO_FECHA)}"
+
+    if alcance == 'semana':
+        semana_inicio, semana_fin = rango_visible('semana', dia)
+        # La semana se recorta al periodo de la convocatoria.
+        inicio, fin = max(semana_inicio, inicio), min(semana_fin, fin)
+        subtitulo = f"Semana: {_titulo_periodo('semana', dia)}"
+    elif alcance == 'dia':
+        inicio = fin = dia
+        subtitulo = capfirst(date_format(dia, FORMATO_DIA))
+    elif alcance == 'auxiliar' and auxiliar:
+        programaciones = programaciones.filter(auxiliar=auxiliar)
+        subtitulo = f"Hoja de ruta de {auxiliar.nombre} {auxiliar.apellido}"
+    elif alcance == 'sin_auxiliar':
+        programaciones = programaciones.filter(auxiliar=None)
+        subtitulo = 'Visitas sin auxiliar asignado'
+    elif alcance == 'pendientes':
+        programaciones = programaciones.filter(estado='pendiente')
+        subtitulo = 'Visitas pendientes'
+    programaciones = list(programaciones.filter(fecha_programada__range=(inicio, fin)))
+
+    por_dia = defaultdict(list)
+    for programacion in programaciones:
+        programacion.bloque = etiqueta_bloque(programacion.hora_programada)
+        por_dia[programacion.fecha_programada].append(programacion)
+
+    html_string = render_to_string('partials/agenda/reporte_pdf.html', {
+        'convocatoria': convocatoria,
+        'alcance': alcance,
+        'subtitulo': subtitulo,
+        'auxiliar': auxiliar if alcance == 'auxiliar' else None,
+        'dias': [{'fecha': fecha, 'programaciones': lista} for fecha, lista in sorted(por_dia.items())],
+        'total': len(programaciones),
+        'estados': resumen_estados(programaciones),
+        # La hoja de ruta lleva columnas para llenar a mano en campo.
+        'para_campo': alcance in ('auxiliar', 'dia'),
+        'fecha_impresion': timezone.localtime(),
+    })
+    pdf = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
+
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="programacion-{alcance}.pdf"'
+    return response
 
 
 def programacion_estado(request, pk):

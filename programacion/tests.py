@@ -231,6 +231,30 @@ class AgendaTests(AgendaBase):
 		self.assertTrue(dentro[-1]['cierra_tramo'])
 		self.assertEqual(sum(c['inicia_tramo'] for c in calendario['columnas']), 1)
 
+	def test_visita_sin_auxiliar_aparece_sin_ocupar_el_bloque(self):
+		sin_auxiliar = Programacion.objects.create(
+			convocatoria=self.convocatoria, escuela=self.escuela, fecha_programada=self.dia, hora_programada=time(10),
+		)
+		auxiliares = [self.auxiliar]
+		semana = agenda_de_convocatoria(self.convocatoria, 'semana', self.dia, auxiliares, tonos_por_auxiliar(auxiliares))
+		self.assertTrue(semana['hay_sin_auxiliar'])
+		fila = next(f for f in semana['filas'] if f['hora'] == time(10))
+		celda = next(c for c in fila['celdas'] if c['fecha'] == self.dia)
+		self.assertEqual(celda['programaciones'], [sin_auxiliar])
+		# El auxiliar sigue disponible en ese bloque.
+		self.assertEqual(celda['disponibles'], [self.auxiliar])
+
+		otro = Auxiliar.objects.create(nombre='Ana', apellido='Ruiz', email='ana.ruiz@example.com', institucion='UES')
+		Horario.objects.create(auxiliar=otro, fecha=self.dia, hora_inicio=time(8), hora_fin=time(9))
+		auxiliares = [self.auxiliar, otro]
+		dia = agenda_de_convocatoria(self.convocatoria, 'dia', self.dia, auxiliares, tonos_por_auxiliar(auxiliares))
+		self.assertTrue(dia['columnas'][-1].get('solo_sin_auxiliar'))
+
+		filtrado = agenda_de_convocatoria(
+			self.convocatoria, 'semana', self.dia, [self.auxiliar], tonos_por_auxiliar([self.auxiliar]), incluir_sin_auxiliar=False,
+		)
+		self.assertFalse(filtrado['hay_sin_auxiliar'])
+
 	def test_convocatoria_por_defecto(self):
 		hoy = timezone.localdate()
 		Convocatoria.objects.all().delete()
@@ -306,6 +330,30 @@ class ProgramacionPaginaTests(AgendaBase):
 		self.assertEqual(respuesta['HX-Trigger'], 'agenda-actualizada')
 		self.assertNotContains(respuesta, 'listado-programaciones')
 		self.assertTrue(Programacion.objects.filter(hora_programada=time(10)).exists())
+
+	def test_se_puede_programar_sin_auxiliar(self):
+		url = f"{reverse('programacion_nueva')}?origen=convocatoria&convocatoria={self.convocatoria.pk}"
+		respuesta = self.client.post(url, self._datos(auxiliar=''))
+		self.assertEqual(respuesta['HX-Trigger'], 'agenda-actualizada')
+		programacion = Programacion.objects.get()
+		self.assertIsNone(programacion.auxiliar)
+		self.assertIn('Sin auxiliar', str(programacion))
+		for parametros in ({}, {'seccion': 'programaciones'}):
+			with self.subTest(**parametros):
+				pagina = self.client.get(reverse('home_programacion'), {'convocatoria': self.convocatoria.pk, 'fecha': self.dia.isoformat(), **parametros})
+				self.assertContains(pagina, 'Sin a')
+
+	def test_impresiones_de_la_agenda(self):
+		self._programar(time(10))
+		Programacion.objects.create(
+			convocatoria=self.convocatoria, escuela=self.escuela, fecha_programada=self.dia, hora_programada=time(11),
+		)
+		base = {'convocatoria': self.convocatoria.pk, 'fecha': self.dia.isoformat()}
+		for alcance in ('convocatoria', 'semana', 'dia', 'auxiliar', 'sin_auxiliar', 'pendientes'):
+			with self.subTest(alcance=alcance):
+				respuesta = self.client.get(reverse('agenda_imprimir'), {**base, 'alcance': alcance, 'auxiliar': self.auxiliar.pk})
+				self.assertEqual(respuesta['Content-Type'], 'application/pdf')
+				self.assertTrue(respuesta.content.startswith(b'%PDF'))
 
 	def test_rechaza_fecha_fuera_del_periodo(self):
 		fuera = self.convocatoria.fecha_fin + timedelta(days=1)

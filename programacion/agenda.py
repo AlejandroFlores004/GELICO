@@ -26,7 +26,9 @@ TONOS_AUXILIAR = [
     {'tarjeta': 'border-secondary bg-secondary/12', 'punto': 'bg-secondary'},
     {'tarjeta': 'border-neutral/60 bg-neutral/8', 'punto': 'bg-neutral'},
 ]
-# Colores de las barras de convocatoria en el calendario principal.
+# Visitas que aún no tienen auxiliar asignado.
+TONO_SIN_AUXILIAR = {'tarjeta': 'border-dashed border-base-content/30 bg-base-200/70', 'punto': 'bg-base-300'}
+# Colores de las convocatorias.
 TONOS_CONVOCATORIA = [
     {'barra': 'bg-primary text-primary-content', 'punto': 'bg-primary'},
     {'barra': 'bg-info text-info-content', 'punto': 'bg-info'},
@@ -150,7 +152,7 @@ def otras_convocatorias(inicio, fin, convocatoria):
 class Agenda:
     """Horarios, ausencias y programaciones de los auxiliares en un rango de fechas."""
 
-    def __init__(self, auxiliares, inicio, fin, convocatoria):
+    def __init__(self, auxiliares, inicio, fin, convocatoria, incluir_sin_auxiliar=False):
         ids = [auxiliar.pk for auxiliar in auxiliares]
 
         self.horarios = defaultdict(list)
@@ -162,15 +164,17 @@ class Agenda:
             for ausencia in Ausencia.objects.filter(auxiliar__in=ids, fecha__range=(inicio, fin))
         }
 
+        de_quien = Q(auxiliar__in=ids) | Q(auxiliar__isnull=True) if incluir_sin_auxiliar else Q(auxiliar__in=ids)
         todas = Programacion.objects.filter(
-            auxiliar__in=ids, fecha_programada__range=(inicio, fin),
+            de_quien, fecha_programada__range=(inicio, fin),
         ).select_related('convocatoria', 'auxiliar', 'escuela').order_by('fecha_programada', 'hora_programada')
 
         # Un auxiliar ocupado en otra convocatoria tampoco está disponible en ese bloque.
         self.ocupadas = set()
         self.programaciones = []
         for programacion in todas:
-            self.ocupadas.add((programacion.auxiliar_id, programacion.fecha_programada, programacion.hora_programada.hour))
+            if programacion.auxiliar_id:
+                self.ocupadas.add((programacion.auxiliar_id, programacion.fecha_programada, programacion.hora_programada.hour))
             if programacion.convocatoria_id == convocatoria.pk:
                 self.programaciones.append(programacion)
 
@@ -205,12 +209,12 @@ def _columnas_semana(dia, auxiliares, agenda):
             hay_visitas = any(programacion.fecha_programada == fecha for programacion in agenda.programaciones)
             if not (hay_horario or hay_visitas):
                 continue
-        columnas.append({'fecha': fecha, 'auxiliar': None, 'auxiliares': auxiliares})
+        columnas.append({'fecha': fecha, 'auxiliar': None, 'auxiliares': auxiliares, 'sin_auxiliar': True})
     return columnas
 
 
-def _columnas_dia(dia, auxiliares, agenda):
-    if len(auxiliares) == 1:
+def _columnas_dia(dia, auxiliares, agenda, incluir_sin_auxiliar):
+    if len(auxiliares) == 1 and not incluir_sin_auxiliar:
         return [{'fecha': dia, 'auxiliar': auxiliares[0], 'auxiliares': auxiliares}]
 
     con_visitas = {programacion.auxiliar_id for programacion in agenda.programaciones}
@@ -219,7 +223,12 @@ def _columnas_dia(dia, auxiliares, agenda):
         for auxiliar in auxiliares
         if agenda.tiene_horario(auxiliar.pk, dia) or agenda.ausente(auxiliar.pk, dia) or auxiliar.pk in con_visitas
     ]
-    return columnas or [{'fecha': dia, 'auxiliar': None, 'auxiliares': auxiliares}]
+    if not columnas:
+        return [{'fecha': dia, 'auxiliar': None, 'auxiliares': auxiliares, 'sin_auxiliar': incluir_sin_auxiliar}]
+    if None in con_visitas:
+        # Las visitas sin auxiliar van en su propia columna al final.
+        columnas.append({'fecha': dia, 'auxiliar': None, 'auxiliares': [], 'sin_auxiliar': True, 'solo_sin_auxiliar': True})
+    return columnas
 
 
 def _horas_visibles(agenda):
@@ -239,11 +248,12 @@ def _celda(columna, hora, agenda, convocatoria):
         'programaciones': [
             programacion for programacion in agenda.programaciones
             if programacion.fecha_programada == fecha
-            and programacion.auxiliar_id in ids
+            and (programacion.auxiliar_id in ids or (programacion.auxiliar_id is None and columna.get('sin_auxiliar')))
             and programacion.hora_programada.hour == hora.hour
         ],
         'disponibles': disponibles,
         'de_un_auxiliar': columna['auxiliar'] is not None,
+        'solo_sin_auxiliar': columna.get('solo_sin_auxiliar', False),
         'fuera_periodo': not _en_periodo(fecha, convocatoria),
         'paso': bloque_paso(fecha, hora),
     }
@@ -256,11 +266,12 @@ def _celda(columna, hora, agenda, convocatoria):
     return celda
 
 
-def agenda_de_convocatoria(convocatoria, modo, dia, auxiliares, tonos):
+def agenda_de_convocatoria(convocatoria, modo, dia, auxiliares, tonos, incluir_sin_auxiliar=True):
+    """Con incluir_sin_auxiliar=False (al filtrar por un auxiliar) se ocultan las visitas sin asignar."""
     inicio, fin = rango_visible(modo, dia)
-    agenda = Agenda(auxiliares, inicio, fin, convocatoria)
+    agenda = Agenda(auxiliares, inicio, fin, convocatoria, incluir_sin_auxiliar)
     for programacion in agenda.programaciones:
-        programacion.tono = tonos.get(programacion.auxiliar_id, TONOS_AUXILIAR[0])
+        programacion.tono = tonos.get(programacion.auxiliar_id, TONOS_AUXILIAR[0]) if programacion.auxiliar_id else TONO_SIN_AUXILIAR
 
     hoy = timezone.localdate()
     if modo == 'mes':
@@ -287,7 +298,7 @@ def agenda_de_convocatoria(convocatoria, modo, dia, auxiliares, tonos):
     if modo == 'semana':
         columnas = _columnas_semana(dia, auxiliares, agenda)
     else:
-        columnas = _columnas_dia(dia, auxiliares, agenda)
+        columnas = _columnas_dia(dia, auxiliares, agenda, incluir_sin_auxiliar)
     for columna in columnas:
         columna['ausentes'] = [auxiliar for auxiliar in columna['auxiliares'] if agenda.ausente(auxiliar.pk, columna['fecha'])]
         columna['fuera_periodo'] = not _en_periodo(columna['fecha'], convocatoria)
@@ -312,6 +323,7 @@ def agenda_de_convocatoria(convocatoria, modo, dia, auxiliares, tonos):
         'filas': filas,
         'total': len(agenda.programaciones),
         'programaciones': agenda.programaciones,
+        'hay_sin_auxiliar': any(programacion.auxiliar_id is None for programacion in agenda.programaciones),
     }
 
 
@@ -319,7 +331,7 @@ def disponibles_en_bloque(fecha, hora, excluir=None):
     """Auxiliares que pueden tomar un bloque, para sugerirlos en el formulario."""
     auxiliares = list(Auxiliar.objects.order_by('apellido', 'nombre'))
     agenda = Agenda(auxiliares, fecha, fecha, Convocatoria(pk=0))
-    if excluir is not None:
+    if excluir is not None and excluir.auxiliar_id:
         # Al editar, la propia visita no cuenta como ocupación.
         agenda.ocupadas.discard((excluir.auxiliar_id, excluir.fecha_programada, excluir.hora_programada.hour))
     return [auxiliar for auxiliar in auxiliares if agenda.disponible(auxiliar.pk, fecha, hora)]

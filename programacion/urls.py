@@ -7,6 +7,7 @@ urlpatterns = [
     path('programaciones/<int:pk>/estado/', views.programacion_estado, name='programacion_estado'),
     path('programaciones/buscar/', views.buscar_programaciones, name='buscar_programaciones'),
     path('programaciones/imprimir/', views.programacion_imprimir, name='programacion_imprimir'),
+    path('programaciones/agenda/imprimir/', views.agenda_imprimir, name='agenda_imprimir'),
     path('programaciones/auxiliar-horario/', views.programacion_auxiliar_horario, name='programacion_auxiliar_horario'),
     path('programaciones/nueva/', views.programacion_form, name='programacion_nueva'),
     path('programaciones/<int:pk>/editar/', views.programacion_form, name='programacion_editar'),

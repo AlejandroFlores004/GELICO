@@ -41,7 +41,7 @@
                 <span class="text-sm font-semibold tabular-nums w-16 shrink-0">{{ programacion.hora_programada|time:"g:i A" }}</span>
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-medium truncate">{{ programacion.escuela.nombre_corto }}</p>
-                    <p class="text-xs text-base-content/60 truncate">{{ programacion.auxiliar.nombre }} {{ programacion.auxiliar.apellido }}</p>
+                    <p class="text-xs text-base-content/60 truncate">{% if programacion.auxiliar %}{{ programacion.auxiliar.nombre }} {{ programacion.auxiliar.apellido }}{% else %}<span class="italic">Sin auxiliar asignado</span>{% endif %}</p>
                 </div>
                 {% if programacion.estado == 'completado' %}
                 <span class="badge badge-success badge-sm">Completado</span>
