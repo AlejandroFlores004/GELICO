@@ -140,6 +140,10 @@ class ProgramacionForm(forms.ModelForm):
             self.fields['convocatoria'].widget = forms.HiddenInput()
             self.fields['convocatoria'].initial = convocatoria_fija.pk
 
+        # Al crear (o antes de la hora de la visita) queda en pendiente; el estado se marca después.
+        if not self.instance.pk or not self.instance.ya_empezo:
+            del self.fields['estado']
+
     def clean(self):
         cleaned_data = super().clean()
         convocatoria = cleaned_data.get('convocatoria')

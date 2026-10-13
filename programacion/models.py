@@ -1,4 +1,8 @@
+from datetime import datetime
+
 from django.db import models
+from django.utils import timezone
+from django.utils.dateparse import parse_date, parse_time
 from escuela.models import Escuela
 
 # Create your models here.
@@ -42,6 +46,16 @@ class Programacion(models.Model):
     def __str__(self):
         auxiliar = f"{self.auxiliar.nombre} {self.auxiliar.apellido}" if self.auxiliar else "Sin auxiliar"
         return f"Programación: {self.convocatoria.nombre} - {auxiliar} - {self.fecha_programada} {self.hora_programada} - {self.escuela.nombre} - {self.estado}"
+
+    @property
+    def ya_empezo(self):
+        """El estado solo se puede marcar cuando llegó la hora de la visita o ya pasó."""
+        fecha, hora = self.fecha_programada, self.hora_programada
+        # Recién creada sin recargar, puede traer los valores como texto.
+        fecha = parse_date(fecha) if isinstance(fecha, str) else fecha
+        hora = parse_time(hora) if isinstance(hora, str) else hora
+        inicio = timezone.make_aware(datetime.combine(fecha, hora))
+        return timezone.now() >= inicio
     
     class Meta:
         verbose_name = "Programación"

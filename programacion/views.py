@@ -304,7 +304,7 @@ def programacion_estado(request, pk):
 
     programacion = get_object_or_404(Programacion, pk=pk)
     form = ProgramacionEstadoForm(request.POST, instance=programacion)
-    if form.is_valid():
+    if programacion.ya_empezo and form.is_valid():
         form.save()
     respuesta = HttpResponse('<div id="programacion-modal-wrapper"></div>')
     respuesta['HX-Trigger'] = EVENTO_AGENDA

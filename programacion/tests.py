@@ -372,7 +372,27 @@ class ProgramacionPaginaTests(AgendaBase):
 
 	def test_cambio_rapido_de_estado(self):
 		programacion = self._programar(time(10))
+		programacion.fecha_programada = timezone.localdate() - timedelta(days=1)
+		programacion.save()
 		respuesta = self.client.post(reverse('programacion_estado', args=[programacion.pk]), {'estado': 'completado'})
 		self.assertEqual(respuesta['HX-Trigger'], 'agenda-actualizada')
 		programacion.refresh_from_db()
 		self.assertEqual(programacion.estado, 'completado')
+
+	def test_no_cambia_estado_antes_de_la_hora(self):
+		programacion = self._programar(time(10))
+		self.client.post(reverse('programacion_estado', args=[programacion.pk]), {'estado': 'completado'})
+		programacion.refresh_from_db()
+		self.assertEqual(programacion.estado, 'pendiente')
+
+	def test_crear_no_pide_estado_y_queda_pendiente(self):
+		respuesta = self.client.get(reverse('programacion_nueva'))
+		self.assertNotIn('estado', respuesta.context['form'].fields)
+		self.client.post(reverse('programacion_nueva'), self._datos(estado='completado'))
+		self.assertEqual(Programacion.objects.get().estado, 'pendiente')
+
+	def test_estado_editable_solo_desde_la_hora_de_la_visita(self):
+		futura = self._programar(time(10))
+		self.assertNotIn('estado', ProgramacionForm(instance=futura).fields)
+		futura.fecha_programada = timezone.localdate() - timedelta(days=1)
+		self.assertIn('estado', ProgramacionForm(instance=futura).fields)
