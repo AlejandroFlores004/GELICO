@@ -1,12 +1,44 @@
-from datetime import datetime
+from datetime import datetime, time
 
 from django.db import models
-from django.db.models import F, Q
+from django.db.models import Case, F, IntegerField, Q, When
 from django.utils import timezone
-from django.utils.dateparse import parse_date, parse_time
+from django.utils.dateparse import parse_date
 from escuela.models import Escuela
 
-# Create your models here.
+
+class Jornada(models.TextChoices):
+    """Jornada de una visita o del horario de un auxiliar."""
+    MANANA = 'manana', 'Mañana'
+    TARDE = 'tarde', 'Tarde'
+    COMPLETA = 'completa', 'Todo el día'
+
+
+# Turnos (mañana y tarde) que ocupa cada jornada: "todo el día" ocupa los dos.
+TURNOS = (Jornada.MANANA, Jornada.TARDE)
+TURNOS_JORNADA = {
+    Jornada.MANANA: (Jornada.MANANA,),
+    Jornada.TARDE: (Jornada.TARDE,),
+    Jornada.COMPLETA: TURNOS,
+}
+# Horario de referencia de cada turno: sirve para saber si una visita ya empezó o ya terminó.
+HORAS_TURNO = {
+    Jornada.MANANA: (time(7), time(12)),
+    Jornada.TARDE: (time(13), time(17)),
+}
+# Para ordenar por jornada: primero la mañana (y todo el día, que también empieza en la mañana), luego la tarde.
+ORDEN_JORNADA = Case(When(jornada=Jornada.TARDE, then=1), default=0, output_field=IntegerField())
+
+
+def turnos_de(jornada):
+    return TURNOS_JORNADA[jornada]
+
+
+def jornadas_que_se_cruzan(jornada):
+    """Jornadas que comparten al menos un turno con la dada (p. ej. la mañana se cruza con "todo el día")."""
+    return [otra for otra in Jornada.values if set(turnos_de(otra)) & set(turnos_de(jornada))]
+
+
 class Convocatoria(models.Model):
     nombre = models.CharField(max_length=255, unique=True)
     descripcion = models.TextField()
@@ -40,23 +72,26 @@ class Programacion(models.Model):
     # Opcional: una visita puede programarse y asignarle el auxiliar después.
     auxiliar = models.ForeignKey(Auxiliar, on_delete=models.CASCADE, null=True, blank=True)
     fecha_programada = models.DateField()
-    hora_programada = models.TimeField()
+    jornada = models.CharField(max_length=10, choices=Jornada.choices)
     escuela = models.ForeignKey(Escuela, on_delete=models.CASCADE)
     estado = models.CharField(max_length=50, choices=[('pendiente', 'Pendiente'), ('completado', 'Completado'), ('no asistio', 'No Asistió')], default='pendiente')
 
     def __str__(self):
         auxiliar = f"{self.auxiliar.nombre} {self.auxiliar.apellido}" if self.auxiliar else "Sin auxiliar"
-        return f"Programación: {self.convocatoria.nombre} - {auxiliar} - {self.fecha_programada} {self.hora_programada} - {self.escuela.nombre} - {self.estado}"
+        return f"Programación: {self.convocatoria.nombre} - {auxiliar} - {self.fecha_programada} {self.get_jornada_display()} - {self.escuela.nombre} - {self.estado}"
+
+    @property
+    def turnos(self):
+        return turnos_de(self.jornada)
 
     @property
     def ya_empezo(self):
-        """El estado solo se puede marcar cuando llegó la hora de la visita o ya pasó."""
-        fecha, hora = self.fecha_programada, self.hora_programada
-        # Recién creada sin recargar, puede traer los valores como texto.
+        """El estado solo se puede marcar cuando empezó la jornada de la visita o ya pasó."""
+        fecha = self.fecha_programada
+        # Recién creada sin recargar, puede traer la fecha como texto.
         fecha = parse_date(fecha) if isinstance(fecha, str) else fecha
-        hora = parse_time(hora) if isinstance(hora, str) else hora
-        inicio = timezone.make_aware(datetime.combine(fecha, hora))
-        return timezone.now() >= inicio
+        inicio_jornada = HORAS_TURNO[self.turnos[0]][0]
+        return timezone.now() >= timezone.make_aware(datetime.combine(fecha, inicio_jornada))
     
     class Meta:
         verbose_name = "Programación"
@@ -88,8 +123,7 @@ class Horario(models.Model):
 
     auxiliar = models.ForeignKey(Auxiliar, on_delete=models.CASCADE)
     dia = models.PositiveSmallIntegerField('día', choices=Dia.choices)
-    hora_inicio = models.TimeField('hora de inicio')
-    hora_fin = models.TimeField('hora de fin')
+    jornada = models.CharField('jornada', max_length=10, choices=Jornada.choices)
     fecha_inicio = models.DateField('inicio de labores')
     fecha_fin = models.DateField('fin de labores')
 
@@ -98,8 +132,12 @@ class Horario(models.Model):
     def __str__(self):
         return (
             f"Horario: {self.auxiliar.nombre} {self.auxiliar.apellido} - {self.get_dia_display()} "
-            f"{self.hora_inicio:%H:%M}-{self.hora_fin:%H:%M} ({self.fecha_inicio:%d/%m/%Y} al {self.fecha_fin:%d/%m/%Y})"
+            f"{self.get_jornada_display()} ({self.fecha_inicio:%d/%m/%Y} al {self.fecha_fin:%d/%m/%Y})"
         )
+
+    @property
+    def turnos(self):
+        return turnos_de(self.jornada)
 
     def aplica_en(self, fecha):
         return self.dia == fecha.isoweekday() and self.fecha_inicio <= fecha <= self.fecha_fin
@@ -107,13 +145,8 @@ class Horario(models.Model):
     class Meta:
         verbose_name = "Horario"
         verbose_name_plural = "Horarios"
-        ordering = ['auxiliar', 'dia', 'hora_inicio']
+        ordering = ['auxiliar', 'dia']
         constraints = [
-            models.CheckConstraint(
-                condition=Q(hora_fin__gt=F('hora_inicio')),
-                name='horario_fin_despues_de_inicio',
-                violation_error_message='La hora de fin debe ser posterior a la hora de inicio.',
-            ),
             models.CheckConstraint(
                 condition=Q(fecha_fin__gte=F('fecha_inicio')),
                 name='horario_periodo_valido',

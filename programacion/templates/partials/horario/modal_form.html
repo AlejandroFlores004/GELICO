@@ -16,7 +16,7 @@
                 {% if form.dias %}
                 <div class="form-control w-full">
                     <span class="label"><span class="label-text font-medium">Días que trabaja</span></span>
-                    <p class="text-xs text-base-content/60 mb-2">Se repite cada semana en los días marcados, con el mismo horario.</p>
+                    <p class="text-xs text-base-content/60 mb-2">Se repite cada semana en los días marcados, con la misma jornada.</p>
                     <div class="flex flex-wrap gap-2" role="group" aria-label="Días que trabaja">
                         {% for opcion in form.dias %}
                         <input type="checkbox" name="{{ opcion.data.name }}" value="{{ opcion.data.value }}" aria-label="{{ opcion.choice_label }}"
@@ -32,17 +32,10 @@
                     {% if form.dia.errors %}<span class="text-error text-xs mt-1">{{ form.dia.errors.0 }}</span>{% endif %}
                 </div>
                 {% endif %}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="form-control w-full">
-                        <label class="label" for="{{ form.hora_inicio.id_for_label }}"><span class="label-text font-medium">Hora inicio</span></label>
-                        {{ form.hora_inicio }}
-                        {% if form.hora_inicio.errors %}<span class="text-error text-xs mt-1">{{ form.hora_inicio.errors.0 }}</span>{% endif %}
-                    </div>
-                    <div class="form-control w-full">
-                        <label class="label" for="{{ form.hora_fin.id_for_label }}"><span class="label-text font-medium">Hora fin</span></label>
-                        {{ form.hora_fin }}
-                        {% if form.hora_fin.errors %}<span class="text-error text-xs mt-1">{{ form.hora_fin.errors.0 }}</span>{% endif %}
-                    </div>
+                <div class="form-control w-full">
+                    <span class="label"><span class="label-text font-medium">Jornada</span></span>
+                    {% include "partials/programacion/_jornada_radios.html" with field=form.jornada %}
+                    {% if form.jornada.errors %}<span class="text-error text-xs mt-1">{{ form.jornada.errors.0 }}</span>{% endif %}
                 </div>
                 <fieldset class="rounded-lg border border-base-300 p-4">
                     <legend class="px-1 text-sm font-medium">Periodo de labores</legend>

@@ -1,11 +1,8 @@
 from django import forms
 from django_select2.forms import Select2Widget
 from django.urls import reverse_lazy
-from django.utils.dateparse import parse_time
-
 from escuela.models import Escuela
-from .agenda import bloques, etiqueta_bloque, fin_de_bloque
-from .models import Auxiliar, Ausencia, Convocatoria, Horario, Programacion
+from .models import Auxiliar, Ausencia, Convocatoria, Horario, Jornada, Programacion, jornadas_que_se_cruzan, turnos_de
 
 
 class AuxiliarForm(forms.ModelForm):
@@ -73,6 +70,9 @@ class HorarioForm(forms.ModelForm):
         error_messages={'required': 'Selecciona al menos un día.'},
     )
 
+    # Campo explícito para que los radios no incluyan la opción vacía "---------".
+    jornada = forms.ChoiceField(label='Jornada', choices=Jornada.choices, widget=forms.RadioSelect)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance.pk:
@@ -83,7 +83,7 @@ class HorarioForm(forms.ModelForm):
 
     class Meta:
         model = Horario
-        fields = ['auxiliar', 'dia', 'hora_inicio', 'hora_fin', 'fecha_inicio', 'fecha_fin']
+        fields = ['auxiliar', 'dia', 'jornada', 'fecha_inicio', 'fecha_fin']
         widgets = {
             'auxiliar': Select2Widget(attrs={
                 'data-placeholder': 'Seleccione un auxiliar',
@@ -92,14 +92,6 @@ class HorarioForm(forms.ModelForm):
             }),
             'dia': forms.Select(attrs={
                 'class': 'select select-bordered w-full',
-            }),
-            'hora_inicio': forms.TimeInput(format='%H:%M', attrs={
-                'class': 'input input-bordered w-full',
-                'type': 'time',
-            }),
-            'hora_fin': forms.TimeInput(format='%H:%M', attrs={
-                'class': 'input input-bordered w-full',
-                'type': 'time',
             }),
             'fecha_inicio': forms.DateInput(format='%Y-%m-%d', attrs={
                 'class': 'input input-bordered w-full',
@@ -120,13 +112,10 @@ class HorarioForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         auxiliar = cleaned_data.get('auxiliar')
-        hora_inicio = cleaned_data.get('hora_inicio')
-        hora_fin = cleaned_data.get('hora_fin')
+        jornada = cleaned_data.get('jornada')
         fecha_inicio = cleaned_data.get('fecha_inicio')
         fecha_fin = cleaned_data.get('fecha_fin')
 
-        if hora_inicio and hora_fin and hora_fin <= hora_inicio:
-            self.add_error('hora_fin', 'La hora fin debe ser posterior a la hora inicio.')
         if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
             self.add_error('fecha_fin', 'El fin de labores debe ser igual o posterior al inicio de labores.')
 
@@ -134,12 +123,12 @@ class HorarioForm(forms.ModelForm):
         if self.errors or not (auxiliar and dias):
             return cleaned_data
 
-        # Un auxiliar no puede tener dos horarios que se crucen el mismo día dentro del mismo periodo.
+        # Un auxiliar no puede tener dos horarios que se crucen el mismo día dentro del mismo periodo
+        # (p. ej. "mañana" y "todo el día").
         cruces = Horario.objects.filter(
             auxiliar=auxiliar,
             dia__in=dias,
-            hora_inicio__lt=hora_fin,
-            hora_fin__gt=hora_inicio,
+            jornada__in=jornadas_que_se_cruzan(jornada),
         ).vigentes_entre(fecha_inicio, fecha_fin).exclude(pk=self.instance.pk)
         dias_con_cruce = sorted({horario.get_dia_display() for horario in cruces}, key=lambda nombre: Horario.Dia.labels.index(nombre))
         if dias_con_cruce:
@@ -152,7 +141,7 @@ class HorarioForm(forms.ModelForm):
     def save(self, commit=True):
         if 'dias' not in self.fields:
             return super().save(commit)
-        datos = {campo: self.cleaned_data[campo] for campo in ('auxiliar', 'hora_inicio', 'hora_fin', 'fecha_inicio', 'fecha_fin')}
+        datos = {campo: self.cleaned_data[campo] for campo in ('auxiliar', 'jornada', 'fecha_inicio', 'fecha_fin')}
         horarios = [Horario(dia=dia, **datos) for dia in self.cleaned_data['dias']]
         if commit:
             for horario in horarios:
@@ -161,27 +150,13 @@ class HorarioForm(forms.ModelForm):
 
 
 class ProgramacionForm(forms.ModelForm):
-    """Visita de un auxiliar a una escuela en un bloque de una hora dentro de una convocatoria."""
+    """Visita de un auxiliar a una escuela en la jornada de la mañana, de la tarde o todo el día."""
 
-    # Se elige de una lista de bloques, pero se acepta cualquier hora válida (visitas anteriores a los bloques).
-    hora_programada = forms.TimeField(
-        label='Bloque de hora',
-        widget=forms.Select(attrs={'class': 'select select-bordered w-full'}),
-    )
+    # Campo explícito para que los radios no incluyan la opción vacía "---------".
+    jornada = forms.ChoiceField(label='Jornada', choices=Jornada.choices, widget=forms.RadioSelect)
 
     def __init__(self, *args, convocatoria_fija=None, **kwargs):
         super().__init__(*args, **kwargs)
-        opciones = bloques()
-        # Una visita guardada antes de los bloques (p. ej. 10:15) conserva su hora como opción.
-        actual = self.instance.hora_programada if self.instance.pk else None
-        if isinstance(actual, str):
-            actual = parse_time(actual)
-        if actual and actual not in opciones:
-            opciones = sorted([*opciones, actual])
-        self.fields['hora_programada'].widget.choices = [('', 'Selecciona un bloque')] + [
-            (hora.strftime('%H:%M:%S'), etiqueta_bloque(hora)) for hora in opciones
-        ]
-
         self.fields['auxiliar'].label = 'Auxiliar (opcional)'
         self.fields['auxiliar'].required = False
 
@@ -191,7 +166,7 @@ class ProgramacionForm(forms.ModelForm):
             self.fields['convocatoria'].widget = forms.HiddenInput()
             self.fields['convocatoria'].initial = convocatoria_fija.pk
 
-        # Al crear (o antes de la hora de la visita) queda en pendiente; el estado se marca después.
+        # Al crear (o antes de que empiece la jornada de la visita) queda en pendiente; el estado se marca después.
         if not self.instance.pk or not self.instance.ya_empezo:
             del self.fields['estado']
 
@@ -200,7 +175,7 @@ class ProgramacionForm(forms.ModelForm):
         convocatoria = cleaned_data.get('convocatoria')
         auxiliar = cleaned_data.get('auxiliar')
         fecha = cleaned_data.get('fecha_programada')
-        hora = cleaned_data.get('hora_programada')
+        jornada = cleaned_data.get('jornada')
         escuela = cleaned_data.get('escuela')
 
         if convocatoria and fecha and not convocatoria.fecha_inicio <= fecha <= convocatoria.fecha_fin:
@@ -213,37 +188,31 @@ class ProgramacionForm(forms.ModelForm):
         horario_sin_cambios = self.instance.pk and (
             auxiliar == self.instance.auxiliar
             and fecha == self.instance.fecha_programada
-            and hora == self.instance.hora_programada
+            and jornada == self.instance.jornada
         )
 
-        # Basta con que algún horario semanal del auxiliar que aplique ese día se cruce con el bloque.
-        if auxiliar and fecha and hora and not horario_sin_cambios and not Horario.objects.filter(
-            auxiliar=auxiliar,
-            hora_inicio__lt=fin_de_bloque(hora),
-            hora_fin__gt=hora,
-        ).del_dia(fecha).exists():
-            self.add_error(
-                None,
-                'El auxiliar no tiene horario registrado en ese bloque de esa fecha.',
-            )
+        # El horario semanal del auxiliar ese día debe cubrir todos los turnos de la jornada
+        # (para "todo el día" sirve un horario de todo el día, o uno de mañana y otro de tarde).
+        if auxiliar and fecha and jornada and not horario_sin_cambios:
+            turnos_con_horario = {
+                turno
+                for horario in Horario.objects.filter(auxiliar=auxiliar).del_dia(fecha)
+                for turno in horario.turnos
+            }
+            if not set(turnos_de(jornada)) <= turnos_con_horario:
+                self.add_error(None, 'El auxiliar no tiene horario en esa jornada de esa fecha.')
 
-        programaciones_mismo_bloque = Programacion.objects.filter(
-            fecha_programada=fecha,
-            hora_programada__hour=hora.hour if hora else None,
-        )
-        if self.instance.pk:
-            programaciones_mismo_bloque = programaciones_mismo_bloque.exclude(pk=self.instance.pk)
+        if fecha and jornada:
+            # Se cruzan las visitas del mismo día que comparten turno (la mañana se cruza con "todo el día").
+            mismo_turno = Programacion.objects.filter(
+                fecha_programada=fecha,
+                jornada__in=jornadas_que_se_cruzan(jornada),
+            ).exclude(pk=self.instance.pk)
 
-        if auxiliar and hora and programaciones_mismo_bloque.filter(auxiliar=auxiliar).exists():
-            self.add_error(
-                None,
-                'Este auxiliar ya tiene otra programación asignada en esa fecha y hora.',
-            )
-        if escuela and hora and programaciones_mismo_bloque.filter(escuela=escuela).exists():
-            self.add_error(
-                None,
-                'Esta escuela ya tiene otra programación asignada en esa fecha y hora.',
-            )
+            if auxiliar and mismo_turno.filter(auxiliar=auxiliar).exists():
+                self.add_error(None, 'Este auxiliar ya tiene otra programación asignada en esa fecha y jornada.')
+            if escuela and mismo_turno.filter(escuela=escuela).exists():
+                self.add_error(None, 'Esta escuela ya tiene otra programación asignada en esa fecha y jornada.')
 
         return cleaned_data
 
@@ -253,7 +222,7 @@ class ProgramacionForm(forms.ModelForm):
             'convocatoria',
             'auxiliar',
             'fecha_programada',
-            'hora_programada',
+            'jornada',
             'escuela',
             'estado',
         ]

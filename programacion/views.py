@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.dateparse import parse_date, parse_time
+from django.utils.dateparse import parse_date
 from django.utils.formats import date_format
 from django.utils.text import capfirst
 from weasyprint import HTML
@@ -18,19 +18,19 @@ from weasyprint import HTML
 from main.permisos import permiso_formulario, permiso_requerido
 from .agenda import (
     MODOS, agenda_de_convocatoria, con_conteos, convocatoria_por_defecto, convocatorias_agrupadas,
-    disponibles_en_bloque, estado_convocatoria, etiqueta_bloque, horarios_por_fecha, otras_convocatorias, rango_visible,
+    disponibles_en_jornada, estado_convocatoria, etiqueta_jornada, horarios_por_fecha, otras_convocatorias, rango_visible,
     resumen_estados, sumar_meses, tono_convocatoria, tonos_por_auxiliar,
 )
 
 from .forms import AuxiliarForm, AusenciaForm, ConvocatoriaForm, HorarioForm, ProgramacionEstadoForm, ProgramacionFiltroForm, ProgramacionForm
-from .models import Auxiliar, Ausencia, Convocatoria, Horario, Programacion
+from .models import ORDEN_JORNADA, Auxiliar, Ausencia, Convocatoria, Horario, Jornada, Programacion
 
 
 def _programaciones_filtradas(request, paginar=True):
     filtro_form = ProgramacionFiltroForm(request.GET or None)
     programaciones = Programacion.objects.select_related(
         'convocatoria', 'auxiliar', 'escuela'
-    ).order_by('-fecha_programada', '-hora_programada')
+    ).order_by('-fecha_programada', ORDEN_JORNADA.desc())
 
     if filtro_form.is_valid():
         search = filtro_form.cleaned_data.get('q', '').strip()
@@ -114,7 +114,7 @@ def _titulo_periodo(modo, dia):
 
 
 # ---------------------------------------------------------------------------
-# Calendario: agenda semanal por bloques de la convocatoria elegida
+# Calendario: agenda semanal por jornadas de la convocatoria elegida
 # ---------------------------------------------------------------------------
 
 def _url_agenda(convocatoria, modo, dia, auxiliar=None):
@@ -255,7 +255,7 @@ def agenda_imprimir(request):
 
     programaciones = convocatoria.programacion_set.select_related(
         'auxiliar', 'escuela__distrito',
-    ).order_by('fecha_programada', 'hora_programada', 'escuela__nombre')
+    ).order_by('fecha_programada', ORDEN_JORNADA, 'escuela__nombre')
     inicio, fin = convocatoria.fecha_inicio, convocatoria.fecha_fin
     subtitulo = f"Del {date_format(inicio, FORMATO_FECHA)} al {date_format(fin, FORMATO_FECHA)}"
 
@@ -280,7 +280,7 @@ def agenda_imprimir(request):
 
     por_dia = defaultdict(list)
     for programacion in programaciones:
-        programacion.bloque = etiqueta_bloque(programacion.hora_programada)
+        programacion.bloque = programacion.get_jornada_display()
         por_dia[programacion.fecha_programada].append(programacion)
 
     html_string = render_to_string('partials/agenda/reporte_pdf.html', {
@@ -395,19 +395,23 @@ def programacion_auxiliar_horario(request):
     ))
 
 
+def _jornada(valor):
+    return valor if valor in Jornada.values else None
+
+
 def _inicial_programacion(request):
-    """Valores con que se abre el formulario desde un bloque de la agenda."""
+    """Valores con que se abre el formulario desde un turno de la agenda."""
     inicial = {}
     fecha = _fecha(request.GET.get('fecha'))
-    hora = parse_time(request.GET.get('hora') or '') if request.GET.get('hora') else None
+    jornada = _jornada(request.GET.get('jornada'))
     auxiliar = _por_id(Auxiliar, request.GET.get('auxiliar'))
     if fecha:
         inicial['fecha_programada'] = fecha
-    if hora:
-        inicial['hora_programada'] = hora
+    if jornada:
+        inicial['jornada'] = jornada
     if auxiliar:
         inicial['auxiliar'] = auxiliar.pk
-    return inicial, auxiliar, fecha, hora
+    return inicial, auxiliar, fecha, jornada
 
 
 @permiso_formulario('programacion.programacion')
@@ -422,7 +426,7 @@ def programacion_form(request, pk=None):
     convocatoria_actual = instance.convocatoria if instance else convocatoria_fija
     mes_horarios = instance.fecha_programada.strftime('%Y-%m') if instance else None
     fecha_bloque = instance.fecha_programada if instance else None
-    hora_bloque = instance.hora_programada if instance else None
+    jornada_bloque = instance.jornada if instance else None
 
     if request.method == 'POST':
         form = ProgramacionForm(request.POST, instance=instance, convocatoria_fija=convocatoria_fija)
@@ -440,11 +444,11 @@ def programacion_form(request, pk=None):
                 'programaciones': programaciones,
             })
         fecha_bloque = form.cleaned_data.get('fecha_programada')
-        hora_bloque = form.cleaned_data.get('hora_programada')
+        jornada_bloque = form.cleaned_data.get('jornada')
     elif instance:
         form = ProgramacionForm(instance=instance, convocatoria_fija=convocatoria_fija)
     else:
-        inicial, auxiliar_actual, fecha_bloque, hora_bloque = _inicial_programacion(request)
+        inicial, auxiliar_actual, fecha_bloque, jornada_bloque = _inicial_programacion(request)
         form = ProgramacionForm(initial=inicial, convocatoria_fija=convocatoria_fija)
         if fecha_bloque:
             mes_horarios = fecha_bloque.strftime('%Y-%m')
@@ -456,10 +460,10 @@ def programacion_form(request, pk=None):
         'estados_programacion': Programacion._meta.get_field('estado').choices,
         'desde_calendario': _desde_calendario(request),
         'fecha_bloque': fecha_bloque,
-        'etiqueta_bloque': etiqueta_bloque(hora_bloque) if hora_bloque else None,
+        'etiqueta_bloque': etiqueta_jornada(jornada_bloque) if jornada_bloque else None,
         'disponibles_bloque': (
-            disponibles_en_bloque(fecha_bloque, hora_bloque, excluir=instance)
-            if fecha_bloque and hora_bloque else None
+            disponibles_en_jornada(fecha_bloque, jornada_bloque, excluir=instance)
+            if fecha_bloque and jornada_bloque else None
         ),
         **_auxiliar_horarios_contexto(auxiliar_actual, mes_horarios, convocatoria_actual),
     })
@@ -497,7 +501,7 @@ def _auxiliares_filtrados(request):
     auxiliares = Auxiliar.objects.prefetch_related(
         Prefetch(
             'horario_set',
-            queryset=Horario.objects.order_by('dia', 'hora_inicio'),
+            queryset=Horario.objects.order_by('dia', ORDEN_JORNADA, 'fecha_inicio'),
             to_attr='horarios',
         ),
         Prefetch(
@@ -693,7 +697,7 @@ def _auxiliares_con_ausencias(request):
     ausencias = Ausencia.objects.order_by('-fecha')
 
     auxiliares = Auxiliar.objects.prefetch_related(
-        Prefetch('horario_set', queryset=Horario.objects.order_by('dia', 'hora_inicio'), to_attr='horarios'),
+        Prefetch('horario_set', queryset=Horario.objects.order_by('dia', ORDEN_JORNADA, 'fecha_inicio'), to_attr='horarios'),
         Prefetch('ausencia_set', queryset=ausencias, to_attr='ausencias'),
     ).order_by('apellido', 'nombre')
 

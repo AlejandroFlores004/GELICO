@@ -8,7 +8,7 @@
             {% if convocatoria_fija or etiqueta_bloque %}
             <p class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-base-content/70">
                 {% if convocatoria_fija %}<span>Convocatoria: <span class="font-semibold text-base-content">{{ convocatoria_fija.nombre }}</span></span>{% endif %}
-                {% if etiqueta_bloque and fecha_bloque %}<span>Bloque: <span class="font-semibold text-base-content">{{ fecha_bloque|date:"l j \d\e F"|capfirst }} · {{ etiqueta_bloque }}</span></span>{% endif %}
+                {% if etiqueta_bloque and fecha_bloque %}<span>Jornada: <span class="font-semibold text-base-content">{{ fecha_bloque|date:"l j \d\e F"|capfirst }} · {{ etiqueta_bloque }}</span></span>{% endif %}
             </p>
             {% endif %}
             {% if instance and desde_calendario and instance.ya_empezo %}
@@ -46,16 +46,16 @@
                 {% endif %}
                 {% if disponibles_bloque is not None %}
                 <div class="rounded-lg border border-base-300 bg-base-200/40 p-3">
-                    <p class="text-sm font-medium">Auxiliares disponibles en este bloque <span class="font-normal text-base-content/60">(opcional: puedes asignarlo después)</span></p>
+                    <p class="text-sm font-medium">Auxiliares disponibles en esta jornada <span class="font-normal text-base-content/60">(opcional: puedes asignarlo después)</span></p>
                     {% if disponibles_bloque %}
                     <div class="mt-2 flex flex-wrap gap-2">
                         {% for disponible in disponibles_bloque %}
                         <button type="button" data-elegir-auxiliar="{{ disponible.pk }}" class="btn btn-xs btn-outline btn-primary">{{ disponible.nombre }} {{ disponible.apellido }}</button>
                         {% endfor %}
                     </div>
-                    <p class="mt-1 text-xs text-base-content/60">Tienen horario en ese bloque, no están ausentes y no tienen otra visita a esa hora.</p>
+                    <p class="mt-1 text-xs text-base-content/60">Su horario cubre esa jornada, no están ausentes y no tienen otra visita en ella.</p>
                     {% else %}
-                    <p class="mt-1 text-xs text-base-content/60">Ningún auxiliar tiene horario libre en este bloque. Registra horarios en Auxiliares o elige otro bloque.</p>
+                    <p class="mt-1 text-xs text-base-content/60">Ningún auxiliar tiene horario libre en esta jornada. Registra horarios en Auxiliares o elige otra jornada.</p>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -64,7 +64,11 @@
                     {% for field in form.visible_fields %}
                     <div class="form-control w-full">
                         <label class="label" for="{{ field.id_for_label }}"><span class="label-text font-medium">{{ field.label }}</span></label>
+                        {% if field.name == 'jornada' %}
+                        {% include "partials/programacion/_jornada_radios.html" %}
+                        {% else %}
                         {{ field }}
+                        {% endif %}
                         {% if field.errors %}<span class="text-error text-xs mt-1">{{ field.errors.0 }}</span>{% endif %}
                     </div>
                     {% if field.name == 'auxiliar' %}

@@ -1,0 +1,7 @@
+{# Radios de jornada (Mañana / Tarde / Todo el día) como botones. Recibe `field`. #}
+<div class="join w-full" role="radiogroup" aria-label="{{ field.label }}">
+    {% for opcion in field %}
+    <input type="radio" id="{{ opcion.id_for_label }}" name="{{ opcion.data.name }}" value="{{ opcion.data.value }}" aria-label="{{ opcion.choice_label }}"
+        class="join-item btn btn-sm flex-1 checked:btn-primary" {% if opcion.data.selected %}checked{% endif %}>
+    {% endfor %}
+</div>

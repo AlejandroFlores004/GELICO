@@ -28,26 +28,26 @@ class AuxiliarAdmin(admin.ModelAdmin):
 
 @admin.register(Programacion)
 class ProgramacionAdmin(admin.ModelAdmin):
-    list_display = ('convocatoria', 'auxiliar', 'fecha_programada', 'hora_programada', 'estado', 'escuela')
-    list_filter = ('estado', 'convocatoria', 'fecha_programada')
+    list_display = ('convocatoria', 'auxiliar', 'fecha_programada', 'jornada', 'estado', 'escuela')
+    list_filter = ('estado', 'jornada', 'convocatoria', 'fecha_programada')
     search_fields = ('convocatoria__nombre', 'auxiliar__nombre', 'auxiliar__apellido')
-    ordering = ('-fecha_programada', '-hora_programada')
+    ordering = ('-fecha_programada',)
     fieldsets = (
         ('Información básica', {
-            'fields': ('convocatoria', 'auxiliar', 'fecha_programada', 'hora_programada', 'estado', 'escuela')
+            'fields': ('convocatoria', 'auxiliar', 'fecha_programada', 'jornada', 'estado', 'escuela')
         }),
     )
 
 
 @admin.register(Horario)
 class HorarioAdmin(admin.ModelAdmin):
-    list_display = ('auxiliar', 'dia', 'hora_inicio', 'hora_fin', 'fecha_inicio', 'fecha_fin')
+    list_display = ('auxiliar', 'dia', 'jornada', 'fecha_inicio', 'fecha_fin')
     list_filter = ('dia', 'auxiliar')
     search_fields = ('auxiliar__nombre', 'auxiliar__apellido')
-    ordering = ('auxiliar', 'dia', 'hora_inicio')
+    ordering = ('auxiliar', 'dia')
     fieldsets = (
         ('Información básica', {
-            'fields': ('auxiliar', 'dia', 'hora_inicio', 'hora_fin')
+            'fields': ('auxiliar', 'dia', 'jornada')
         }),
         ('Periodo de labores', {
             'fields': ('fecha_inicio', 'fecha_fin')

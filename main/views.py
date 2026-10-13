@@ -23,7 +23,7 @@ from easyaudit.models import CRUDEvent, LoginEvent, RequestEvent
 from weasyprint import HTML
 from escuela.models import Encargado, Escuela
 from liquidacion.models import ESTADO_LIQUIDACION_CHOICES, Asignacion, Bono, Observacion, Recibo
-from programacion.models import Ausencia, Convocatoria, Programacion
+from programacion.models import ORDEN_JORNADA, Ausencia, Convocatoria, Programacion
 from django.contrib import messages
 
 from .forms import NOMBRES_APPS, FiltrarAuditoriaForm
@@ -218,7 +218,7 @@ def home_view(request):
         },
         'programaciones_hoy': Programacion.objects.filter(fecha_programada=hoy).select_related(
             'auxiliar', 'escuela',
-        ).order_by('hora_programada'),
+        ).order_by(ORDEN_JORNADA, 'escuela__nombre'),
         'programaciones_semana': Programacion.objects.filter(
             fecha_programada__gt=hoy, fecha_programada__lte=hoy + timedelta(days=7), estado='pendiente',
         ).count(),

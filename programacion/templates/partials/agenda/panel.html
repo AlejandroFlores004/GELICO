@@ -101,7 +101,7 @@
         <div class="card-body items-center gap-3 py-16 text-center">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-base-content/30"><path stroke-linecap="round" stroke-linejoin="round" d="m3 11 18-5v12L3 14v-3z" /><path stroke-linecap="round" stroke-linejoin="round" d="M11.6 16.8a3 3 0 1 1-5.8-1.6" /></svg>
             <h2 class="text-xl font-bold">Aún no hay convocatorias</h2>
-            <p class="max-w-md text-base-content/70">Crea la primera convocatoria; después podrás asignarle programaciones por bloques de hora en este mismo calendario.</p>
+            <p class="max-w-md text-base-content/70">Crea la primera convocatoria; después podrás asignarle programaciones por jornada (mañana, tarde o todo el día) en este mismo calendario.</p>
             <button hx-get="{% url 'convocatoria_nueva' %}?origen=calendario" hx-target="#convocatoria-modal-wrapper" hx-swap="outerHTML" class="btn btn-primary gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 Crear convocatoria

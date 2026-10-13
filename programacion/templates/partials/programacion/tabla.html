@@ -16,7 +16,7 @@
             <table class="table w-full">
                 <thead>
                     <tr>
-                        <th>Fecha y hora</th>
+                        <th>Fecha y jornada</th>
                         <th>Convocatoria</th>
                         <th>Auxiliar</th>
                         <th>Escuela</th>
@@ -29,7 +29,7 @@
                     <tr class="hover">
                         <td class="whitespace-nowrap">
                             <span class="font-medium">{{ programacion.fecha_programada|date:"d/m/Y" }}</span>
-                            <span class="block text-sm text-base-content/70">{{ programacion.hora_programada|time:"H:i" }}</span>
+                            <span class="block text-sm text-base-content/70">{{ programacion.get_jornada_display }}</span>
                         </td>
                         <td class="font-medium">{{ programacion.convocatoria.nombre }}</td>
                         <td>{% if programacion.auxiliar %}{{ programacion.auxiliar.nombre }} {{ programacion.auxiliar.apellido }}{% else %}<span class="italic text-base-content/50">Sin asignar</span>{% endif %}</td>
