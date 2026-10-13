@@ -41,13 +41,16 @@ class ProgramacionAdmin(admin.ModelAdmin):
 
 @admin.register(Horario)
 class HorarioAdmin(admin.ModelAdmin):
-    list_display = ('auxiliar', 'fecha', 'hora_inicio', 'hora_fin')
-    list_filter = ('fecha', 'auxiliar')
+    list_display = ('auxiliar', 'dia', 'hora_inicio', 'hora_fin', 'fecha_inicio', 'fecha_fin')
+    list_filter = ('dia', 'auxiliar')
     search_fields = ('auxiliar__nombre', 'auxiliar__apellido')
-    ordering = ('-fecha', 'hora_inicio')
+    ordering = ('auxiliar', 'dia', 'hora_inicio')
     fieldsets = (
         ('Información básica', {
-            'fields': ('auxiliar', 'fecha', 'hora_inicio', 'hora_fin')
+            'fields': ('auxiliar', 'dia', 'hora_inicio', 'hora_fin')
+        }),
+        ('Periodo de labores', {
+            'fields': ('fecha_inicio', 'fecha_fin')
         }),
     )
 

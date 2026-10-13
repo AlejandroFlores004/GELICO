@@ -18,7 +18,7 @@ from weasyprint import HTML
 from main.permisos import permiso_formulario, permiso_requerido
 from .agenda import (
     MODOS, agenda_de_convocatoria, con_conteos, convocatoria_por_defecto, convocatorias_agrupadas,
-    disponibles_en_bloque, estado_convocatoria, etiqueta_bloque, otras_convocatorias, rango_visible,
+    disponibles_en_bloque, estado_convocatoria, etiqueta_bloque, horarios_por_fecha, otras_convocatorias, rango_visible,
     resumen_estados, sumar_meses, tono_convocatoria, tonos_por_auxiliar,
 )
 
@@ -341,21 +341,17 @@ def _auxiliar_horarios_contexto(auxiliar, mes_parametro=None, convocatoria=None)
     else:
         mes_siguiente = mes_actual.replace(month=mes_actual.month + 1)
 
-    horarios = Horario.objects.filter(
-        auxiliar=auxiliar,
-        fecha__gte=mes_actual,
-        fecha__lt=mes_siguiente,
-    ).order_by('fecha', 'hora_inicio') if auxiliar else Horario.objects.none()
-    horarios_por_fecha = defaultdict(list)
-    for horario in horarios:
-        horarios_por_fecha[horario.fecha].append(horario)
+    semanas = Calendar(firstweekday=6).monthdatescalendar(mes_actual.year, mes_actual.month)
+    inicio, fin = semanas[0][0], semanas[-1][-1]
+    horarios = Horario.objects.filter(auxiliar=auxiliar).vigentes_entre(inicio, fin) if auxiliar else []
+    horarios_del_auxiliar = horarios_por_fecha(horarios, inicio, fin)
 
     calendario_horarios = [
         [
             {
                 'fecha': fecha,
                 'en_mes': fecha.month == mes_actual.month,
-                'horarios': horarios_por_fecha[fecha],
+                'horarios': horarios_del_auxiliar[(auxiliar.pk, fecha)] if auxiliar else [],
                 'en_periodo_convocatoria': bool(
                     convocatoria
                     and convocatoria.fecha_inicio <= fecha <= convocatoria.fecha_fin
@@ -369,9 +365,7 @@ def _auxiliar_horarios_contexto(auxiliar, mes_parametro=None, convocatoria=None)
             }
             for fecha in semana
         ]
-        for semana in Calendar(firstweekday=6).monthdatescalendar(
-            mes_actual.year, mes_actual.month
-        )
+        for semana in semanas
     ]
     nombres_meses = (
         'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -503,7 +497,7 @@ def _auxiliares_filtrados(request):
     auxiliares = Auxiliar.objects.prefetch_related(
         Prefetch(
             'horario_set',
-            queryset=Horario.objects.order_by('-fecha', 'hora_inicio'),
+            queryset=Horario.objects.order_by('dia', 'hora_inicio'),
             to_attr='horarios',
         ),
         Prefetch(
@@ -622,7 +616,12 @@ def horario_form(request, pk=None):
         form = HorarioForm(instance=instance)
     else:
         auxiliar_id = request.GET.get('auxiliar')
-        form = HorarioForm(initial={'auxiliar': auxiliar_id})
+        inicial = {'auxiliar': auxiliar_id}
+        # Lo usual es agregar más días al mismo periodo de labores: se propone el del último horario.
+        ultimo = Horario.objects.filter(auxiliar_id=auxiliar_id).order_by('-fecha_fin').first() if auxiliar_id else None
+        if ultimo:
+            inicial.update(fecha_inicio=ultimo.fecha_inicio, fecha_fin=ultimo.fecha_fin)
+        form = HorarioForm(initial=inicial)
 
     return render(
         request,
@@ -694,7 +693,7 @@ def _auxiliares_con_ausencias(request):
     ausencias = Ausencia.objects.order_by('-fecha')
 
     auxiliares = Auxiliar.objects.prefetch_related(
-        Prefetch('horario_set', queryset=Horario.objects.order_by('-fecha', 'hora_inicio'), to_attr='horarios'),
+        Prefetch('horario_set', queryset=Horario.objects.order_by('dia', 'hora_inicio'), to_attr='horarios'),
         Prefetch('ausencia_set', queryset=ausencias, to_attr='ausencias'),
     ).order_by('apellido', 'nombre')
 

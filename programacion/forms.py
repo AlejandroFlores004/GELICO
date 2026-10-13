@@ -1,7 +1,7 @@
 from django import forms
 from django_select2.forms import Select2Widget
 from django.urls import reverse_lazy
-from django.utils.dateparse import parse_date, parse_time
+from django.utils.dateparse import parse_time
 
 from escuela.models import Escuela
 from .agenda import bloques, etiqueta_bloque, fin_de_bloque
@@ -29,26 +29,16 @@ class AuxiliarForm(forms.ModelForm):
 class AusenciaForm(forms.ModelForm):
     def __init__(self, *args, auxiliar=None, **kwargs):
         super().__init__(*args, **kwargs)
-        if not auxiliar and self.instance and self.instance.pk:
-            auxiliar = self.instance.auxiliar
-        if auxiliar:
-            fechas = Horario.objects.filter(
-                auxiliar=auxiliar,
-            ).order_by('-fecha').values_list('fecha', flat=True).distinct()
-            self.fields['fecha'] = forms.TypedChoiceField(
-                choices=[
-                    ('', 'Seleccionar'),
-                    *[
-                        (fecha.isoformat(), fecha.strftime('%d/%m/%Y'))
-                        for fecha in fechas
-                    ],
-                ],
-                coerce=parse_date,
-                widget=forms.Select(attrs={
-                    'class': 'select select-bordered w-full',
-                }),
-                empty_value=None,
-            )
+        self.auxiliar = auxiliar or (self.instance.auxiliar if self.instance.pk else None)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        auxiliar = cleaned_data.get('auxiliar') or self.auxiliar
+        fecha = cleaned_data.get('fecha')
+        # Solo se registra ausencia en un día en que el auxiliar trabaja según su horario semanal.
+        if auxiliar and fecha and not Horario.objects.filter(auxiliar=auxiliar).del_dia(fecha).exists():
+            self.add_error('fecha', 'El auxiliar no tiene horario ese día.')
+        return cleaned_data
 
     class Meta:
         model = Ausencia
@@ -72,23 +62,36 @@ class AusenciaForm(forms.ModelForm):
 
 
 class HorarioForm(forms.ModelForm):
+    """Al crear se pueden marcar varios días con el mismo horario (se guarda un Horario por día);
+    al editar se cambia un solo día."""
+
+    dias = forms.TypedMultipleChoiceField(
+        label='Días',
+        choices=Horario.Dia.choices,
+        coerce=int,
+        widget=forms.CheckboxSelectMultiple,
+        error_messages={'required': 'Selecciona al menos un día.'},
+    )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.instance and self.instance.pk:
+        if self.instance.pk:
             self.fields['auxiliar'].disabled = True
+            del self.fields['dias']
+        else:
+            del self.fields['dia']
 
     class Meta:
         model = Horario
-        fields = ['auxiliar', 'fecha', 'hora_inicio', 'hora_fin']
+        fields = ['auxiliar', 'dia', 'hora_inicio', 'hora_fin', 'fecha_inicio', 'fecha_fin']
         widgets = {
             'auxiliar': Select2Widget(attrs={
                 'data-placeholder': 'Seleccione un auxiliar',
                 'style': 'width: 100%; display: none !important;',
                 'class': 'select2-daisy',
             }),
-            'fecha': forms.DateInput(format='%Y-%m-%d', attrs={
-                'class': 'input input-bordered w-full',
-                'type': 'date',
+            'dia': forms.Select(attrs={
+                'class': 'select select-bordered w-full',
             }),
             'hora_inicio': forms.TimeInput(format='%H:%M', attrs={
                 'class': 'input input-bordered w-full',
@@ -98,15 +101,63 @@ class HorarioForm(forms.ModelForm):
                 'class': 'input input-bordered w-full',
                 'type': 'time',
             }),
+            'fecha_inicio': forms.DateInput(format='%Y-%m-%d', attrs={
+                'class': 'input input-bordered w-full',
+                'type': 'date',
+            }),
+            'fecha_fin': forms.DateInput(format='%Y-%m-%d', attrs={
+                'class': 'input input-bordered w-full',
+                'type': 'date',
+            }),
         }
+
+    def _dias(self):
+        if 'dias' in self.fields:
+            return self.cleaned_data.get('dias') or []
+        dia = self.cleaned_data.get('dia')
+        return [dia] if dia else []
 
     def clean(self):
         cleaned_data = super().clean()
+        auxiliar = cleaned_data.get('auxiliar')
         hora_inicio = cleaned_data.get('hora_inicio')
         hora_fin = cleaned_data.get('hora_fin')
+        fecha_inicio = cleaned_data.get('fecha_inicio')
+        fecha_fin = cleaned_data.get('fecha_fin')
+
         if hora_inicio and hora_fin and hora_fin <= hora_inicio:
             self.add_error('hora_fin', 'La hora fin debe ser posterior a la hora inicio.')
+        if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
+            self.add_error('fecha_fin', 'El fin de labores debe ser igual o posterior al inicio de labores.')
+
+        dias = self._dias()
+        if self.errors or not (auxiliar and dias):
+            return cleaned_data
+
+        # Un auxiliar no puede tener dos horarios que se crucen el mismo día dentro del mismo periodo.
+        cruces = Horario.objects.filter(
+            auxiliar=auxiliar,
+            dia__in=dias,
+            hora_inicio__lt=hora_fin,
+            hora_fin__gt=hora_inicio,
+        ).vigentes_entre(fecha_inicio, fecha_fin).exclude(pk=self.instance.pk)
+        dias_con_cruce = sorted({horario.get_dia_display() for horario in cruces}, key=lambda nombre: Horario.Dia.labels.index(nombre))
+        if dias_con_cruce:
+            self.add_error(
+                None,
+                f"El auxiliar ya tiene un horario que se cruza el {', '.join(dias_con_cruce).lower()} en ese periodo.",
+            )
         return cleaned_data
+
+    def save(self, commit=True):
+        if 'dias' not in self.fields:
+            return super().save(commit)
+        datos = {campo: self.cleaned_data[campo] for campo in ('auxiliar', 'hora_inicio', 'hora_fin', 'fecha_inicio', 'fecha_fin')}
+        horarios = [Horario(dia=dia, **datos) for dia in self.cleaned_data['dias']]
+        if commit:
+            for horario in horarios:
+                horario.save()
+        return horarios
 
 
 class ProgramacionForm(forms.ModelForm):
@@ -165,13 +216,12 @@ class ProgramacionForm(forms.ModelForm):
             and hora == self.instance.hora_programada
         )
 
-        # Basta con que algún horario del auxiliar se cruce con el bloque.
+        # Basta con que algún horario semanal del auxiliar que aplique ese día se cruce con el bloque.
         if auxiliar and fecha and hora and not horario_sin_cambios and not Horario.objects.filter(
             auxiliar=auxiliar,
-            fecha=fecha,
             hora_inicio__lt=fin_de_bloque(hora),
             hora_fin__gt=hora,
-        ).exists():
+        ).del_dia(fecha).exists():
             self.add_error(
                 None,
                 'El auxiliar no tiene horario registrado en ese bloque de esa fecha.',

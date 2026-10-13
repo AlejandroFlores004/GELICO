@@ -1,8 +1,9 @@
 """Agenda por bloques de hora de una convocatoria.
 
 Cada día del periodo de la convocatoria se divide en bloques de una hora; en cada bloque se
-asignan programaciones. Un auxiliar está "disponible" en un bloque si tiene un Horario que lo
-cubre, no está ausente ese día y no tiene otra programación en esa hora.
+asignan programaciones. Un auxiliar está "disponible" en un bloque si su horario semanal lo
+cubre ese día (y la fecha cae en su periodo de labores), no está ausente ese día y no tiene
+otra programación en esa hora.
 """
 from calendar import Calendar
 from collections import defaultdict
@@ -149,15 +150,28 @@ def otras_convocatorias(inicio, fin, convocatoria):
 # Agenda de una convocatoria: bloques de hora
 # ---------------------------------------------------------------------------
 
+def horarios_por_fecha(horarios, inicio, fin):
+    """Reparte los horarios semanales en cada fecha del rango donde aplican: {(auxiliar_id, fecha): [horarios]}."""
+    por_fecha = defaultdict(list)
+    for horario in sorted(horarios, key=lambda horario: horario.hora_inicio):
+        desde, hasta = max(inicio, horario.fecha_inicio), min(fin, horario.fecha_fin)
+        # Primer día de la semana del horario a partir de "desde", y luego cada 7 días.
+        fecha = desde + timedelta(days=(horario.dia - desde.isoweekday()) % 7)
+        while fecha <= hasta:
+            por_fecha[(horario.auxiliar_id, fecha)].append(horario)
+            fecha += timedelta(days=7)
+    return por_fecha
+
+
 class Agenda:
     """Horarios, ausencias y programaciones de los auxiliares en un rango de fechas."""
 
     def __init__(self, auxiliares, inicio, fin, convocatoria, incluir_sin_auxiliar=False):
         ids = [auxiliar.pk for auxiliar in auxiliares]
 
-        self.horarios = defaultdict(list)
-        for horario in Horario.objects.filter(auxiliar__in=ids, fecha__range=(inicio, fin)).order_by('hora_inicio'):
-            self.horarios[(horario.auxiliar_id, horario.fecha)].append(horario)
+        self.horarios = horarios_por_fecha(
+            Horario.objects.filter(auxiliar__in=ids).vigentes_entre(inicio, fin), inicio, fin,
+        )
 
         self.ausencias = {
             (ausencia.auxiliar_id, ausencia.fecha)

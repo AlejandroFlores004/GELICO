@@ -1,4 +1,4 @@
-from datetime import time, timedelta
+from datetime import date, time, timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -30,7 +30,9 @@ class ProgramacionCalendarioAuxiliarConvocatoriaTests(TestCase):
 		)
 		Horario.objects.create(
 			auxiliar=auxiliar,
-			fecha='2026-05-12',
+			dia=2,  # martes
+			fecha_inicio=date(2026, 5, 12),
+			fecha_fin=date(2026, 5, 12),
 			hora_inicio='09:00',
 			hora_fin='12:00',
 		)
@@ -73,7 +75,9 @@ class ProgramacionHorarioValidationTests(TestCase):
 		)
 		Horario.objects.create(
 			auxiliar=self.auxiliar,
-			fecha='2026-05-12',
+			dia=2,  # martes
+			fecha_inicio=date(2026, 5, 12),
+			fecha_fin=date(2026, 5, 12),
 			hora_inicio='09:00',
 			hora_fin='12:00',
 		)
@@ -107,6 +111,8 @@ class ProgramacionHorarioValidationTests(TestCase):
 			hora_programada='13:00',
 			escuela=self.escuela,
 		)
+		# Como en la vista de editar, la instancia viene de la BD (con date/time, no texto).
+		programacion.refresh_from_db()
 		form = ProgramacionForm(
 			data=self._formulario('13:00').data,
 			instance=programacion,
@@ -136,7 +142,9 @@ class ProgramacionHorarioValidationTests(TestCase):
 		)
 		Horario.objects.create(
 			auxiliar=otro_auxiliar,
-			fecha='2026-05-12',
+			dia=2,  # martes
+			fecha_inicio=date(2026, 5, 12),
+			fecha_fin=date(2026, 5, 12),
 			hora_inicio='09:00',
 			hora_fin='12:00',
 		)
@@ -168,7 +176,7 @@ class AgendaBase(TestCase):
 		self.auxiliar = Auxiliar.objects.create(
 			nombre='Luis', apellido='Gómez', email='luis.agenda@example.com', institucion='UES',
 		)
-		Horario.objects.create(auxiliar=self.auxiliar, fecha=self.dia, hora_inicio=time(9, 30), hora_fin=time(12))
+		Horario.objects.create(auxiliar=self.auxiliar, dia=self.dia.isoweekday(), fecha_inicio=self.dia, fecha_fin=self.dia, hora_inicio=time(9, 30), hora_fin=time(12))
 
 	def _celda(self, calendario, hora):
 		fila = next(fila for fila in calendario['filas'] if fila['hora'] == time(hora))
@@ -248,7 +256,7 @@ class AgendaTests(AgendaBase):
 		self.assertEqual(celda['disponibles'], [self.auxiliar])
 
 		otro = Auxiliar.objects.create(nombre='Ana', apellido='Ruiz', email='ana.ruiz@example.com', institucion='UES')
-		Horario.objects.create(auxiliar=otro, fecha=self.dia, hora_inicio=time(8), hora_fin=time(9))
+		Horario.objects.create(auxiliar=otro, dia=self.dia.isoweekday(), fecha_inicio=self.dia, fecha_fin=self.dia, hora_inicio=time(8), hora_fin=time(9))
 		auxiliares = [self.auxiliar, otro]
 		dia = agenda_de_convocatoria(self.convocatoria, 'dia', self.dia, auxiliares, tonos_por_auxiliar(auxiliares))
 		self.assertTrue(dia['columnas'][-1].get('solo_sin_auxiliar'))
@@ -360,7 +368,7 @@ class ProgramacionPaginaTests(AgendaBase):
 
 	def test_rechaza_fecha_fuera_del_periodo(self):
 		fuera = self.convocatoria.fecha_fin + timedelta(days=1)
-		Horario.objects.create(auxiliar=self.auxiliar, fecha=fuera, hora_inicio=time(8), hora_fin=time(12))
+		Horario.objects.create(auxiliar=self.auxiliar, dia=fuera.isoweekday(), fecha_inicio=fuera, fecha_fin=fuera, hora_inicio=time(8), hora_fin=time(12))
 		respuesta = self.client.post(reverse('programacion_nueva'), self._datos(fecha_programada=fuera.isoformat()))
 		self.assertIn('fecha_programada', respuesta.context['form'].errors)
 
@@ -399,3 +407,73 @@ class ProgramacionPaginaTests(AgendaBase):
 		self.assertNotIn('estado', ProgramacionForm(instance=futura).fields)
 		futura.fecha_programada = timezone.localdate() - timedelta(days=1)
 		self.assertIn('estado', ProgramacionForm(instance=futura).fields)
+
+
+class HorarioSemanalTests(TestCase):
+	"""El horario se repite cada semana en su día, solo dentro del periodo de labores."""
+
+	def setUp(self):
+		self.client.force_login(get_user_model().objects.create_superuser('horarios', password='Clave-2026'))
+		self.auxiliar = Auxiliar.objects.create(
+			nombre='Luis', apellido='Gómez', email='luis.semanal@example.com', institucion='Institución de prueba',
+		)
+		# Lunes de 8:00 a 12:00, del lunes 4 al domingo 31 de mayo de 2026.
+		self.horario = Horario.objects.create(
+			auxiliar=self.auxiliar, dia=Horario.Dia.LUNES, hora_inicio=time(8), hora_fin=time(12),
+			fecha_inicio=date(2026, 5, 4), fecha_fin=date(2026, 5, 31),
+		)
+
+	def _datos(self, **cambios):
+		datos = {
+			'auxiliar': self.auxiliar.pk, 'hora_inicio': '13:00', 'hora_fin': '16:00',
+			'fecha_inicio': '2026-05-04', 'fecha_fin': '2026-05-31',
+		}
+		datos.update(cambios)
+		return datos
+
+	def test_aplica_cada_semana_dentro_del_periodo(self):
+		lunes_de_mayo = [date(2026, 5, dia) for dia in (4, 11, 18, 25)]
+		for fecha in lunes_de_mayo:
+			self.assertTrue(Horario.objects.del_dia(fecha).exists(), fecha)
+		self.assertFalse(Horario.objects.del_dia(date(2026, 5, 5)).exists())  # martes
+		self.assertFalse(Horario.objects.del_dia(date(2026, 6, 1)).exists())  # lunes fuera del periodo
+
+		agenda = agenda_de_convocatoria(
+			Convocatoria.objects.create(nombre='Mayo', descripcion='', fecha_inicio=date(2026, 5, 1), fecha_fin=date(2026, 5, 31)),
+			'mes', date(2026, 5, 15), [self.auxiliar], tonos_por_auxiliar([self.auxiliar]),
+		)
+		con_horario = [dia['fecha'] for semana in agenda['semanas'] for dia in semana if dia['disponibles']]
+		self.assertEqual(con_horario, lunes_de_mayo)
+
+	def test_crear_varios_dias_a_la_vez(self):
+		respuesta = self.client.post(reverse('horario_nuevo'), self._datos(dias=['2', '4']))
+		self.assertEqual(respuesta.status_code, 200)
+		self.assertEqual(
+			sorted(Horario.objects.filter(hora_inicio=time(13)).values_list('dia', flat=True)),
+			[Horario.Dia.MARTES, Horario.Dia.JUEVES],
+		)
+
+	def test_exige_al_menos_un_dia_y_periodo_valido(self):
+		respuesta = self.client.post(reverse('horario_nuevo'), self._datos(fecha_fin='2026-05-01'))
+		errores = respuesta.context['form'].errors
+		self.assertIn('dias', errores)
+		self.assertIn('fecha_fin', errores)
+
+	def test_rechaza_horario_que_se_cruza_el_mismo_dia(self):
+		respuesta = self.client.post(reverse('horario_nuevo'), self._datos(dias=['1'], hora_inicio='11:00'))
+		self.assertIn('lunes', respuesta.context['form'].non_field_errors()[0])
+		# En otro periodo no se cruza.
+		self.client.post(reverse('horario_nuevo'), self._datos(dias=['1'], hora_inicio='11:00', fecha_inicio='2026-06-01', fecha_fin='2026-06-30'))
+		self.assertEqual(Horario.objects.filter(dia=Horario.Dia.LUNES).count(), 2)
+
+	def test_editar_cambia_un_solo_dia(self):
+		self.client.post(reverse('horario_editar', args=[self.horario.pk]), self._datos(dia='3', hora_inicio='08:00', hora_fin='12:00'))
+		self.horario.refresh_from_db()
+		self.assertEqual(self.horario.dia, Horario.Dia.MIERCOLES)
+
+	def test_ausencia_solo_en_dia_con_horario(self):
+		datos = {'auxiliar': self.auxiliar.pk, 'motivo': 'Consulta médica'}
+		respuesta = self.client.post(reverse('ausencia_nueva'), {**datos, 'fecha': '2026-05-05'})
+		self.assertIn('fecha', respuesta.context['form'].errors)
+		self.client.post(reverse('ausencia_nueva'), {**datos, 'fecha': '2026-05-11'})
+		self.assertTrue(Ausencia.objects.filter(auxiliar=self.auxiliar, fecha=date(2026, 5, 11)).exists())

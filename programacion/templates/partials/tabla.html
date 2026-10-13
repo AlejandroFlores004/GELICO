@@ -66,8 +66,9 @@
                             {% for horario in auxiliar.horarios %}
                             <div class="rounded-lg bg-base-200/60 px-3 py-2 text-sm flex justify-between gap-3">
                                 <div>
-                                    <span>{{ horario.fecha|date:"d/m/Y" }}</span>
-                                    <span class="font-medium block">{{ horario.hora_inicio|time:"H:i" }} - {{ horario.hora_fin|time:"H:i" }}</span>
+                                    <span class="font-medium">{{ horario.get_dia_display }}</span>
+                                    <span class="tabular-nums">{{ horario.hora_inicio|time:"H:i" }} - {{ horario.hora_fin|time:"H:i" }}</span>
+                                    <span class="block text-xs text-base-content/60">Del {{ horario.fecha_inicio|date:"d/m/Y" }} al {{ horario.fecha_fin|date:"d/m/Y" }}</span>
                                 </div>
                                 <div class="flex gap-1 shrink-0">
                                     <button hx-get="{% url 'horario_editar' horario.pk %}{% querystring origen='auxiliares' %}" hx-target="#horario-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-xs btn-square" title="Editar" aria-label="Editar horario"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 13.5v4.875c0 .621-.504 1.125-1.125 1.125H5.625A1.125 1.125 0 0 1 4.5 17.25V6.375c0-.621.504-1.125 1.125-1.125H10.5" /></svg></button>
