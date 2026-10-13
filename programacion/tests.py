@@ -221,7 +221,7 @@ class AsignarAuxiliaresDiaTests(AgendaBase):
 		respuesta = self.client.get(self.url)
 		self.assertEqual(self._auxiliares(respuesta, 'asignados'), [self.auxiliar])
 		disponibles = {fila['auxiliar']: fila for fila in respuesta.context['disponibles']}
-		self.assertEqual(list(disponibles), [ausente, con_horario])  # por apellido; sin_horario no aparece
+		self.assertEqual(list(disponibles), [con_horario, ausente])  # por apellido (Ruiz, Sol); sin_horario no aparece
 		self.assertNotIn(sin_horario, disponibles)
 		self.assertEqual(disponibles[con_horario]['jornadas'], ['Tarde'])
 		self.assertTrue(disponibles[con_horario]['puede_agregarse'])
@@ -301,7 +301,8 @@ class ProgramacionPaginaTests(AgendaBase):
 		self.assertEqual(respuesta.context['modo'], 'semana')
 		self.assertEqual(respuesta.context['auxiliares'], [self.auxiliar])
 		self.assertContains(respuesta, 'Estás programando en la convocatoria')
-		self.assertContains(respuesta, 'Agregar o quitar auxiliares del')
+		semana = self.client.get(reverse('home_programacion'), {'convocatoria': self.convocatoria.pk, 'fecha': self.dia.isoformat()})
+		self.assertContains(semana, 'Agregar o quitar auxiliares del')  # el día de prueba ya tiene a Luis
 
 	def test_agenda_en_cada_modo_y_listas(self):
 		self._programar('completa')
