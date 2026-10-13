@@ -72,6 +72,25 @@ class UsuarioTests(GestionUsuariosBase):
         respuesta = self.client.post(reverse('usuario_nuevo'), self._datos_usuario())
         self.assertIn('email', respuesta.context['form'].errors)
 
+    def test_correo_obligatorio(self):
+        for correo in ('', '   '):
+            with self.subTest(correo=correo):
+                respuesta = self.client.post(reverse('usuario_nuevo'), self._datos_usuario(email=correo))
+                self.assertIn('El correo electrónico es obligatorio.', respuesta.context['form'].errors['email'])
+        self.assertFalse(User.objects.filter(username='nuevo').exists())
+
+    def test_al_editar_no_puede_quedar_sin_correo_ni_repetido(self):
+        usuario = User.objects.create_user('editable', email='editable@example.com', password=CLAVE)
+        User.objects.create_user('otro', email='otro@example.com', password=CLAVE)
+        datos = {'username': 'editable', 'is_active': 'on'}
+        respuesta = self.client.post(reverse('usuario_editar', args=[usuario.pk]), {**datos, 'email': ''})
+        self.assertIn('email', respuesta.context['form'].errors)
+        respuesta = self.client.post(reverse('usuario_editar', args=[usuario.pk]), {**datos, 'email': 'OTRO@example.com'})
+        self.assertIn('Ya existe otro usuario con este correo.', respuesta.context['form'].errors['email'])
+        # Su propio correo (aunque cambie mayúsculas) sí se acepta.
+        respuesta = self.client.post(reverse('usuario_editar', args=[usuario.pk]), {**datos, 'email': 'Editable@example.com'})
+        self.assertTemplateUsed(respuesta, 'partials/usuario/modal_form_success.html')
+
     def test_no_puede_quitarse_acceso_a_si_mismo(self):
         respuesta = self.client.post(reverse('usuario_editar', args=[self.admin.pk]), {'username': 'admin'})
         errores = respuesta.context['form'].errors
@@ -158,3 +177,28 @@ class GrupoTests(GestionUsuariosBase):
         grupo.permissions.add(Permission.objects.get(codename='view_escuela'))
         respuesta = self.client.get(reverse('grupo_imprimir'))
         self.assertEqual(respuesta['Content-Type'], 'application/pdf')
+
+
+class CorreoUnicoTests(TestCase):
+    """El correo no se puede repetir ni desde el admin de Django ni directamente en la base de datos."""
+
+    def setUp(self):
+        self.superusuario = User.objects.create_superuser('jefe', email='jefe@example.com', password=CLAVE)
+        self.client.force_login(self.superusuario)
+
+    def test_la_base_de_datos_no_acepta_correo_repetido(self):
+        from django.db import IntegrityError, transaction
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            User.objects.create_user('copia', email='JEFE@example.com', password=CLAVE)
+        # Varios usuarios sin correo (creados antes de exigirlo) no chocan entre sí.
+        User.objects.create_user('sin_correo_1', password=CLAVE)
+        User.objects.create_user('sin_correo_2', password=CLAVE)
+
+    def test_admin_de_django_exige_correo_unico(self):
+        datos = {'username': 'desde_admin', 'usable_password': 'true', 'password1': 'Otra-Clave-2026', 'password2': 'Otra-Clave-2026'}
+        respuesta = self.client.post(reverse('admin:auth_user_add'), {**datos, 'email': ''})
+        self.assertIn('email', respuesta.context['adminform'].form.errors)
+        respuesta = self.client.post(reverse('admin:auth_user_add'), {**datos, 'email': 'Jefe@Example.com'})
+        self.assertIn('email', respuesta.context['adminform'].form.errors)
+        self.client.post(reverse('admin:auth_user_add'), {**datos, 'email': 'nuevo.admin@example.com'})
+        self.assertTrue(User.objects.filter(username='desde_admin', email='nuevo.admin@example.com').exists())

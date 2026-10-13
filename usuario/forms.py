@@ -92,6 +92,17 @@ class FiltrarUsuariosForm(forms.Form):
     )
 
 
+def validar_correo(email, excluir_pk=None):
+    """El correo es obligatorio y único sin distinguir mayúsculas. El User de Django lo deja opcional y
+    repetible; aquí (y con el índice único de la migración usuario.0001) se exige en todo el sistema."""
+    email = (email or '').strip()
+    if not email:
+        raise ValidationError('El correo electrónico es obligatorio.')
+    if User.objects.filter(email__iexact=email).exclude(pk=excluir_pk).exists():
+        raise ValidationError('Ya existe otro usuario con este correo.')
+    return email
+
+
 class UsuarioForm(forms.ModelForm):
     password1 = forms.CharField(
         label='Contraseña',
@@ -143,6 +154,8 @@ class UsuarioForm(forms.ModelForm):
         self.editor = editor
         self.fields['groups'].queryset = Group.objects.order_by('name')
         self.fields['groups'].required = False
+        self.fields['email'].required = True
+        self.fields['email'].error_messages['required'] = 'El correo electrónico es obligatorio.'
 
         if self.instance.pk:
             # La contraseña de un usuario existente se cambia desde su propio modal.
@@ -158,10 +171,7 @@ class UsuarioForm(forms.ModelForm):
             del self.fields['is_superuser']
 
     def clean_email(self):
-        email = self.cleaned_data.get('email', '').strip()
-        if email and User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk).exists():
-            raise ValidationError('Ya existe otro usuario con este correo.')
-        return email
+        return validar_correo(self.cleaned_data.get('email'), self.instance.pk)
 
     def clean(self):
         cleaned_data = super().clean()
