@@ -103,8 +103,8 @@ usuario; no los diseñes, completes ni "corrijas" por iniciativa propia.
 | `main`        | Wired — home + login/logout, `base.html`, sidebar, breadcrumbs |
 | `escuela`     | Wired (`/escuela/...`) |
 | `programacion`| Wired (`/programacion/...`) |
-| `liquidacion` | Vacía — se está reconstruyendo desde cero (branch `wb-liquidaciones-brand-new`). **No** está en `gelico/urls.py`. El esquema de modelos es 100% decisión del usuario; no lo propongas por tu cuenta, pregúntale antes de escribir `models.py` |
-| `usuario`     | Vacía, placeholder — **NO** está en `gelico/urls.py` |
+| `liquidacion` | Wired (`/liquidacion/...`). El esquema de modelos es decisión del usuario |
+| `usuario`     | Wired (`/usuario/...`) — gestión de usuarios y grupos (solo staff) |
 | `theme`       | App de `django-tailwind`, no tocar salvo temas/CSS |
 
 Antes de agregar código a `liquidacion` o `usuario`, confirma si
@@ -143,14 +143,27 @@ namespacear bajo `partials/<feature_slug>/...`, igual que hace `escuela`
 (`partials/encargado/_encargado_*.html`) y `convocatorias`. Nunca crear
 `partials/tabla.html`, `partials/toolbar.html`, etc. a secas.
 
-## Autenticación — hueco conocido, no lo arregles sin que te lo pidan
+## Autenticación y permisos
 
-Solo `main.home_view` está protegida con `@login_required(login_url='login')`.
-Ninguna vista CRUD de `escuela` ni `programacion` lo está todavía. Si vas a
-tocar vistas existentes, **no** agregues `@login_required` en bloque por tu
-cuenta — es una decisión de alcance del usuario. Si es relevante para lo que
-te están pidiendo, pregúntale primero si quiere que la nueva vista quede
-protegida.
+- **Sesión obligatoria en todo el sitio** vía `main.middleware.SesionRequeridaMiddleware`
+  (subclase de `LoginRequiredMiddleware`; en peticiones htmx responde
+  `HX-Redirect` al login). Una vista pública se marca con `@login_not_required`
+  (hoy solo `login_view` y `logout_view`). No agregues `@login_required` suelto.
+- **Toda vista nueva lleva un decorador de `main/permisos.py`** con los permisos
+  estándar del modelo (`view_`/`add_`/`change_`/`delete_`, los mismos que se
+  asignan en Gestión de grupos):
+  - `@permiso_requerido('app.view_modelo')` — listado, buscar, imprimir, detalle.
+  - `@permiso_formulario('app.modelo')` — vista crear/editar con `pk` opcional
+    (exige `add_` sin pk, `change_` con pk).
+  - `@permiso_requerido('app.delete_modelo')` — eliminar; `change_` para toggles.
+  - `@staff_requerido` — usuarios, grupos y auditoría.
+- Sin permiso se lanza `PermissionDenied` → `main/templates/403.html`; en htmx
+  `base.html` muestra un toast (listener `htmx:responseError`).
+- El sidebar y los bloques del dashboard se condicionan con `{% if perms.app.view_modelo %}`.
+  Al agregar una entrada al sidebar, envuélvela igual.
+- Páginas de error en `main/templates/` (`400`, `403`, `403_csrf`, `404`, `500`),
+  todas extienden `errores/_base_error.html` (standalone, sin `base.html`).
+  Con `DEBUG=True` Django muestra sus páginas técnicas para 404/500.
 
 ## Settings de desarrollo — no "arreglar" sin que se pida
 

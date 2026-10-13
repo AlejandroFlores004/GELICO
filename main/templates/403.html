@@ -1,0 +1,16 @@
+{% extends "errores/_base_error.html" %}
+{% block title %}Acceso denegado{% endblock %}
+{% block tono_icono %}bg-warning/10 text-warning{% endblock %}
+{% block icono %}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
+    stroke-width="2" fill="none" stroke="currentColor" class="size-8">
+  <rect x="3" y="11" width="18" height="11" rx="2"/>
+  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+</svg>
+{% endblock %}
+{% block codigo %}403{% endblock %}
+{% block encabezado %}No tienes permiso para entrar aquí{% endblock %}
+{% block mensaje %}
+Tu usuario{% if request.user.is_authenticated %} <strong>{{ request.user.username }}</strong>{% endif %} no tiene los permisos
+necesarios para este apartado o acción. Si crees que deberías tener acceso, pídele a un administrador que te los asigne.
+{% endblock %}

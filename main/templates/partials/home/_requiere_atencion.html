@@ -7,6 +7,7 @@
         </div>
 
         <ul class="space-y-2">
+            {% if perms.liquidacion.view_asignacion %}
             <li class="rounded-lg border {% if atencion.total_sobrepagadas %}border-error/30 bg-error/5{% else %}border-base-300{% endif %} p-3">
                 <div class="flex items-center gap-3">
                     <span class="text-xl font-bold tabular-nums w-10 text-center {% if atencion.total_sobrepagadas %}text-error{% else %}text-base-content/40{% endif %}">{{ atencion.total_sobrepagadas }}</span>
@@ -28,7 +29,9 @@
                 </ul>
                 {% endif %}
             </li>
+            {% endif %}
 
+            {% if perms.escuela.view_escuela %}
             <li>
                 <a href="{% url 'home_escuelas' %}" class="flex items-center gap-3 rounded-lg border border-base-300 p-3 hover:bg-base-200 transition-colors">
                     <span class="text-xl font-bold tabular-nums w-10 text-center {% if atencion.escuelas_sin_encargado %}text-warning{% else %}text-base-content/40{% endif %}">{{ atencion.escuelas_sin_encargado }}</span>
@@ -38,7 +41,9 @@
                     </div>
                 </a>
             </li>
+            {% endif %}
 
+            {% if perms.escuela.view_encargado %}
             <li>
                 <a href="{% url 'home_encargados' %}" class="flex items-center gap-3 rounded-lg border border-base-300 p-3 hover:bg-base-200 transition-colors">
                     <span class="text-xl font-bold tabular-nums w-10 text-center {% if atencion.encargados_sin_telefono %}text-warning{% else %}text-base-content/40{% endif %}">{{ atencion.encargados_sin_telefono }}</span>
@@ -48,7 +53,9 @@
                     </div>
                 </a>
             </li>
+            {% endif %}
 
+            {% if perms.escuela.view_escuela and perms.liquidacion.view_asignacion %}
             <li>
                 <a href="{% url 'home_escuelas' %}" class="flex items-center gap-3 rounded-lg border border-base-300 p-3 hover:bg-base-200 transition-colors">
                     <span class="text-xl font-bold tabular-nums w-10 text-center {% if atencion.escuelas_sin_asignacion %}text-warning{% else %}text-base-content/40{% endif %}">{{ atencion.escuelas_sin_asignacion }}</span>
@@ -58,6 +65,7 @@
                     </div>
                 </a>
             </li>
+            {% endif %}
         </ul>
     </div>
 </div>

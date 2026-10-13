@@ -48,6 +48,24 @@
                 openDialog.remove();
             }
         });
+
+        // htmx no hace swap de respuestas de error (4xx/5xx): sin esto, un botón
+        // sin permiso (403) o que falla simplemente "no haría nada". Se avisa con un toast.
+        var MENSAJES_ERROR_HTMX = {
+            403: 'No tienes permiso para realizar esta acción.',
+            404: 'El registro ya no existe o fue eliminado.',
+        };
+        document.body.addEventListener('htmx:responseError', function (evt) {
+            var estado = evt.detail.xhr.status;
+            var mensaje = MENSAJES_ERROR_HTMX[estado] || 'Ocurrió un error inesperado. Intenta de nuevo.';
+            var contenedor = document.getElementById('toast-errores');
+            var aviso = document.createElement('div');
+            aviso.setAttribute('role', 'alert');
+            aviso.className = 'alert ' + (estado === 403 ? 'alert-warning' : 'alert-error') + ' shadow-lg';
+            aviso.textContent = mensaje;
+            contenedor.appendChild(aviso);
+            setTimeout(function () { aviso.remove(); }, 5000);
+        });
     </script>
     <!-- ===== MAIN CONTENT SIDE ===== -->
     <div class="drawer-content flex flex-col min-h-screen">
@@ -119,6 +137,7 @@
 
   {% include 'partials/base/_logout.html' %}
   {% include 'partials/base/_messages.html' %}
+  <div id="toast-errores" class="toast toast-end toast-bottom z-50"></div>
 
   
   </body>

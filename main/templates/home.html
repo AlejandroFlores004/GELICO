@@ -9,6 +9,10 @@ Dashboard
 
     {% include "partials/home/_encabezado.html" %}
 
+    {# Cada bloque solo se muestra si el usuario puede ver el apartado al que pertenece #}
+    {% with ve_liquidacion=perms.liquidacion.view_asignacion %}
+
+    {% if ve_liquidacion %}
     {% include "partials/home/_indicadores.html" %}
 
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
@@ -19,26 +23,45 @@ Dashboard
             {% include "partials/home/_avance.html" with titulo="Avance por bono" subtitulo="Monto recibido frente al asignado en cada bono." filas=avance_bonos parametro="bono" completo=True vacio="No hay bonos con asignaciones para este año." %}
         </div>
     </div>
+    {% endif %}
 
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        {% if ve_liquidacion %}
         <div class="xl:col-span-7">
             {% include "partials/home/_mayores_saldos.html" %}
         </div>
+        {% endif %}
+        {% if ve_liquidacion or perms.escuela.view_escuela or perms.escuela.view_encargado %}
         <div class="xl:col-span-5">
             {% include "partials/home/_requiere_atencion.html" %}
         </div>
+        {% endif %}
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        {% if ve_liquidacion %}
         <div class="xl:col-span-7 space-y-6">
             {% include "partials/home/_avance.html" with titulo="Avance por distrito" subtitulo="Monto recibido frente al asignado en las escuelas de cada distrito." filas=avance_distritos parametro="distrito" vacio="No hay asignaciones para este año." %}
             {% include "partials/home/_observaciones_abiertas.html" %}
         </div>
+        {% endif %}
         <div class="xl:col-span-5 space-y-6">
+            {% if perms.programacion.view_programacion %}
             {% include "partials/home/_programacion.html" %}
+            {% endif %}
+            {% if request.user.is_staff %}
             {% include "partials/home/_actividad_reciente.html" %}
+            {% endif %}
         </div>
     </div>
+
+    {% if not perms.escuela and not perms.programacion and not perms.liquidacion and not request.user.is_staff %}
+    <div role="alert" class="alert alert-info">
+        <span>Tu usuario todavía no tiene apartados asignados. Pídele a un administrador que te agregue a un grupo con los permisos que necesitas.</span>
+    </div>
+    {% endif %}
+
+    {% endwith %}
 
 </main>
 {% endblock %}

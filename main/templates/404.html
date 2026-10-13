@@ -1,0 +1,15 @@
+{% extends "errores/_base_error.html" %}
+{% block title %}Página no encontrada{% endblock %}
+{% block tono_icono %}bg-primary/10 text-primary{% endblock %}
+{% block icono %}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
+    stroke-width="2" fill="none" stroke="currentColor" class="size-8">
+  <circle cx="11" cy="11" r="8"/>
+  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+</svg>
+{% endblock %}
+{% block codigo %}404{% endblock %}
+{% block encabezado %}Página no encontrada{% endblock %}
+{% block mensaje %}
+La dirección que buscas no existe o el registro fue eliminado. Revisa el enlace o vuelve al inicio.
+{% endblock %}

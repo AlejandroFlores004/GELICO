@@ -1,8 +1,6 @@
 from collections import defaultdict
-from functools import wraps
 
 from django.contrib.auth import get_user_model, update_session_auth_hash
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
@@ -16,23 +14,13 @@ from django.utils.text import capfirst
 from weasyprint import HTML
 
 from main.forms import NOMBRES_APPS
+from main.permisos import staff_requerido
 from .forms import (
     ACCIONES_PERMISO, ContrasenaForm, FiltrarGruposForm, FiltrarUsuariosForm, GrupoForm, UsuarioForm,
     permisos_gestionables,
 )
 
 User = get_user_model()
-
-
-def staff_requerido(vista):
-    """Gestionar usuarios y grupos queda reservado a administradores (is_staff)."""
-    @wraps(vista)
-    @login_required(login_url='login')
-    def envoltura(request, *args, **kwargs):
-        if not request.user.is_staff:
-            raise PermissionDenied
-        return vista(request, *args, **kwargs)
-    return envoltura
 
 
 def _usuario_editable(request, pk):

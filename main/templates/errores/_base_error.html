@@ -1,0 +1,51 @@
+{% load tailwind_tags %}
+{% load static %}
+{% comment %}
+  Layout de las páginas de error (400/403/404/500). No extiende base.html a
+  propósito: el 500 se renderiza sin contexto (sin request ni usuario) y el 404
+  también lo ve quien no ha iniciado sesión, así que no se puede armar el sidebar.
+{% endcomment %}
+<!DOCTYPE html>
+<html lang="es" data-theme="gelico">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}Error{% endblock %} · GELICO</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  {% tailwind_css %}
+  <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}">
+  <link rel="alternate icon" href="{% static 'favicon.ico' %}">
+  <meta name="theme-color" content="#111E60">
+</head>
+<body class="min-h-screen bg-base-200 flex items-center justify-center p-4">
+
+  <div class="card w-full max-w-md border border-base-300 bg-base-100 shadow-xl">
+    <div class="card-body items-center gap-4 text-center">
+
+      <img src="{% static 'brand/gelico-wordmark.svg' %}" alt="GELICO" class="h-9 w-auto">
+
+      <div class="flex size-16 items-center justify-center rounded-full {% block tono_icono %}bg-error/10 text-error{% endblock %}">
+        {% block icono %}{% endblock %}
+      </div>
+
+      <div>
+        <p class="text-sm font-semibold uppercase tracking-wider text-base-content/50">Error {% block codigo %}{% endblock %}</p>
+        <h1 class="mt-1 text-2xl font-extrabold text-base-content">{% block encabezado %}{% endblock %}</h1>
+      </div>
+
+      <p class="text-base-content/70">{% block mensaje %}{% endblock %}</p>
+
+      <div class="card-actions mt-2 w-full flex-col gap-2 sm:flex-row sm:justify-center">
+        {% block acciones %}
+        <button type="button" class="btn btn-ghost w-full sm:w-auto" onclick="history.back()">Regresar</button>
+        <a href="{% url 'home' %}" class="btn btn-primary w-full sm:w-auto">Ir al inicio</a>
+        {% endblock %}
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>

@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.shortcuts import get_object_or_404, render
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import redirect
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_not_required, login_required
 from django.core.exceptions import FieldDoesNotExist
 from django.core.paginator import Paginator
 from django.db import models
@@ -16,7 +16,9 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.text import capfirst
+from django.views.decorators.http import require_POST
 from easyaudit.models import CRUDEvent, LoginEvent, RequestEvent
 from weasyprint import HTML
 from escuela.models import Encargado, Escuela
@@ -25,6 +27,7 @@ from programacion.models import Ausencia, Convocatoria, Programacion
 from django.contrib import messages
 
 from .forms import NOMBRES_APPS, FiltrarAuditoriaForm
+from .permisos import staff_requerido
 
 CERO = Decimal('0')
 # SQLite opera los decimales como flotantes: una asignación saldada puede quedar en -1E-12.
@@ -235,9 +238,15 @@ def home_view(request):
 
     return render(request, 'home.html', contexto)
 
+@login_not_required
 def login_view(request):
+    destino = request.POST.get('next') or request.GET.get('next', '')
+    # Solo se vuelve a rutas de este mismo sitio (evita redirecciones abiertas).
+    if not url_has_allowed_host_and_scheme(destino, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        destino = reverse('home')
+
     if request.user.is_authenticated:
-        return redirect("home")  # change to your home url name
+        return redirect(destino)
 
     if request.method == "POST":
         username = request.POST.get("username")
@@ -246,13 +255,15 @@ def login_view(request):
 
         if user is not None:
             login(request, user)
-            return redirect("home")  # change to your home url name
+            return redirect(destino)
         else:
-            messages.error(request, "Invalid username or password.")
+            messages.error(request, "Usuario o contraseña incorrectos.")
 
-    return render(request, "registration/login.html")
+    return render(request, "registration/login.html", {'next': request.POST.get('next') or request.GET.get('next', '')})
 
 
+@login_not_required
+@require_POST
 def logout_view(request):
     logout(request)
     messages.success(request, "Has cerrado sesión correctamente.")
@@ -536,7 +547,7 @@ def _detalle_cambio(evento):
     return 'registro', filas
 
 
-@login_required(login_url='login')
+@staff_requerido
 def auditoriaHomeView(request):
     vista = _vista_auditoria(request)
     filtro_form, eventos = _auditoria_filtrada(request, vista)
@@ -556,7 +567,7 @@ def auditoriaHomeView(request):
     })
 
 
-@login_required(login_url='login')
+@staff_requerido
 def buscar_auditoria(request):
     vista = _vista_auditoria(request)
     filtro_form, eventos = _auditoria_filtrada(request, vista)
@@ -568,7 +579,7 @@ def buscar_auditoria(request):
     })
 
 
-@login_required(login_url='login')
+@staff_requerido
 def auditoria_detalle(request, pk):
     evento = get_object_or_404(CRUDEvent.objects.select_related('content_type', 'user'), pk=pk)
     _decorar_eventos([evento], 'cambios')
@@ -587,7 +598,7 @@ def auditoria_detalle(request, pk):
     })
 
 
-@login_required(login_url='login')
+@staff_requerido
 def auditoria_imprimir(request):
     vista = _vista_auditoria(request)
     filtro_form, eventos = _auditoria_filtrada(request, vista)

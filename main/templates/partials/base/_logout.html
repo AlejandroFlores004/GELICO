@@ -8,9 +8,13 @@
     </h3>
     <p class="py-4 text-base-content/70">¿Estás seguro que quieres salir?</p>
     <div class="modal-action">
-      <form method="dialog" class="flex gap-2">
+      <form method="dialog">
         <button class="btn btn-ghost">Cancelar</button>
-        <a href="{% url 'logout' %}" class="btn btn-error">Cerrar Sesión</a>
+      </form>
+      {# El cierre de sesión va por POST (con CSRF) para que un enlace externo no pueda forzarlo #}
+      <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-error">Cerrar Sesión</button>
       </form>
     </div>
   </div>

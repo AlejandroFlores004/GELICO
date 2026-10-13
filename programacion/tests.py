@@ -12,6 +12,9 @@ from .models import Auxiliar, Ausencia, Convocatoria, Horario, Programacion
 
 
 class ProgramacionCalendarioAuxiliarConvocatoriaTests(TestCase):
+	def setUp(self):
+		self.client.force_login(get_user_model().objects.create_superuser('calendario', password='Clave-2026'))
+
 	def test_calendario_conserva_horario_y_marca_periodo_de_convocatoria(self):
 		auxiliar = Auxiliar.objects.create(
 			nombre='Ana',
@@ -268,7 +271,7 @@ class AgendaTests(AgendaBase):
 class ProgramacionPaginaTests(AgendaBase):
 	def setUp(self):
 		super().setUp()
-		get_user_model().objects.create_user('agenda', password='Clave-2026')
+		get_user_model().objects.create_superuser('agenda', password='Clave-2026')
 		self.client.login(username='agenda', password='Clave-2026')
 
 	def _datos(self, **extra):

@@ -15,6 +15,7 @@ from django.utils.formats import date_format
 from django.utils.text import capfirst
 from weasyprint import HTML
 
+from main.permisos import permiso_formulario, permiso_requerido
 from .agenda import (
     MODOS, agenda_de_convocatoria, con_conteos, convocatoria_por_defecto, convocatorias_agrupadas,
     disponibles_en_bloque, estado_convocatoria, etiqueta_bloque, otras_convocatorias, rango_visible,
@@ -194,6 +195,7 @@ def _contexto_agenda(request):
     }
 
 
+@permiso_requerido('programacion.view_programacion')
 def programacionHomeView(request):
     seccion = request.GET.get('seccion')
     if seccion not in SECCIONES:
@@ -223,11 +225,13 @@ def programacionHomeView(request):
     return render(request, 'programacion/programacionHome.html', contexto)
 
 
+@permiso_requerido('programacion.view_programacion')
 def calendario_programaciones(request):
     """Ruta anterior del calendario: ahora es la sección principal de Programación."""
     return HttpResponseRedirect(reverse('home_programacion'))
 
 
+@permiso_requerido('programacion.view_programacion')
 def convocatoria_agenda(request, pk):
     """Enlace directo a una convocatoria: abre el calendario con ella elegida."""
     convocatoria = get_object_or_404(Convocatoria, pk=pk)
@@ -241,6 +245,7 @@ def convocatoria_agenda(request, pk):
 ALCANCES_IMPRESION = ('convocatoria', 'semana', 'dia', 'auxiliar', 'sin_auxiliar', 'pendientes')
 
 
+@permiso_requerido('programacion.view_programacion')
 def agenda_imprimir(request):
     convocatoria = get_object_or_404(Convocatoria, pk=request.GET.get('convocatoria') or 0)
     alcance = request.GET.get('alcance')
@@ -297,6 +302,7 @@ def agenda_imprimir(request):
     return response
 
 
+@permiso_requerido('programacion.change_programacion')
 def programacion_estado(request, pk):
     """Cambio rápido de estado desde el modal del calendario."""
     if request.method != 'POST':
@@ -311,6 +317,7 @@ def programacion_estado(request, pk):
     return respuesta
 
 
+@permiso_requerido('programacion.view_programacion')
 def buscar_programaciones(request):
     _, programaciones = _programaciones_filtradas(request)
     return render(request, 'partials/programacion/tabla.html', {
@@ -381,6 +388,7 @@ def _auxiliar_horarios_contexto(auxiliar, mes_parametro=None, convocatoria=None)
     }
 
 
+@permiso_requerido('programacion.add_programacion', 'programacion.change_programacion', cualquiera=True)
 def programacion_auxiliar_horario(request):
     auxiliar_id = request.GET.get('auxiliar')
     convocatoria_id = request.GET.get('convocatoria')
@@ -408,6 +416,7 @@ def _inicial_programacion(request):
     return inicial, auxiliar, fecha, hora
 
 
+@permiso_formulario('programacion.programacion')
 def programacion_form(request, pk=None):
     instance = get_object_or_404(Programacion, pk=pk) if pk else None
     # Desde la agenda de una convocatoria, la visita queda fija a esa convocatoria.
@@ -462,6 +471,7 @@ def programacion_form(request, pk=None):
     })
 
 
+@permiso_requerido('programacion.delete_programacion')
 def programacion_eliminar(request, pk):
     instance = get_object_or_404(Programacion, pk=pk)
     if request.method == 'POST':
@@ -475,6 +485,7 @@ def programacion_eliminar(request, pk):
     })
 
 
+@permiso_requerido('programacion.view_programacion')
 def programacion_imprimir(request):
     _, programaciones = _programaciones_filtradas(request, paginar=False)
     html_string = render_to_string('partials/programacion/reporte_pdf.html', {
@@ -524,6 +535,7 @@ def _filtrar_auxiliares(request):
     return search, auxiliares
 
 
+@permiso_requerido('programacion.view_auxiliar')
 def auxiliarHomeView(request):
     search, auxiliares = _filtrar_auxiliares(request)
 
@@ -538,6 +550,7 @@ def auxiliarHomeView(request):
     )
 
 
+@permiso_requerido('programacion.view_auxiliar')
 def buscar_auxiliares(request):
     _, auxiliares = _filtrar_auxiliares(request)
 
@@ -548,6 +561,7 @@ def buscar_auxiliares(request):
     )
 
 
+@permiso_formulario('programacion.auxiliar')
 def auxiliar_form(request, pk=None):
     instance = get_object_or_404(Auxiliar, pk=pk) if pk else None
 
@@ -571,6 +585,7 @@ def auxiliar_form(request, pk=None):
     )
 
 
+@permiso_requerido('programacion.delete_auxiliar')
 def auxiliar_eliminar(request, pk):
     instance = get_object_or_404(Auxiliar, pk=pk)
 
@@ -590,6 +605,7 @@ def auxiliar_eliminar(request, pk):
     )
 
 
+@permiso_formulario('programacion.horario')
 def horario_form(request, pk=None):
     instance = get_object_or_404(Horario, pk=pk) if pk else None
     if request.method == "POST":
@@ -615,6 +631,7 @@ def horario_form(request, pk=None):
     )
 
 
+@permiso_requerido('programacion.delete_horario')
 def horario_eliminar(request, pk):
     instance = get_object_or_404(Horario, pk=pk)
     if request.method == "POST":
@@ -633,6 +650,7 @@ def horario_eliminar(request, pk):
     )
 
 
+@permiso_requerido('programacion.view_auxiliar')
 def auxiliar_imprimir(request):
     _, auxiliares = _auxiliares_filtrados(request)
     html_string = render_to_string(
@@ -693,6 +711,7 @@ def _auxiliares_con_ausencias(request):
     return paginator.get_page(request.GET.get('page'))
 
 
+@permiso_requerido('programacion.view_ausencia')
 def ausenciaHomeView(request):
     search = request.GET.get("q", "").strip()
     fecha = request.GET.get("fecha", "").strip()
@@ -705,11 +724,13 @@ def ausenciaHomeView(request):
     })
 
 
+@permiso_requerido('programacion.view_ausencia')
 def buscar_ausencias(request):
     auxiliares = _auxiliares_con_ausencias(request)
     return render(request, "partials/ausencia/tabla.html", {"auxiliares": auxiliares})
 
 
+@permiso_formulario('programacion.ausencia')
 def ausencia_form(request, pk=None):
     instance = get_object_or_404(Ausencia, pk=pk) if pk else None
     origen_auxiliares = request.GET.get('origen') == 'auxiliares'
@@ -743,6 +764,7 @@ def ausencia_form(request, pk=None):
     })
 
 
+@permiso_requerido('programacion.delete_ausencia')
 def ausencia_eliminar(request, pk):
     instance = get_object_or_404(Ausencia, pk=pk)
     if request.method == "POST":
@@ -758,6 +780,7 @@ def ausencia_eliminar(request, pk):
     return render(request, "partials/ausencia/modal_delete.html", {"instance": instance})
 
 
+@permiso_requerido('programacion.view_ausencia')
 def ausencia_imprimir(request):
     _, _, ausencias = _ausencias_filtradas(request, paginar=False)
     html_string = render_to_string("partials/ausencia/reporte_pdf.html", {"ausencias": ausencias})
@@ -788,11 +811,13 @@ def _convocatorias_filtradas(request, paginar=True):
         convocatorias = paginator.get_page(request.GET.get('page'))
     return search, fecha_inicio, fecha_fin, convocatorias
 
+@permiso_requerido('programacion.view_convocatoria')
 def convocatoriasHomeView(request):
     """Ruta anterior de convocatorias: ahora es una sección de Programación."""
     return HttpResponseRedirect(f"{reverse('home_programacion')}?seccion=convocatorias")
 
 
+@permiso_requerido('programacion.view_convocatoria')
 def buscar_convocatorias(request):
     _, _, _, convocatorias = _convocatorias_filtradas(request)
     return render(
@@ -802,6 +827,7 @@ def buscar_convocatorias(request):
     )
 
 
+@permiso_formulario('programacion.convocatoria')
 def convocatoria_form(request, pk=None):
     instance = get_object_or_404(Convocatoria, pk=pk) if pk else None
 
@@ -830,6 +856,7 @@ def convocatoria_form(request, pk=None):
     )
 
 
+@permiso_requerido('programacion.delete_convocatoria')
 def convocatoria_eliminar(request, pk):
     instance = get_object_or_404(Convocatoria, pk=pk)
 
@@ -850,6 +877,7 @@ def convocatoria_eliminar(request, pk):
     )
 
 
+@permiso_requerido('programacion.view_convocatoria')
 def convocatoria_imprimir(request):
     _, _, _, convocatorias = _convocatorias_filtradas(request, paginar=False)
     html_string = render_to_string(

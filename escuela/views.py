@@ -11,6 +11,7 @@ from django.core.paginator import Paginator
 from django.db.models import Case, CharField, Count, IntegerField, Prefetch, Q, Value, When
 from django.shortcuts import render, get_object_or_404
 from django.urls import Resolver404, resolve, reverse
+from main.permisos import permiso_formulario, permiso_requerido
 from . import forms
 from .models import Encargado, CDE, Escuela
 
@@ -74,6 +75,7 @@ def _filtrar_encargados(request):
 
     return filtro_form, encargados
 
+@permiso_requerido('escuela.view_encargado')
 def encargado_imprimir(request):
     _, encargados = _encargados_filtrados(request)
 
@@ -88,6 +90,7 @@ def encargado_imprimir(request):
     return response
 
 
+@permiso_requerido('escuela.view_encargado')
 def home_encargados(request):
     breadcrumbs = [
         {'name': 'Inicio', 'url': reverse('home')},
@@ -108,6 +111,7 @@ def home_encargados(request):
 
 #Se utilizacuando se oprime buscar
 
+@permiso_requerido('escuela.view_encargado')
 def buscar_encargados(request):
     _, encargados = _filtrar_encargados(request)
     
@@ -119,6 +123,7 @@ def buscar_encargados(request):
     
     
 #Sirve para crear y Editar
+@permiso_formulario('escuela.encargado')
 def encargado_form(request, pk=None):
     #Si pk es None, se crea un nuevo encargado, si no, se edita el encargado 
     # con ese pk.
@@ -166,6 +171,7 @@ def encargado_form(request, pk=None):
 
 # Cambiar Encargado: Crea un nuevo encargado y desactiva el anterior.
 
+@permiso_requerido('escuela.add_encargado', 'escuela.change_encargado')
 def encargado_cambiar(request, pk):
     activo = get_object_or_404(Encargado, pk=pk)
     nuevo_instance = Encargado(escuela=activo.escuela)
@@ -201,6 +207,7 @@ def encargado_cambiar(request, pk):
         )
     
 # Cambiar estado de un encargado, activo/inactivo
+@permiso_requerido('escuela.change_encargado')
 def encargado_toggle_estado(request, pk):
     encargado = get_object_or_404(Encargado, pk=pk)
     
@@ -409,6 +416,7 @@ def _contexto_cdes(request):
     }
 
 
+@permiso_requerido('escuela.view_cde')
 def cdeHomeView(request):
     breadcrumbs = [
         {'name': 'Inicio', 'url': reverse('home')},
@@ -427,10 +435,12 @@ def cdeHomeView(request):
     )
 
 
+@permiso_requerido('escuela.view_cde')
 def buscar_cdes(request):
     return render(request, 'partials/cde/tabla.html', _contexto_cdes(request))
 
 
+@permiso_formulario('escuela.cde')
 def cde_form(request, pk=None):
     instance = get_object_or_404(CDE, pk=pk) if pk else None
     escuela_gestion = _escuela_en_gestion(request)
@@ -462,6 +472,7 @@ def cde_form(request, pk=None):
     )
 
 
+@permiso_requerido('escuela.delete_cde')
 def cde_eliminar(request, pk):
     instance = get_object_or_404(CDE, pk=pk)
 
@@ -483,6 +494,7 @@ def cde_eliminar(request, pk):
     )
 
 
+@permiso_requerido('escuela.view_cde')
 def cde_imprimir(request):
     _, _, cdes = _cdes_filtrados(request)
     return _respuesta_pdf(
@@ -578,6 +590,7 @@ def _respuesta_pdf(request, template, contexto, nombre_archivo):
 
 # --- Imprimir: reportes individuales, con los filtros del buscador ---
 
+@permiso_requerido('escuela.view_escuela')
 def escuela_imprimir(request):
     _, escuelas = _escuelas_filtradas(request)
     return _respuesta_pdf(
@@ -586,6 +599,7 @@ def escuela_imprimir(request):
     )
 
 
+@permiso_requerido('escuela.view_escuela', 'escuela.view_encargado')
 def escuela_imprimir_encargados(request):
     _, escuelas = _escuelas_filtradas(request)
     # ?anteriores=1 agrega los encargados inactivos (debajo del activo de cada escuela)
@@ -606,6 +620,7 @@ def escuela_imprimir_encargados(request):
     )
 
 
+@permiso_requerido('escuela.view_escuela', 'escuela.view_cde')
 def escuela_imprimir_cde(request):
     _, escuelas = _escuelas_filtradas(request)
     cdes = _anotar_vigencia(CDE.objects.filter(
@@ -619,6 +634,7 @@ def escuela_imprimir_cde(request):
 
 # --- Imprimir: reporte general (escuela + encargado + CDE en una sola hoja) ---
 
+@permiso_requerido('escuela.view_escuela')
 def escuela_imprimir_general(request):
     _, escuelas = _escuelas_filtradas(request)
     return _respuesta_pdf(
@@ -629,6 +645,7 @@ def escuela_imprimir_general(request):
 
 # --- Imprimir: ficha de una sola escuela ---
 
+@permiso_requerido('escuela.view_escuela')
 def escuela_imprimir_ficha(request, pk):
     escuela = get_object_or_404(Escuela.objects.select_related('distrito'), pk=pk)
     encargados = list(
@@ -646,6 +663,7 @@ def escuela_imprimir_ficha(request, pk):
     )
 
 
+@permiso_requerido('escuela.view_escuela')
 def home_escuelas(request):
     breadcrumbs = [
         {'name': 'Inicio', 'url': reverse('home')},
@@ -665,6 +683,7 @@ def home_escuelas(request):
     )
 
 
+@permiso_requerido('escuela.view_escuela')
 def buscar_escuelas(request):
     _, escuelas = _filtrar_escuelas(request)
 
@@ -676,6 +695,7 @@ def buscar_escuelas(request):
 
 
 # Contenido que se despliega al abrir una escuela en el listado
+@permiso_requerido('escuela.view_escuela')
 def escuela_detalle(request, pk):
     escuela = get_object_or_404(Escuela, pk=pk)
     encargados = list(
@@ -695,6 +715,7 @@ def escuela_detalle(request, pk):
 
 
 # Página completa de una escuela: datos, encargado (y anteriores) y CDE
+@permiso_requerido('escuela.view_escuela')
 def escuela_gestionar(request, pk):
     escuela = get_object_or_404(Escuela.objects.select_related('distrito'), pk=pk)
     encargados = list(
@@ -723,6 +744,7 @@ def escuela_gestionar(request, pk):
 
 
 #Sirve para crear y Editar
+@permiso_formulario('escuela.escuela')
 def escuela_form(request, pk=None):
     instance = get_object_or_404(Escuela, pk=pk) if pk else None
     if request.method == 'POST':
@@ -751,6 +773,7 @@ def escuela_form(request, pk=None):
     )
 
 
+@permiso_requerido('escuela.change_escuela')
 def escuela_toggle_estado(request, pk):
     escuela = get_object_or_404(Escuela, pk=pk)
 

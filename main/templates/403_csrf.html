@@ -1,0 +1,16 @@
+{% extends "errores/_base_error.html" %}
+{% block title %}Formulario vencido{% endblock %}
+{% block tono_icono %}bg-warning/10 text-warning{% endblock %}
+{% block icono %}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
+    stroke-width="2" fill="none" stroke="currentColor" class="size-8">
+  <circle cx="12" cy="12" r="10"/>
+  <polyline points="12 6 12 12 16 14"/>
+</svg>
+{% endblock %}
+{% block codigo %}403{% endblock %}
+{% block encabezado %}El formulario ya no es válido{% endblock %}
+{% block mensaje %}
+Por seguridad, el formulario que enviaste venció (por ejemplo, porque tu sesión cambió o la página estuvo abierta mucho tiempo).
+Regresa, recarga la página y vuelve a intentarlo.
+{% endblock %}

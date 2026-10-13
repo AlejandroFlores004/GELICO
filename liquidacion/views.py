@@ -15,6 +15,7 @@ from django_htmx.http import HttpResponseClientRedirect
 from weasyprint import HTML
 
 from escuela.models import Encargado, Escuela
+from main.permisos import permiso_formulario, permiso_requerido
 from .forms import AbonoForm, AsignacionForm, AsignacionValorForm, BonoForm, FiltrarAsignacionesForm, ObservacionForm, ReciboForm
 from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Bono, Observacion, Recibo
 from .utils import a_decimal, a_entero, a_texto_codigo, extraer_anio, indice_columna, indices_columna, leer_filas_excel
@@ -108,6 +109,7 @@ def _filtrar_asignaciones(request):
     return filtro_form, asignaciones
 
 
+@permiso_requerido('liquidacion.view_asignacion')
 def asignacionHomeView(request):
     filtro_form, asignaciones = _filtrar_asignaciones(request)
 
@@ -128,6 +130,7 @@ def asignacionHomeView(request):
     )
 
 
+@permiso_requerido('liquidacion.view_asignacion')
 def buscar_asignaciones(request):
     _, asignaciones = _filtrar_asignaciones(request)
 
@@ -138,6 +141,7 @@ def buscar_asignaciones(request):
     )
 
 
+@permiso_formulario('liquidacion.asignacion')
 def asignacion_form(request, pk=None):
     instance = get_object_or_404(Asignacion, pk=pk) if pk else None
     form_class = AsignacionValorForm if instance else AsignacionForm
@@ -164,6 +168,7 @@ def asignacion_form(request, pk=None):
     )
 
 
+@permiso_requerido('liquidacion.delete_asignacion')
 def asignacion_eliminar(request, pk):
     instance = get_object_or_404(Asignacion, pk=pk)
 
@@ -183,6 +188,7 @@ def asignacion_eliminar(request, pk):
     )
 
 
+@permiso_requerido('liquidacion.view_asignacion')
 def asignacion_imprimir(request, pk):
     instance = get_object_or_404(
         Asignacion.objects.select_related('escuela__distrito', 'bono').prefetch_related(
@@ -234,6 +240,7 @@ def asignacion_imprimir(request, pk):
     return response
 
 
+@permiso_requerido('liquidacion.view_asignacion')
 def asignacion_detalle(request, pk):
     instance = get_object_or_404(Asignacion, pk=pk)
     recibos = list(
@@ -254,6 +261,7 @@ def asignacion_detalle(request, pk):
     )
 
 
+@permiso_requerido('liquidacion.view_recibo', 'liquidacion.view_abono')
 def recibo_abonos(request, pk):
     recibo = get_object_or_404(Recibo, pk=pk)
     abonos = list(recibo.abono_set.order_by('id'))
@@ -271,6 +279,7 @@ def recibo_abonos(request, pk):
     )
 
 
+@permiso_requerido('liquidacion.view_asignacion')
 def asignacion_gestionar(request, pk):
     instance = get_object_or_404(
         Asignacion.objects.select_related('escuela__distrito', 'bono').prefetch_related(
@@ -315,6 +324,7 @@ def asignacion_gestionar(request, pk):
     )
 
 
+@permiso_requerido('liquidacion.add_recibo')
 def recibo_nuevo(request, asignacion_pk):
     asignacion = get_object_or_404(Asignacion, pk=asignacion_pk)
 
@@ -335,6 +345,7 @@ def recibo_nuevo(request, asignacion_pk):
     )
 
 
+@permiso_requerido('liquidacion.change_recibo')
 def recibo_editar(request, pk):
     instance = get_object_or_404(Recibo, pk=pk)
 
@@ -353,6 +364,7 @@ def recibo_editar(request, pk):
     )
 
 
+@permiso_requerido('liquidacion.delete_recibo')
 def recibo_eliminar(request, pk):
     instance = get_object_or_404(Recibo, pk=pk)
     asignacion_pk = instance.asignacion_id
@@ -368,6 +380,7 @@ def recibo_eliminar(request, pk):
     )
 
 
+@permiso_requerido('liquidacion.add_abono')
 def abono_nuevo(request, recibo_pk):
     recibo = get_object_or_404(Recibo, pk=recibo_pk)
 
@@ -388,6 +401,7 @@ def abono_nuevo(request, recibo_pk):
     )
 
 
+@permiso_requerido('liquidacion.change_abono')
 def abono_editar(request, pk):
     instance = get_object_or_404(Abono, pk=pk)
 
@@ -406,6 +420,7 @@ def abono_editar(request, pk):
     )
 
 
+@permiso_requerido('liquidacion.delete_abono')
 def abono_eliminar(request, pk):
     instance = get_object_or_404(Abono, pk=pk)
     asignacion_pk = instance.recibo.asignacion_id
@@ -421,6 +436,7 @@ def abono_eliminar(request, pk):
     )
 
 
+@permiso_requerido('liquidacion.add_observacion')
 def observacion_nueva(request, recibo_pk):
     recibo = get_object_or_404(Recibo, pk=recibo_pk)
 
@@ -441,6 +457,7 @@ def observacion_nueva(request, recibo_pk):
     )
 
 
+@permiso_requerido('liquidacion.change_observacion')
 def observacion_editar(request, pk):
     instance = get_object_or_404(Observacion, pk=pk)
 
@@ -459,6 +476,7 @@ def observacion_editar(request, pk):
     )
 
 
+@permiso_requerido('liquidacion.delete_observacion')
 def observacion_eliminar(request, pk):
     instance = get_object_or_404(Observacion, pk=pk)
     asignacion_pk = instance.recibo.asignacion_id
@@ -474,6 +492,7 @@ def observacion_eliminar(request, pk):
     )
 
 
+@permiso_requerido('liquidacion.change_observacion')
 @require_POST
 def observacion_toggle(request, pk):
     instance = get_object_or_404(Observacion, pk=pk)
@@ -508,6 +527,7 @@ def _filtrar_bonos(request):
     return search, anio, bonos
 
 
+@permiso_requerido('liquidacion.view_bono')
 def bonoHomeView(request):
     search, anio, bonos = _filtrar_bonos(request)
 
@@ -529,6 +549,7 @@ def bonoHomeView(request):
     )
 
 
+@permiso_requerido('liquidacion.view_bono')
 def buscar_bonos(request):
     _, _, bonos = _filtrar_bonos(request)
 
@@ -539,6 +560,7 @@ def buscar_bonos(request):
     )
 
 
+@permiso_formulario('liquidacion.bono')
 def bono_form(request, pk=None):
     instance = get_object_or_404(Bono, pk=pk) if pk else None
 
@@ -562,6 +584,7 @@ def bono_form(request, pk=None):
     )
 
 
+@permiso_requerido('liquidacion.delete_bono')
 def bono_eliminar(request, pk):
     instance = get_object_or_404(Bono, pk=pk)
 
@@ -581,6 +604,7 @@ def bono_eliminar(request, pk):
     )
 
 
+@permiso_requerido('liquidacion.view_bono')
 def bono_imprimir(request):
     _, _, bonos = _bonos_filtrados(request)
     html_string = render_to_string(
@@ -601,6 +625,7 @@ def bono_imprimir(request):
     return response
 
 
+@permiso_requerido('liquidacion.add_bono', 'liquidacion.add_recibo', cualquiera=True)
 def home_carga_excel(request):
     breadcrumbs = [
         {'name': 'Inicio', 'url': reverse('home')},
@@ -614,6 +639,7 @@ def home_carga_excel(request):
     )
 
 
+@permiso_requerido('liquidacion.add_bono')
 @require_POST
 def carga_bonos_preview(request):
     archivo = request.FILES.get("archivo")
@@ -680,6 +706,7 @@ def carga_bonos_preview(request):
     )
 
 
+@permiso_requerido('liquidacion.add_bono')
 @require_POST
 def carga_bonos_confirmar(request):
     creados = 0
@@ -858,6 +885,7 @@ def _procesar_reporte_recibos(archivo):
     return {"contadores": contadores}
 
 
+@permiso_requerido('liquidacion.add_asignacion', 'liquidacion.add_recibo', 'liquidacion.add_abono')
 @require_POST
 def carga_recibos_procesar(request):
     archivo = request.FILES.get("archivo")

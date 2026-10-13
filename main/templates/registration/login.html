@@ -24,7 +24,7 @@
 
       {% if messages %}
         {% for message in messages %}
-          <div role="alert" class="alert alert-error">
+          <div role="alert" class="alert {% if message.tags == 'success' %}alert-success{% else %}alert-error{% endif %}">
             <span>{{ message }}</span>
           </div>
         {% endfor %}
@@ -32,6 +32,7 @@
 
       <form method="post">
         {% csrf_token %}
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
 
         <div class="form-control">
           <label class="label" for="username">
@@ -42,7 +43,7 @@
             id="username"
             name="username"
             class="input input-bordered w-full"
-            placeholder="Enter your username"
+            placeholder="Tu usuario"
             required
           />
         </div>
@@ -62,7 +63,7 @@
         </div>
 
         <div class="form-control mt-6">
-          <button type="submit" class="btn btn-primary w-full">Login</button>
+          <button type="submit" class="btn btn-primary w-full">Iniciar sesión</button>
         </div>
 
       </form>

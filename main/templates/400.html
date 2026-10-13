@@ -1,0 +1,15 @@
+{% extends "errores/_base_error.html" %}
+{% block title %}Solicitud inválida{% endblock %}
+{% block icono %}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
+    stroke-width="2" fill="none" stroke="currentColor" class="size-8">
+  <circle cx="12" cy="12" r="10"/>
+  <line x1="12" y1="8" x2="12" y2="12"/>
+  <line x1="12" y1="16" x2="12.01" y2="16"/>
+</svg>
+{% endblock %}
+{% block codigo %}400{% endblock %}
+{% block encabezado %}Solicitud inválida{% endblock %}
+{% block mensaje %}
+El servidor no pudo procesar la solicitud. Regresa y vuelve a intentarlo.
+{% endblock %}

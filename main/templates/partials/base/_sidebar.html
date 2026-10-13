@@ -30,7 +30,10 @@
     <ul class="menu gelico-sidebar w-full grow gap-1 px-3 py-4 overflow-y-auto overflow-x-hidden">
 
       <!-- Escuelas -->
+      {% if perms.escuela.view_escuela or perms.escuela.view_cde %}
       <li class="menu-title"><span class="gelico-sidebar-label">Escuelas</span></li>
+      {% endif %}
+      {% if perms.escuela.view_escuela %}
       <li>
         <a href="{% url 'home_escuelas' %}" class="{% if url_name == 'home_escuelas' or url_name == 'escuela_gestionar' %}menu-active{% endif %}" title="Escuelas">
           <span class="gelico-sidebar-icon">
@@ -43,6 +46,8 @@
           <span class="gelico-sidebar-label">Escuelas</span>
         </a>
       </li>
+      {% endif %}
+      {% if perms.escuela.view_cde %}
       <li>
         <a href="{% url 'home_cde' %}" class="{% if url_name == 'home_cde' %}menu-active{% endif %}" title="CDE">
           <span class="gelico-sidebar-icon">
@@ -57,8 +62,10 @@
           <span class="gelico-sidebar-label">CDE</span>
         </a>
       </li>
+      {% endif %}
 
       <!-- Convocatorias -->
+      {% if perms.programacion.view_programacion %}
       <li class="menu-title"><span class="gelico-sidebar-label">Convocatorias</span></li>
       <li>
         <a href="{% url 'home_programacion' %}" class="{% if url_name == 'home_programacion' or url_name == 'convocatoria_agenda' %}menu-active{% endif %}" title="Programación">
@@ -77,8 +84,10 @@
           <span class="gelico-sidebar-label">Programación</span>
         </a>
       </li>
+      {% endif %}
 
       <!-- Personal -->
+      {% if perms.programacion.view_auxiliar %}
       <li class="menu-title"><span class="gelico-sidebar-label">Personal</span></li>
       <li>
         <a href="{% url 'home_auxiliar' %}" class="{% if url_name == 'home_auxiliar' %}menu-active{% endif %}" title="Auxiliares">
@@ -94,9 +103,13 @@
           <span class="gelico-sidebar-label">Auxiliares</span>
         </a>
       </li>
+      {% endif %}
 
       <!-- Liquidaciones -->
+      {% if perms.liquidacion.view_asignacion or perms.liquidacion.view_bono or perms.liquidacion.add_bono or perms.liquidacion.add_recibo %}
       <li class="menu-title"><span class="gelico-sidebar-label">Liquidaciones</span></li>
+      {% endif %}
+      {% if perms.liquidacion.view_asignacion %}
       <li>
         <a href="{% url 'home_asignaciones' %}" class="{% if url_name == 'home_asignaciones' %}menu-active{% endif %}" title="Liquidación">
           <span class="gelico-sidebar-icon">
@@ -108,6 +121,8 @@
           <span class="gelico-sidebar-label">Liquidación</span>
         </a>
       </li>
+      {% endif %}
+      {% if perms.liquidacion.view_bono %}
       <li>
         <a href="{% url 'home_bonos' %}" class="{% if url_name == 'home_bonos' %}menu-active{% endif %}" title="Bonos">
           <span class="gelico-sidebar-icon">
@@ -119,6 +134,8 @@
           <span class="gelico-sidebar-label">Bonos</span>
         </a>
       </li>
+      {% endif %}
+      {% if perms.liquidacion.add_bono or perms.liquidacion.add_recibo %}
       <li>
         <a href="{% url 'home_carga_excel' %}" class="{% if url_name == 'home_carga_excel' %}menu-active{% endif %}" title="Carga de Excel">
           <span class="gelico-sidebar-icon">
@@ -130,10 +147,11 @@
           <span class="gelico-sidebar-label">Carga de Excel</span>
         </a>
       </li>
+      {% endif %}
 
       <!-- Sistema -->
-      <li class="menu-title"><span class="gelico-sidebar-label">Sistema</span></li>
       {% if request.user.is_staff %}
+      <li class="menu-title"><span class="gelico-sidebar-label">Sistema</span></li>
       <li>
         <a href="{% url 'home_usuarios' %}" class="{% if url_name == 'home_usuarios' %}menu-active{% endif %}" title="Usuarios">
           <span class="gelico-sidebar-icon">
@@ -158,8 +176,7 @@
           <span class="gelico-sidebar-label">Grupos</span>
         </a>
       </li>
-      {% endif %}
-      <li>
+            <li>
         <a href="{% url 'home_auditoria' %}" class="{% if url_name == 'home_auditoria' %}menu-active{% endif %}" title="Auditoría">
           <span class="gelico-sidebar-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
@@ -184,6 +201,7 @@
           <span class="gelico-sidebar-label">Sitio Desarrollo</span>
         </a>
       </li>
+      {% endif %}
 
     </ul>
 
