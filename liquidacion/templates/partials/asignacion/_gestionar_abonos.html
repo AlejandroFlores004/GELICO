@@ -1,16 +1,16 @@
 {% load liquidacion_extras %}
 {# Abonos #}
 <section class="space-y-2">
-    <div class="flex items-center justify-between gap-2 border-b border-base-200 pb-1">
-        <h4 class="text-xs font-semibold uppercase tracking-wide text-base-content/60">
+    <div class="flex items-center justify-between gap-2">
+        <h4 class="text-sm font-semibold">
             Abonos
             {% if recibo.abonos_lista %}<span class="text-base-content/40">({{ recibo.abonos_lista|length }})</span>{% endif %}
         </h4>
-        <button hx-get="{% url 'abono_nuevo' recibo.id %}" hx-target="#asignacion-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-xs gap-1 text-primary">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+        <button hx-get="{% url 'abono_nuevo' recibo.id %}" hx-target="#asignacion-modal-wrapper" hx-swap="outerHTML" class="btn btn-outline btn-primary btn-sm gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            Agregar
+            Agregar abono
         </button>
     </div>
     {% if recibo.abonos_lista %}
@@ -27,13 +27,13 @@
             </thead>
             <tbody>
                 {% for abono in recibo.abonos_lista %}
-                <tr class="group hover:bg-base-200/50">
+                <tr class="hover:bg-base-200/50">
                     <td class="pl-0 font-semibold">${{ abono.monto|moneda }}</td>
                     <td class="font-mono text-sm">{{ abono.requerimiento }}</td>
                     <td>#{{ abono.id_planilla_parcial }}</td>
                     <td><span class="badge badge-ghost badge-sm">{{ abono.estado }}</span></td>
                     <td>
-                        <div class="flex justify-end gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 transition-opacity">
+                        <div class="flex justify-end gap-0.5">
                             <button hx-get="{% url 'abono_editar' abono.id %}" hx-target="#asignacion-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-xs btn-square" title="Editar abono" aria-label="Editar abono">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
@@ -52,6 +52,17 @@
         </table>
     </div>
     {% else %}
-    <p class="text-sm text-base-content/50 py-1">Sin abonos registrados.</p>
+    <button
+        type="button"
+        hx-get="{% url 'abono_nuevo' recibo.id %}"
+        hx-target="#asignacion-modal-wrapper"
+        hx-swap="outerHTML"
+        class="w-full flex items-center justify-center gap-2 rounded-box border border-dashed border-base-300 px-4 py-4 text-sm text-base-content/60 hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors cursor-pointer"
+    >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Sin abonos registrados. Haz clic para agregar el primero.
+    </button>
     {% endif %}
 </section>

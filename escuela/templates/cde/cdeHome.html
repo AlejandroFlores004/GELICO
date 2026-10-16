@@ -9,24 +9,26 @@
 {% endblock %}
 
 {% block content %}
-<main class="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-    <div class="flex items-center gap-4">
-        <div class="bg-primary text-primary-content rounded-2xl p-4 shadow-md shadow-primary/20">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-8 h-8">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3.75h10.5a2.25 2.25 0 012.25 2.25v12a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 18v-12a2.25 2.25 0 012.25-2.25zm1.5 5.25h7.5m-7.5 4.5h7.5m-4.5-9v10" />
-            </svg>
+<main class="px-2 lg:px-6 pb-6 space-y-4 max-w-7xl mx-auto" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <div class="bg-primary text-primary-content rounded-xl p-2.5 shadow-md shadow-primary/20">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3.75h10.5a2.25 2.25 0 012.25 2.25v12a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 18v-12a2.25 2.25 0 012.25-2.25zm1.5 5.25h7.5m-7.5 4.5h7.5m-4.5-9v10" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold leading-tight">
+                    CDE
+                </h1>
+                <p class="text-sm text-base-content/70">
+                    Periodos de CDE de todas las escuelas, con su vigencia calculada por fechas.
+                </p>
+            </div>
         </div>
-        <div>
-            <h1 class="text-4xl font-bold">
-                CDE
-            </h1>
-            <p class="text-base-content/70">
-                Periodos de CDE de todas las escuelas, con su vigencia calculada por fechas.
-            </p>
-        </div>
-    </div>
 
-    {% include "partials/cde/toolbar.html" %}
+        {% include "partials/cde/toolbar.html" %}
+    </div>
 
     <div id="cde-modal-wrapper"></div>
 

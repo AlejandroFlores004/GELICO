@@ -6,7 +6,7 @@
         {# Cabecera del recibo: título, estado del pago y menú de acciones #}
         <div class="flex items-start justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2">
-                <h3 class="text-lg font-semibold">Recibo #{{ forloop.counter }}</h3>
+                <h3 class="text-lg font-semibold">Recibo #{{ recibo.posicion }}</h3>
                 {% include "partials/asignacion/_badge_estado_liquidacion.html" with estado=recibo.estado_liquidacion %}
             </div>
             <div class="dropdown dropdown-end">
@@ -54,7 +54,11 @@
             <progress class="progress {% if recibo.diferencia > 0 %}progress-warning{% else %}progress-success{% endif %} w-full h-1.5" value="{{ recibo.total_abonado|unlocalize }}" max="{{ recibo.monto|unlocalize }}"></progress>
         </div>
 
+        <div class="divider my-0"></div>
+
         {% include "partials/asignacion/_gestionar_observaciones.html" %}
+
+        <div class="divider my-0"></div>
 
         {% include "partials/asignacion/_gestionar_abonos.html" %}
     </div>

@@ -9,36 +9,39 @@
 {% endblock %}
 
 {% block content %}
-<main class="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
-    <div class="flex items-center gap-4">
-        <div class="bg-primary text-primary-content reunded-2xl p-4 shadow-md shadow-primary/20">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-8 h-8">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-            </svg>
-        </div>
-        <div>
-            <h1 class="text-4xl font-bold">
-                Encargados
-            </h1>
-                <p class="text-base-content/70">
+<main class="px-2 lg:px-6 pb-6 space-y-4 max-w-7xl mx-auto">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <div class="bg-primary text-primary-content rounded-xl p-2.5 shadow-md shadow-primary/20">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold leading-tight">
+                    Encargados
+                </h1>
+                <p class="text-sm text-base-content/70">
                     Gestiona los Encargados de Cada Escuela
                 </p>
+            </div>
+        </div>
+
+        <!-- Botón Agregar encargado-->
+        <div class="flex justify-start">
+            <button
+                hx-get="{% url 'encargado_nuevo' %}"
+                hx-target="#encargado-modal-wrapper"
+                hx-swap="outerHTML"
+                class="btn btn-primary gap-2"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Agregar Encargado
+            </button>
         </div>
     </div>
-
-    <!-- Botón Agregar encargado-->
-     <div class="flex justify-start">
-        <button
-        hx-get="{% url 'encargado_nuevo' %}"
-        hx-target ="#encargado-modal-wrapper"
-        hx-swap="outerHTML"
-        class="btn btn-primary gap-2"
-        >
-         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-        Agregar Encargado</button>
-     </div>
 
     <!-- Modal de creación, edición, cambio, confirmación -->
     <div id="encargado-modal-wrapper"></div>

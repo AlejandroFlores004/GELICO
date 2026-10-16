@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% load liquidacion_extras %}
+{% load l10n %}
 
 {% block title %}
     Gestionar asignación
@@ -18,34 +20,67 @@
 
     {% include "partials/asignacion/_gestionar_encabezado.html" %}
 
-    {# ── Recibos ── #}
+    {# ── Recibos: se muestra uno a la vez, elegido con las tarjetas de arriba ── #}
     <div class="space-y-4">
-        <div class="flex items-center justify-between gap-3">
+        <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
             <div>
                 <h2 class="text-xl font-bold">Recibos</h2>
                 <p class="text-sm text-base-content/60">{{ recibos|length }} recibo{{ recibos|length|pluralize }} registrado{{ recibos|length|pluralize }}</p>
             </div>
-            <button
-                hx-get="{% url 'recibo_nuevo' instance.pk %}"
-                hx-target="#asignacion-modal-wrapper"
-                hx-swap="outerHTML"
-                class="btn btn-primary btn-sm gap-2 whitespace-nowrap"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Agregar recibo
-            </button>
+            <div>
+                <button
+                    hx-get="{% url 'recibo_nuevo' instance.pk %}"
+                    hx-target="#asignacion-modal-wrapper"
+                    hx-swap="outerHTML"
+                    class="btn btn-primary btn-sm gap-2 whitespace-nowrap"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Agregar recibo
+                </button>
+            </div>
         </div>
 
-        {% for recibo in recibos %}
-        {% include "partials/asignacion/_gestionar_recibo.html" %}
-        {% empty %}
-        <div class="flex flex-col items-center text-center gap-2 py-12 border border-dashed border-base-300 rounded-box">
-            <p class="font-medium">Todavía no hay recibos</p>
-            <p class="text-sm text-base-content/60">Usa <span class="font-medium text-base-content">Agregar recibo</span> para registrar el primero.</p>
+        <div id="recibo-actual" class="space-y-4">
+            {% if recibos|length > 1 %}
+            <nav aria-label="Elegir recibo" class="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                {% for recibo in recibos %}
+                <a
+                    href="?recibo={{ recibo.pk }}"
+                    hx-get="{% url 'asignacion_gestionar' instance.pk %}?recibo={{ recibo.pk }}"
+                    hx-target="#recibo-actual"
+                    hx-select="#recibo-actual"
+                    hx-swap="outerHTML"
+                    hx-push-url="true"
+                    {% if recibo == recibo_actual %}aria-current="true"{% endif %}
+                    class="shrink-0 w-48 rounded-box border-2 p-3 space-y-2 transition-colors {% if recibo == recibo_actual %}border-primary bg-primary/5 shadow-sm{% else %}border-base-300 bg-base-100 hover:border-primary/50{% endif %}"
+                >
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-semibold {% if recibo == recibo_actual %}text-primary{% endif %}">Recibo #{{ recibo.posicion }}</span>
+                        {% if recibo.estado_liquidacion == 'liquidado_con_observaciones' %}
+                        <span class="badge badge-warning badge-xs" title="Tiene observaciones pendientes">Obs.</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-lg font-bold leading-none">${{ recibo.monto|moneda }}</p>
+                    <progress class="progress {% if recibo.diferencia > 0 %}progress-warning{% else %}progress-success{% endif %} h-1.5 w-full" value="{{ recibo.total_abonado|unlocalize }}" max="{{ recibo.monto|unlocalize }}"></progress>
+                    <p class="text-xs font-medium {% if recibo.diferencia > 0 %}text-warning{% else %}text-success{% endif %}">
+                        {% if recibo.diferencia > 0 %}Pendiente ${{ recibo.diferencia|moneda }}{% else %}Abonado completo{% endif %}
+                    </p>
+                </a>
+                {% endfor %}
+            </nav>
+            {% endif %}
+
+            {% if recibo_actual %}
+            {% include "partials/asignacion/_gestionar_recibo.html" with recibo=recibo_actual %}
+            {% else %}
+            <div class="flex flex-col items-center text-center gap-2 py-12 border border-dashed border-base-300 rounded-box">
+                <p class="font-medium">Todavía no hay recibos</p>
+                <p class="text-sm text-base-content/60">Usa <span class="font-medium text-base-content">Agregar recibo</span> para registrar el primero.</p>
+            </div>
+            {% endif %}
         </div>
-        {% endfor %}
     </div>
 </main>
 {% endblock %}

@@ -2,10 +2,11 @@
 <div class="breadcrumbs text-sm mb-6 text-base-content/60 pl-6">
   <ul>
     {% for item in breadcrumbs %}
-      {% if item.url %}
+      {# El último elemento es la página actual: siempre resaltado y sin enlace, aunque la vista le pase url #}
+      {% if item.url and not forloop.last %}
         <li><a href="{{ item.url }}">{{ item.name }}</a></li>
       {% else %}
-        <li class="font-medium text-base-content">
+        <li class="font-medium text-base-content" aria-current="page">
           {{ item.name }}
         </li>
       {% endif %}

@@ -21,9 +21,12 @@ from .models import ESTADO_LIQUIDACION_CHOICES, Abono, Asignacion, Bono, Observa
 from .utils import a_decimal, a_entero, a_texto_codigo, extraer_anio, indice_columna, indices_columna, leer_filas_excel
 
 
-def _cerrar_y_recargar(request, asignacion_pk):
-    """Cierra el modal actual y recarga la página de gestión de la asignación."""
+def _cerrar_y_recargar(request, asignacion_pk, recibo_pk=None):
+    """Cierra el modal actual y recarga la página de gestión de la asignación,
+    dejando seleccionado el recibo con el que se estaba trabajando."""
     url = reverse('asignacion_gestionar', args=[asignacion_pk])
+    if recibo_pk:
+        url += f'?recibo={recibo_pk}'
     if request.htmx:
         return HttpResponseClientRedirect(url)
     return redirect(url)
@@ -296,7 +299,8 @@ def asignacion_gestionar(request, pk):
     )
 
     total_recibido = Decimal('0')
-    for recibo in recibos:
+    for numero, recibo in enumerate(recibos, start=1):
+        recibo.posicion = numero
         abonos = list(recibo.abono_set.all())
         recibo.abonos_lista = abonos
         recibo.total_abonado = sum((abono.monto for abono in abonos), Decimal('0'))
@@ -304,6 +308,10 @@ def asignacion_gestionar(request, pk):
         recibo.observaciones_lista = list(recibo.observacion_set.all())
         recibo.estado_liquidacion = _estado_liquidacion([recibo])
         total_recibido += recibo.monto
+
+    # Solo se muestra un recibo a la vez: el pedido en ?recibo=<id>, o el primero
+    seleccionado = request.GET.get('recibo')
+    recibo_actual = next((r for r in recibos if str(r.pk) == seleccionado), recibos[0] if recibos else None)
 
     breadcrumbs = [
         {'name': 'Inicio', 'url': reverse('home')},
@@ -318,6 +326,7 @@ def asignacion_gestionar(request, pk):
             "breadcrumbs": breadcrumbs,
             "instance": instance,
             "recibos": recibos,
+            "recibo_actual": recibo_actual,
             "total_recibido": total_recibido,
             "diferencia": instance.valor - total_recibido,
         },
@@ -334,7 +343,7 @@ def recibo_nuevo(request, asignacion_pk):
             recibo = form.save(commit=False)
             recibo.asignacion = asignacion
             recibo.save()
-            return _cerrar_y_recargar(request, asignacion.pk)
+            return _cerrar_y_recargar(request, asignacion.pk, recibo.pk)
     else:
         form = ReciboForm(prefix="recibo")
 
@@ -353,7 +362,7 @@ def recibo_editar(request, pk):
         form = ReciboForm(request.POST, instance=instance, prefix="recibo")
         if form.is_valid():
             form.save()
-            return _cerrar_y_recargar(request, instance.asignacion_id)
+            return _cerrar_y_recargar(request, instance.asignacion_id, instance.pk)
     else:
         form = ReciboForm(instance=instance, prefix="recibo")
 
@@ -390,7 +399,7 @@ def abono_nuevo(request, recibo_pk):
             abono = form.save(commit=False)
             abono.recibo = recibo
             abono.save()
-            return _cerrar_y_recargar(request, recibo.asignacion_id)
+            return _cerrar_y_recargar(request, recibo.asignacion_id, recibo.pk)
     else:
         form = AbonoForm(prefix="abono")
 
@@ -409,7 +418,7 @@ def abono_editar(request, pk):
         form = AbonoForm(request.POST, instance=instance, prefix="abono")
         if form.is_valid():
             form.save()
-            return _cerrar_y_recargar(request, instance.recibo.asignacion_id)
+            return _cerrar_y_recargar(request, instance.recibo.asignacion_id, instance.recibo_id)
     else:
         form = AbonoForm(instance=instance, prefix="abono")
 
@@ -424,10 +433,11 @@ def abono_editar(request, pk):
 def abono_eliminar(request, pk):
     instance = get_object_or_404(Abono, pk=pk)
     asignacion_pk = instance.recibo.asignacion_id
+    recibo_pk = instance.recibo_id
 
     if request.method == "POST":
         instance.delete()
-        return _cerrar_y_recargar(request, asignacion_pk)
+        return _cerrar_y_recargar(request, asignacion_pk, recibo_pk)
 
     return render(
         request,
@@ -446,7 +456,7 @@ def observacion_nueva(request, recibo_pk):
             observacion = form.save(commit=False)
             observacion.recibo = recibo
             observacion.save()
-            return _cerrar_y_recargar(request, recibo.asignacion_id)
+            return _cerrar_y_recargar(request, recibo.asignacion_id, recibo.pk)
     else:
         form = ObservacionForm(prefix="observacion")
 
@@ -465,7 +475,7 @@ def observacion_editar(request, pk):
         form = ObservacionForm(request.POST, instance=instance, prefix="observacion")
         if form.is_valid():
             form.save()
-            return _cerrar_y_recargar(request, instance.recibo.asignacion_id)
+            return _cerrar_y_recargar(request, instance.recibo.asignacion_id, instance.recibo_id)
     else:
         form = ObservacionForm(instance=instance, prefix="observacion")
 
@@ -480,10 +490,11 @@ def observacion_editar(request, pk):
 def observacion_eliminar(request, pk):
     instance = get_object_or_404(Observacion, pk=pk)
     asignacion_pk = instance.recibo.asignacion_id
+    recibo_pk = instance.recibo_id
 
     if request.method == "POST":
         instance.delete()
-        return _cerrar_y_recargar(request, asignacion_pk)
+        return _cerrar_y_recargar(request, asignacion_pk, recibo_pk)
 
     return render(
         request,
@@ -502,7 +513,7 @@ def observacion_toggle(request, pk):
     if request.GET.get('origen') == 'detalle':
         return asignacion_detalle(request, instance.recibo.asignacion_id)
 
-    return _cerrar_y_recargar(request, instance.recibo.asignacion_id)
+    return _cerrar_y_recargar(request, instance.recibo.asignacion_id, instance.recibo_id)
 
 
 def _bonos_filtrados(request):

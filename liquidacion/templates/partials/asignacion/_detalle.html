@@ -1,32 +1,28 @@
 {% load liquidacion_extras %}
-<div class="space-y-3 pt-1">
+<div class="border-t border-base-200 pt-3">
     {% if recibos %}
-        <p class="text-[11px] font-semibold uppercase tracking-wide text-base-content/50">Recibos de esta asignación</p>
+    <p class="text-xs font-semibold text-base-content/60 mb-2">
+        {{ recibos|length }} recibo{{ recibos|length|pluralize }}
+    </p>
+    <div class="rounded-lg border border-base-200 divide-y divide-base-200">
         {% for recibo in recibos %}
-        <div class="rounded-lg border border-base-300 overflow-hidden">
-            <div class="flex flex-wrap items-center justify-between gap-3 bg-base-200/60 px-4 py-2.5">
+        <div class="px-3 py-2.5 space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                 <span class="text-sm font-semibold">Recibo #{{ forloop.counter }}</span>
-                <div class="flex flex-wrap items-center gap-4">
-                    <div class="text-right">
-                        <p class="text-[10px] uppercase tracking-wide text-base-content/50">Monto</p>
-                        <p class="text-sm font-semibold">${{ recibo.monto|moneda }}</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-[10px] uppercase tracking-wide text-base-content/50">Abonado</p>
-                        <p class="text-sm font-semibold">${{ recibo.total_abonado|moneda }}</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-[10px] uppercase tracking-wide text-base-content/50">Pendiente</p>
-                        <p class="text-sm font-semibold {% if recibo.diferencia > 0 %}text-warning{% else %}text-success{% endif %}">
-                            ${{ recibo.diferencia|moneda }}
-                        </p>
-                    </div>
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                    <span><span class="text-base-content/60">Monto</span> <span class="font-semibold">${{ recibo.monto|moneda }}</span></span>
+                    <span><span class="text-base-content/60">Abonado</span> <span class="font-semibold">${{ recibo.total_abonado|moneda }}</span></span>
+                    {% if recibo.diferencia > 0 %}
+                    <span><span class="text-base-content/60">Pendiente</span> <span class="font-semibold text-warning">${{ recibo.diferencia|moneda }}</span></span>
+                    {% else %}
+                    <span class="font-semibold text-success">Completo</span>
+                    {% endif %}
                     <button
                         type="button"
                         hx-get="{% url 'recibo_abonos' recibo.id %}"
                         hx-target="#asignacion-modal-wrapper"
                         hx-swap="outerHTML"
-                        class="btn btn-outline btn-xs gap-1.5"
+                        class="btn btn-ghost btn-xs gap-1.5 text-primary"
                     >
                         Ver abonos
                         <span class="badge badge-ghost badge-xs">{{ recibo.abonos_lista|length }}</span>
@@ -34,42 +30,40 @@
                 </div>
             </div>
 
-            <div class="p-3">
-                <p class="text-[10px] font-semibold uppercase tracking-wide text-base-content/50 mb-1.5">Observaciones</p>
-                {% if recibo.observaciones_lista %}
-                <div class="space-y-1.5">
-                    {% for observacion in recibo.observaciones_lista %}
-                    <div class="flex items-start justify-between gap-3 rounded-md border border-base-200 bg-base-200/40 px-3 py-2">
-                        <div class="min-w-0">
-                            <p class="text-sm text-base-content/80">{{ observacion.descripcion }}</p>
-                            <p class="text-[11px] text-base-content/50 mt-0.5">
-                                Creada el {{ observacion.fecha_creacion|date:"d/m/Y" }}{% if observacion.fecha_resolucion %} · Resuelta el {{ observacion.fecha_resolucion|date:"d/m/Y" }}{% endif %}
-                            </p>
-                        </div>
-                        <div class="flex items-center gap-2 shrink-0">
-                            <span class="badge badge-sm {% if observacion.resuelta %}badge-success{% else %}badge-warning{% endif %}">
-                                {% if observacion.resuelta %}Resuelta{% else %}Pendiente{% endif %}
-                            </span>
-                            <button
-                                type="button"
-                                hx-post="{% url 'observacion_toggle' observacion.id %}?origen=detalle"
-                                hx-target="closest .collapse-content"
-                                hx-swap="innerHTML"
-                                class="btn btn-outline btn-xs"
-                            >
-                                {% if observacion.resuelta %}Marcar pendiente{% else %}Resolver{% endif %}
-                            </button>
-                        </div>
+            {% if recibo.observaciones_lista %}
+            <ul class="space-y-1.5">
+                {% for observacion in recibo.observaciones_lista %}
+                <li class="flex items-start justify-between gap-3 rounded-md bg-base-200/50 px-3 py-2">
+                    <div class="min-w-0">
+                        <p class="text-sm text-base-content/80">{{ observacion.descripcion }}</p>
+                        <p class="text-[11px] text-base-content/50 mt-0.5">
+                            Creada el {{ observacion.fecha_creacion|date:"d/m/Y" }}{% if observacion.fecha_resolucion %} · Resuelta el {{ observacion.fecha_resolucion|date:"d/m/Y" }}{% endif %}
+                        </p>
                     </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="text-xs text-base-content/60">Este recibo no tiene observaciones registradas.</p>
-                {% endif %}
-            </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="badge badge-sm {% if observacion.resuelta %}badge-success{% else %}badge-warning{% endif %}">
+                            {% if observacion.resuelta %}Resuelta{% else %}Pendiente{% endif %}
+                        </span>
+                        <button
+                            type="button"
+                            hx-post="{% url 'observacion_toggle' observacion.id %}?origen=detalle"
+                            hx-target="closest .asignacion-detalle"
+                            hx-swap="innerHTML"
+                            class="btn btn-outline btn-xs"
+                        >
+                            {% if observacion.resuelta %}Marcar pendiente{% else %}Resolver{% endif %}
+                        </button>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
         </div>
         {% endfor %}
+    </div>
     {% else %}
-        <p class="text-sm text-base-content/60 py-2">Esta asignación todavía no tiene recibos registrados.</p>
+    <p class="text-sm text-base-content/60">
+        Esta asignación todavía no tiene recibos. Usa <span class="font-medium text-base-content">Gestionar</span> para registrarlos.
+    </p>
     {% endif %}
 </div>

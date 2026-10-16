@@ -543,6 +543,10 @@ def auxiliarHomeView(request):
             "auxiliares": auxiliares,
             "filtro_form": filtro_form,
             "form_media": HorarioForm().media + filtro_form.media,
+            "breadcrumbs": [
+                {"name": "Inicio", "url": reverse("home")},
+                {"name": "Auxiliares"},
+            ],
         },
     )
 
@@ -723,6 +727,10 @@ def ausenciaHomeView(request):
         "search": search,
         "fecha": fecha,
         "form_media": AusenciaForm().media,
+        "breadcrumbs": [
+            {"name": "Inicio", "url": reverse("home")},
+            {"name": "Ausencias"},
+        ],
     })
 
 

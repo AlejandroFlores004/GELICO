@@ -9,25 +9,27 @@
 {% endblock %}
 
 {% block content %}
-<main class="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-    <div class="flex items-center gap-4">
-        <div class="bg-primary text-primary-content rounded-2xl p-4 shadow-md shadow-primary/20">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-8 h-8">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M22 10v6M2 10l10-5 10 5-10 5z" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 12v5c0 1.1 2.7 3 6 3s6-1.9 6-3v-5" />
-            </svg>
+<main class="px-2 lg:px-6 pb-6 space-y-4 max-w-7xl mx-auto" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <div class="bg-primary text-primary-content rounded-xl p-2.5 shadow-md shadow-primary/20">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 12v5c0 1.1 2.7 3 6 3s6-1.9 6-3v-5" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold leading-tight">
+                    Escuelas
+                </h1>
+                <p class="text-sm text-base-content/70">
+                    Busca una escuela para ver su encargado y sus periodos de CDE.
+                </p>
+            </div>
         </div>
-        <div>
-            <h1 class="text-4xl font-bold">
-                Escuelas
-            </h1>
-            <p class="text-base-content/70">
-                Busca una escuela para ver su encargado y sus periodos de CDE.
-            </p>
-        </div>
-    </div>
 
-    {% include "partials/escuela/_toolbar.html" %}
+        {% include "partials/escuela/_toolbar.html" %}
+    </div>
 
     <div id="escuela-modal-wrapper"></div>
 
