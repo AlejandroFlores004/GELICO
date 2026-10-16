@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block content %}
-<main class="p-6 lg:p-8 space-y-6 max-w-5xl mx-auto" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<main class="px-2 lg:px-6 pb-6 space-y-4 max-w-5xl mx-auto" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
     <div id="escuela-modal-wrapper"></div>
     <div id="encargado-modal-wrapper"></div>
@@ -63,125 +63,162 @@
         </div>
     </div>
 
-    {# ── Encargado ── #}
-    <div class="space-y-4">
-        <div class="flex items-center justify-between gap-3">
-            <div>
-                <h2 class="text-xl font-bold">Encargado</h2>
-                <p class="text-sm text-base-content/60">Responsable actual de la escuela.</p>
-            </div>
-            {% if not encargado_activo %}
-            <button hx-get="{% url 'encargado_nuevo' %}" hx-target="#encargado-modal-wrapper" hx-swap="outerHTML" class="btn btn-primary btn-sm gap-2 whitespace-nowrap">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Agregar encargado
-            </button>
-            {% endif %}
-        </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
 
-        {% if encargado_activo %}
-        <div class="card bg-base-100 shadow-md border border-base-300">
-            <div class="card-body gap-4">
-                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                    <div class="flex items-start gap-3 min-w-0">
-                        <div class="avatar avatar-placeholder shrink-0">
-                            <div class="w-11 rounded-full bg-primary/10 text-primary">
-                                <span class="font-semibold">{{ encargado_activo.nombre|first|upper }}{{ encargado_activo.apellido|first|upper }}</span>
-                            </div>
-                        </div>
-                        <div class="min-w-0">
-                            <p class="text-lg font-semibold">{{ encargado_activo.nombre }} {{ encargado_activo.apellido }}</p>
-                            <p class="text-sm text-base-content/60 break-all">{{ encargado_activo.email }}</p>
-                            <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2">
-                                {% for tel in encargado_activo.telefonos.all %}
-                                <span class="text-sm whitespace-nowrap">
-                                    {{ tel.numero }}
-                                    <span class="badge badge-ghost badge-xs">{{ tel.get_etiqueta_display }}</span>
-                                </span>
-                                {% empty %}
-                                <span class="text-sm text-base-content/40">Sin teléfonos</span>
-                                {% endfor %}
-                            </div>
+        {# ── Encargado actual ── #}
+        <section class="card bg-base-100 shadow-md border border-base-300">
+            <div class="card-body p-5 gap-4">
+                <div class="flex items-center justify-between gap-3">
+                    <h2 class="text-lg font-bold">Encargado actual</h2>
+                    {% if encargados_anteriores %}
+                    <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick="document.getElementById('historial-encargados').showModal()">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Historial
+                        <span class="badge badge-ghost badge-sm">{{ encargados_anteriores|length }}</span>
+                    </button>
+                    {% endif %}
+                </div>
+
+                {% if encargado_activo %}
+                <div class="flex items-start gap-3 min-w-0">
+                    <div class="avatar avatar-placeholder shrink-0">
+                        <div class="w-11 rounded-full bg-primary/10 text-primary">
+                            <span class="font-semibold">{{ encargado_activo.nombre|first|upper }}{{ encargado_activo.apellido|first|upper }}</span>
                         </div>
                     </div>
-                    <div class="flex flex-wrap gap-1 shrink-0 self-start">
-                        <button hx-get="{% url 'encargado_editar' encargado_activo.pk %}" hx-target="#encargado-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm gap-2" title="Editar encargado">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-                            </svg>
-                            Editar
-                        </button>
-                        <button hx-get="{% url 'encargado_cambiar' encargado_activo.pk %}" hx-target="#encargado-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm gap-2" title="Reemplazar por un encargado nuevo">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                            </svg>
-                            Cambiar
-                        </button>
-                        <button hx-get="{% url 'encargado_toggle' encargado_activo.pk %}" hx-target="#encargado-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm gap-2 text-error" title="Desactivar encargado">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
-                            </svg>
-                            Desactivar
-                        </button>
+                    <div class="min-w-0">
+                        <p class="font-semibold">{{ encargado_activo.nombre }} {{ encargado_activo.apellido }}</p>
+                        <p class="text-sm text-base-content/60 break-all">{{ encargado_activo.email }}</p>
+                        <div class="flex flex-wrap gap-x-4 gap-y-1 mt-1.5">
+                            {% for tel in encargado_activo.telefonos.all %}
+                            <span class="text-sm whitespace-nowrap">
+                                {{ tel.numero }}
+                                <span class="badge badge-ghost badge-xs">{{ tel.get_etiqueta_display }}</span>
+                            </span>
+                            {% empty %}
+                            <span class="text-sm text-base-content/40">Sin teléfonos</span>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
+                <div class="flex flex-wrap gap-1 border-t border-base-200 pt-3">
+                    <button hx-get="{% url 'encargado_editar' encargado_activo.pk %}" hx-target="#encargado-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm gap-1.5" title="Editar datos del encargado">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+                        Editar
+                    </button>
+                    <button hx-get="{% url 'encargado_cambiar' encargado_activo.pk %}" hx-target="#encargado-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm gap-1.5" title="Reemplazar por un encargado nuevo">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                        Cambiar
+                    </button>
+                    <button hx-get="{% url 'encargado_toggle' encargado_activo.pk %}" hx-target="#encargado-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm gap-1.5 text-error" title="Desactivar encargado">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" /></svg>
+                        Desactivar
+                    </button>
+                </div>
+                {% else %}
+                <div class="flex flex-col items-center text-center gap-3 py-6 border border-dashed border-base-300 rounded-box">
+                    <p class="text-sm text-base-content/60">Esta escuela no tiene encargado activo.</p>
+                    <button hx-get="{% url 'encargado_nuevo' %}" hx-target="#encargado-modal-wrapper" hx-swap="outerHTML" class="btn btn-primary btn-sm gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                        Agregar encargado
+                    </button>
+                </div>
+                {% endif %}
             </div>
-        </div>
-        {% else %}
-        <div class="flex flex-col items-center text-center gap-2 py-10 border border-dashed border-base-300 rounded-box">
-            <p class="font-medium">Esta escuela no tiene encargado activo</p>
-            <p class="text-sm text-base-content/60">Usa <span class="font-medium text-base-content">Agregar encargado</span> para registrarlo.</p>
-        </div>
-        {% endif %}
+        </section>
 
-        {% if encargados_anteriores %}
-        <details class="collapse collapse-arrow bg-base-100 border border-base-300 rounded-box">
-            <summary class="collapse-title text-sm font-medium">
-                Ver encargados anteriores
-                <span class="text-base-content/50">({{ encargados_anteriores|length }})</span>
-            </summary>
-            <div class="collapse-content">
-                <ul class="divide-y divide-base-200">
-                    {% for encargado in encargados_anteriores %}
-                    <li class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3">
-                        <div class="min-w-0">
-                            <p class="font-medium">{{ encargado.nombre }} {{ encargado.apellido }}</p>
-                            <p class="text-xs text-base-content/60 break-all">
-                                {{ encargado.email }}
-                                {% for tel in encargado.telefonos.all %} · {{ tel.numero }}{% endfor %}
-                            </p>
-                        </div>
-                        <button hx-get="{% url 'encargado_toggle' encargado.pk %}" hx-target="#encargado-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-xs gap-1 self-start sm:self-auto" title="Volver a activar este encargado">
-                            Reactivar
-                        </button>
-                    </li>
-                    {% endfor %}
-                </ul>
+        {# ── CDE vigente ── #}
+        <section class="card bg-base-100 shadow-md border border-base-300">
+            <div class="card-body p-5 gap-4">
+                <div class="flex items-center justify-between gap-3">
+                    <h2 class="text-lg font-bold">CDE vigente</h2>
+                    {% if cdes %}
+                    <button type="button" class="btn btn-ghost btn-sm gap-1.5" onclick="document.getElementById('historial-cde').showModal()">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Historial
+                        <span class="badge badge-ghost badge-sm">{{ cdes|length }}</span>
+                    </button>
+                    {% endif %}
+                </div>
+
+                {% if cde_actual %}
+                {% with cde=cde_actual %}
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-xs text-base-content/50">Periodo</p>
+                        <p class="font-semibold">{{ cde.FechaInicio|date:"d/m/Y" }} — {{ cde.FechaFin|date:"d/m/Y" }}</p>
+                    </div>
+                    <div class="text-right">
+                        {% include "partials/cde/_vigencia.html" %}
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-1 border-t border-base-200 pt-3">
+                    <button hx-get="{% url 'cde_editar' cde.pk %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+                        Editar
+                    </button>
+                    <button hx-get="{% url 'cde_eliminar' cde.pk %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm gap-1.5 text-error">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                        Eliminar
+                    </button>
+                    <button hx-get="{% url 'cde_nuevo' %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" class="btn btn-outline btn-primary btn-sm gap-1.5 ml-auto">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                        Nuevo periodo
+                    </button>
+                </div>
+                {% endwith %}
+                {% else %}
+                <div class="flex flex-col items-center text-center gap-3 py-6 border border-dashed border-base-300 rounded-box">
+                    <p class="text-sm text-base-content/60">
+                        No hay un periodo de CDE vigente.
+                        {% if cdes %}<br>Revisa el historial para ver los anteriores o próximos.{% endif %}
+                    </p>
+                    <button hx-get="{% url 'cde_nuevo' %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" class="btn btn-primary btn-sm gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                        Agregar CDE
+                    </button>
+                </div>
+                {% endif %}
             </div>
-        </details>
-        {% endif %}
+        </section>
     </div>
 
-    {# ── CDE ── #}
-    <div class="space-y-4">
-        <div class="flex items-center justify-between gap-3">
-            <div>
-                <h2 class="text-xl font-bold">CDE</h2>
-                <p class="text-sm text-base-content/60">{{ cdes|length }} periodo{{ cdes|length|pluralize }} registrado{{ cdes|length|pluralize }}</p>
-            </div>
-            <button hx-get="{% url 'cde_nuevo' %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" class="btn btn-primary btn-sm gap-2 whitespace-nowrap">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Agregar CDE
-            </button>
+    {# ── Historial de encargados (modal) ── #}
+    {% if encargados_anteriores %}
+    <dialog id="historial-encargados" class="modal">
+        <div class="modal-box max-w-2xl">
+            <form method="dialog"><button class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3" aria-label="Cerrar">✕</button></form>
+            <h3 class="font-bold text-lg">Historial de encargados</h3>
+            <p class="text-sm text-base-content/60">Encargados que tuvo la escuela antes del actual.</p>
+            <ul class="divide-y divide-base-200 mt-4">
+                {% for encargado in encargados_anteriores %}
+                <li class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3">
+                    <div class="min-w-0">
+                        <p class="font-medium">{{ encargado.nombre }} {{ encargado.apellido }}</p>
+                        <p class="text-xs text-base-content/60 break-all">
+                            {{ encargado.email }}{% for tel in encargado.telefonos.all %} · {{ tel.numero }}{% endfor %}
+                        </p>
+                    </div>
+                    <button hx-get="{% url 'encargado_toggle' encargado.pk %}" hx-target="#encargado-modal-wrapper" hx-swap="outerHTML" onclick="this.closest('dialog').close()" class="btn btn-ghost btn-xs gap-1 self-start sm:self-auto" title="Volver a activar este encargado">
+                        Reactivar
+                    </button>
+                </li>
+                {% endfor %}
+            </ul>
         </div>
+        <form method="dialog" class="modal-backdrop"><button>close</button></form>
+    </dialog>
+    {% endif %}
 
-        {% if cdes %}
-        <div class="card bg-base-100 shadow-md border border-base-300">
-            <div class="overflow-x-auto">
-                <table class="table">
+    {# ── Historial de CDE (modal) ── #}
+    {% if cdes %}
+    <dialog id="historial-cde" class="modal">
+        <div class="modal-box max-w-3xl">
+            <form method="dialog"><button class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3" aria-label="Cerrar">✕</button></form>
+            <h3 class="font-bold text-lg">Historial de CDE</h3>
+            <p class="text-sm text-base-content/60">{{ cdes|length }} periodo{{ cdes|length|pluralize }} registrado{{ cdes|length|pluralize }}, del más reciente al más antiguo.</p>
+            <div class="overflow-x-auto mt-4">
+                <table class="table table-sm">
                     <thead>
                         <tr>
                             <th>Fecha inicio</th>
@@ -192,21 +229,17 @@
                     </thead>
                     <tbody>
                         {% for cde in cdes %}
-                        <tr class="hover:bg-base-200/50">
+                        <tr class="hover:bg-base-200/50 {% if cde == cde_actual %}bg-primary/5{% endif %}">
                             <td>{{ cde.FechaInicio|date:"d/m/Y" }}</td>
                             <td>{{ cde.FechaFin|date:"d/m/Y" }}</td>
                             <td>{% include "partials/cde/_vigencia.html" %}</td>
                             <td>
                                 <div class="flex justify-end gap-1">
-                                    <button hx-get="{% url 'cde_editar' cde.pk %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm btn-square" title="Editar CDE" aria-label="Editar CDE">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-                                        </svg>
+                                    <button hx-get="{% url 'cde_editar' cde.pk %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" onclick="this.closest('dialog').close()" class="btn btn-ghost btn-sm btn-square" title="Editar CDE" aria-label="Editar CDE">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
                                     </button>
-                                    <button hx-get="{% url 'cde_eliminar' cde.pk %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" class="btn btn-ghost btn-sm btn-square text-error" title="Eliminar CDE" aria-label="Eliminar CDE">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                                        </svg>
+                                    <button hx-get="{% url 'cde_eliminar' cde.pk %}" hx-target="#cde-modal-wrapper" hx-swap="outerHTML" onclick="this.closest('dialog').close()" class="btn btn-ghost btn-sm btn-square text-error" title="Eliminar CDE" aria-label="Eliminar CDE">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                                     </button>
                                 </div>
                             </td>
@@ -216,12 +249,8 @@
                 </table>
             </div>
         </div>
-        {% else %}
-        <div class="flex flex-col items-center text-center gap-2 py-10 border border-dashed border-base-300 rounded-box">
-            <p class="font-medium">Todavía no hay periodos de CDE</p>
-            <p class="text-sm text-base-content/60">Usa <span class="font-medium text-base-content">Agregar CDE</span> para registrar el primero.</p>
-        </div>
-        {% endif %}
-    </div>
+        <form method="dialog" class="modal-backdrop"><button>close</button></form>
+    </dialog>
+    {% endif %}
 </main>
 {% endblock %}

@@ -514,7 +514,6 @@ def _escuelas_filtradas(request):
         escuela = filtro_form.cleaned_data.get('escuela')
         distrito = filtro_form.cleaned_data.get('distrito')
         estado = filtro_form.cleaned_data.get('estado')
-        texto = filtro_form.cleaned_data.get('texto')
 
         if escuela:
             escuelas_list = escuelas_list.filter(pk=escuela.pk)
@@ -522,12 +521,6 @@ def _escuelas_filtradas(request):
             escuelas_list = escuelas_list.filter(distrito=distrito)
         if estado:
             escuelas_list = escuelas_list.filter(estado=(estado == '1'))
-        if texto:
-            escuelas_list = escuelas_list.filter(
-                Q(codigo__icontains=texto) |
-                Q(nombre__icontains=texto) |
-                Q(nombre_corto__icontains=texto)
-            )
 
     return filtro_form, escuelas_list
 
@@ -657,7 +650,9 @@ def escuela_imprimir_ficha(request, pk):
             'escuela': escuela,
             'encargado_activo': next((e for e in encargados if e.estado), None),
             'encargados_anteriores': [e for e in encargados if not e.estado],
-            'cdes': _cdes_de_escuela(escuela),
+            'cdes': cdes,
+            # El CDE en curso (vigente o por vencer); si no hay, se muestra el último registrado
+            'cde_actual': next((c for c in cdes if c.vigencia in ('vigente', 'por_vencer')), None),
         },
         f'Ficha_{escuela.codigo}.pdf'
     )
@@ -694,26 +689,6 @@ def buscar_escuelas(request):
     )
 
 
-# Contenido que se despliega al abrir una escuela en el listado
-@permiso_requerido('escuela.view_escuela')
-def escuela_detalle(request, pk):
-    escuela = get_object_or_404(Escuela, pk=pk)
-    encargados = list(
-        escuela.encargado_set.prefetch_related('telefonos').order_by('-estado', '-pk')
-    )
-
-    return render(
-        request,
-        'partials/escuela/_detalle.html',
-        {
-            'escuela': escuela,
-            'encargado_activo': next((e for e in encargados if e.estado), None),
-            'total_anteriores': sum(1 for e in encargados if not e.estado),
-            'cdes': _cdes_de_escuela(escuela),
-        }
-    )
-
-
 # Página completa de una escuela: datos, encargado (y anteriores) y CDE
 @permiso_requerido('escuela.view_escuela')
 def escuela_gestionar(request, pk):
@@ -721,6 +696,8 @@ def escuela_gestionar(request, pk):
     encargados = list(
         escuela.encargado_set.prefetch_related('telefonos').order_by('-estado', '-pk')
     )
+
+    cdes = _cdes_de_escuela(escuela)
 
     breadcrumbs = [
         {'name': 'Inicio', 'url': reverse('home')},
@@ -736,7 +713,9 @@ def escuela_gestionar(request, pk):
             'escuela': escuela,
             'encargado_activo': next((e for e in encargados if e.estado), None),
             'encargados_anteriores': [e for e in encargados if not e.estado],
-            'cdes': _cdes_de_escuela(escuela),
+            'cdes': cdes,
+            # El CDE en curso (vigente o por vencer); el resto queda en el historial
+            'cde_actual': next((c for c in cdes if c.vigencia in ('vigente', 'por_vencer')), None),
             # JS/CSS de select2 que usan los modales de escuela y encargado
             'form_media': forms.EscuelaForm().media,
         }

@@ -22,7 +22,6 @@ urlpatterns = [
     path('nueva/', views.escuela_form, name='escuela_nueva'),
     path('<int:pk>/editar/', views.escuela_form, name='escuela_editar'),
     path('<int:pk>/toggle/', views.escuela_toggle_estado, name='escuela_toggle'),
-    path('<int:pk>/detalle/', views.escuela_detalle, name='escuela_detalle'),
     path('<int:pk>/gestionar/', views.escuela_gestionar, name='escuela_gestionar'),
     path('<int:pk>/imprimir/', views.escuela_imprimir_ficha, name='escuela_imprimir_ficha'),
     path('imprimir/', views.escuela_imprimir, name='escuela_imprimir'),

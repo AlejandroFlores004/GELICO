@@ -17,9 +17,9 @@
                 {% url 'home_escuelas' as limpiar %}{% include "partials/base/_filtros_botones.html" with limpiar_url=limpiar spinner_id="escuela-search-spinner" %}
             </div>
 
-            <details class="group"{% if filtro_form.distrito.value or filtro_form.estado.value or filtro_form.texto.value %} open{% endif %}>
-                {% include "partials/base/_filtros_toggle.html" with detalle="distrito, estado, texto" %}
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3">
+            <details class="group"{% if filtro_form.distrito.value or filtro_form.estado.value %} open{% endif %}>
+                {% include "partials/base/_filtros_toggle.html" with detalle="distrito, estado" %}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
                     <div class="form-control w-full">
                         <label class="label pt-0 pb-1" for="{{ filtro_form.distrito.id_for_label }}">
                             <span class="label-text font-medium">Distrito</span>
@@ -31,12 +31,6 @@
                             <span class="label-text font-medium">Estado</span>
                         </label>
                         {{ filtro_form.estado }}
-                    </div>
-                    <div class="form-control w-full">
-                        <label class="label pt-0 pb-1" for="{{ filtro_form.texto.id_for_label }}">
-                            <span class="label-text font-medium">Buscar</span>
-                        </label>
-                        {{ filtro_form.texto }}
                     </div>
                 </div>
             </details>

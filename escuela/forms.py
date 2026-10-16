@@ -307,22 +307,13 @@ class FiltrarEscuelasForm(forms.Form):
 
     estado = forms.ChoiceField(
         choices=[
-            ('', 'Todos'),
-            ('1', 'Activo'),
-            ('0', 'Inactivo'),
+            ('', 'Todas'),
+            ('1', 'Activas'),
+            ('0', 'Inactivas'),
         ],
         required=False,
         widget=forms.Select(attrs={'class': 'select select-bordered w-full'}),
         label='Estado',
-    )
-
-    texto = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'input input-bordered w-full',
-            'placeholder': 'Código, nombre',
-        }),
-        label='Buscar',
     )
 
 
