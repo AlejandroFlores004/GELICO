@@ -181,10 +181,6 @@
     transition: width 0.18s ease;
   }
 
-  .gelico-sidebar-toggle svg {
-    transition: transform 0.18s ease;
-  }
-
   .gelico-sidebar-logo-box {
     transition: width 0.18s ease, height 0.18s ease;
   }
@@ -219,6 +215,10 @@
     padding-inline: 0.75rem;
   }
 
+  html.sidebar-collapsed .gelico-sidebar-header > a {
+    justify-content: center;
+  }
+
   html.sidebar-collapsed .gelico-sidebar-logo-box {
     width: 2.5rem;
     height: 2.5rem;
@@ -232,9 +232,5 @@
   html.sidebar-collapsed .gelico-sidebar > li.menu-title {
     justify-content: center;
     padding-inline: 0;
-  }
-
-  html.sidebar-collapsed .gelico-sidebar-toggle svg {
-    transform: rotate(180deg);
   }
 }

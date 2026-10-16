@@ -5,12 +5,11 @@
 
   <aside class="gelico-sidebar-aside flex min-h-full flex-col border-r border-base-300 bg-base-100">
 
-    <!-- Sidebar Header -->
-    <div class="border-b border-base-300 bg-base-100 p-3">
-      <div class="flex items-center gap-2">
-        <!-- Logo -->
-        <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-          <img src="{% static 'brand/gelico-mark-primary.svg' %}" alt="GELICO"
+    <!-- Sidebar Header: logo y nombre llevan al inicio -->
+    <div class="gelico-sidebar-header flex h-20 shrink-0 items-center border-b border-base-300 bg-base-100 px-3">
+      <a href="{% url 'home' %}" class="flex min-w-0 flex-1 items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-base-200" title="Ir al inicio" aria-label="GELICO, ir al inicio">
+        <div class="gelico-sidebar-logo-box flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <img src="{% static 'brand/gelico-mark-primary.svg' %}" alt=""
               class="size-6 object-contain"/>
         </div>
         <div class="gelico-sidebar-label min-w-0">
@@ -18,12 +17,6 @@
           <p class="mt-1 text-xs leading-snug text-base-content/60">Gestión de Liquidaciones y Convocatorias</p>
         </div>
       </a>
-      <button type="button" id="sidebar-collapse-toggle" class="gelico-sidebar-toggle btn btn-ghost btn-sm btn-square hidden shrink-0 lg:inline-flex" title="Colapsar menú" aria-label="Colapsar menú">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
-            stroke-width="2" fill="none" stroke="currentColor" class="size-4">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-      </button>
     </div>
 
     <!-- Menu -->
@@ -208,17 +201,4 @@
   </aside>
 </div>
 
-<script>
-  (function () {
-    var btn = document.getElementById('sidebar-collapse-toggle');
-    if (!btn) return;
-    btn.addEventListener('click', function () {
-      var collapsed = document.documentElement.classList.toggle('sidebar-collapsed');
-      try { localStorage.setItem('gelico-sidebar-collapsed', collapsed ? '1' : '0'); } catch (e) {}
-      var label = collapsed ? 'Expandir menú' : 'Colapsar menú';
-      btn.setAttribute('aria-label', label);
-      btn.setAttribute('title', label);
-    });
-  })();
-</script>
 {% endwith %}
