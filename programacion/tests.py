@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from escuela.models import Distrito, Escuela
+from . import services
 from .agenda import agenda_de_convocatoria, auxiliares_asignados, convocatoria_por_defecto, tonos_por_auxiliar
 from .forms import AuxiliaresDelDia, ProgramacionForm
 from .models import Auxiliar, Ausencia, Convocatoria, ConvocatoriaAuxiliar, Horario, Programacion
@@ -636,3 +637,90 @@ class FiltrosAuxiliaresTests(TestCase):
 		self.assertContains(respuesta, 'id="listado-auxiliares" hx-swap-oob="true"')
 		# El listado vuelve con los filtros que estaban aplicados.
 		self.assertEqual({a.nombre for a in respuesta.context['auxiliares']}, {'Libre', 'Nuevo'})
+
+
+class ProgramacionServicesTests(AgendaBase):
+	"""Lógica de programacion/services.py, sin pasar por las vistas."""
+
+	def test_fechas_vecinas(self):
+		dia = date(2026, 1, 31)
+		self.assertEqual(services.fechas_vecinas('dia', dia), (date(2026, 1, 30), date(2026, 2, 1)))
+		self.assertEqual(services.fechas_vecinas('semana', dia), (date(2026, 1, 24), date(2026, 2, 7)))
+		self.assertEqual(services.fechas_vecinas('mes', dia), (date(2025, 12, 1), date(2026, 2, 1)))
+
+	def test_titulo_periodo(self):
+		self.assertEqual(services.titulo_periodo('semana', date(2026, 5, 13)), '10 – 16 de mayo 2026')
+		self.assertEqual(services.titulo_periodo('mes', date(2026, 5, 13)), 'Mayo 2026')
+
+	def test_filtrar_programaciones(self):
+		visita = self._programar()
+		self.assertEqual(list(services.filtrar_programaciones({'escuela': self.escuela})), [visita])
+		self.assertEqual(list(services.filtrar_programaciones({'q': 'agenda'})), [visita])
+		self.assertEqual(list(services.filtrar_programaciones({'q': 'no existe'})), [])
+
+	def test_cobertura_de_visita(self):
+		cubren, cubierta = services.cobertura_de_visita(self._programar('manana'))
+		self.assertEqual(list(cubren), [self.auxiliar])
+		self.assertTrue(cubierta)
+
+		cubren, cubierta = services.cobertura_de_visita(self._programar('tarde'))
+		self.assertFalse(cubierta)
+
+	def test_resumen_convocatoria(self):
+		self._programar('manana')
+		self._programar('tarde')  # el auxiliar solo trabaja en la mañana
+
+		resumen = services.resumen_convocatoria(self.convocatoria, [self.auxiliar], timezone.localdate())
+
+		self.assertEqual(resumen['duracion'], 21)
+		self.assertEqual(resumen['sin_cobertura'], 1)
+		self.assertEqual(resumen['escuelas_visitadas'], 1)
+		self.assertEqual(services.dias_asignados_por_auxiliar(self.convocatoria), {self.auxiliar.pk: 1})
+
+	def test_reporte_agenda_por_alcance(self):
+		manana = self._programar('manana')
+		tarde = self._programar('tarde')
+		tarde.estado = 'completado'
+		tarde.save()
+
+		def visitas(alcance, auxiliar=None):
+			reporte = services.reporte_agenda(self.convocatoria, alcance, self.dia, auxiliar)
+			return [p for dia in reporte['dias'] for p in dia['programaciones']]
+
+		self.assertEqual(visitas('convocatoria'), [manana, tarde])
+		self.assertEqual(visitas('dia'), [manana, tarde])
+		self.assertEqual(visitas('sin_cobertura'), [tarde])
+		self.assertEqual(visitas('pendientes'), [manana])
+		self.assertEqual(visitas('auxiliar', self.auxiliar), [manana])
+
+		reporte = services.reporte_agenda(self.convocatoria, 'auxiliar', self.dia, self.auxiliar)
+		self.assertEqual(reporte['subtitulo'], 'Hoja de ruta de Luis Gómez')
+		self.assertTrue(reporte['para_campo'])
+
+	def test_estado_horario_y_horario_inicial(self):
+		auxiliar = services.con_estado_horario(list(services.filtrar_auxiliares({'q': 'Luis'})))[0]
+		# El horario de prueba empieza la próxima semana.
+		self.assertEqual(auxiliar.estado_horario, 'futuro')
+
+		inicial = services.horario_inicial(self.auxiliar.pk)
+		self.assertEqual((inicial['fecha_inicio'], inicial['fecha_fin']), (self.dia, self.dia))
+		self.assertEqual(services.horario_inicial(None), {'auxiliar': None})
+
+	def test_filtrar_ausencias(self):
+		otro = self._auxiliar('Ana', 'Ruiz', 'tarde')
+		ausencia = Ausencia.objects.create(auxiliar=self.auxiliar, fecha=self.dia, motivo='Cita médica')
+		Ausencia.objects.create(auxiliar=otro, fecha=self.dia + timedelta(days=1), motivo='Clases')
+
+		self.assertEqual(list(services.filtrar_ausencias('médica')), [ausencia])
+		self.assertEqual(list(services.filtrar_ausencias(fecha=self.dia)), [ausencia])
+		self.assertEqual(list(services.auxiliares_con_ausencias('Ruiz')), [otro])
+		self.assertEqual(list(services.auxiliares_con_ausencias(fecha=self.dia)), [self.auxiliar])
+
+	def test_filtrar_convocatorias(self):
+		otra = Convocatoria.objects.create(
+			nombre='Otra', descripcion='Segunda ronda',
+			fecha_inicio=self.dia + timedelta(days=30), fecha_fin=self.dia + timedelta(days=40),
+		)
+		self.assertEqual(list(services.filtrar_convocatorias('ronda')), [otra])
+		self.assertEqual(list(services.filtrar_convocatorias(fecha_inicio=self.dia)), [otra])
+		self.assertEqual(list(services.filtrar_convocatorias(fecha_fin=self.dia + timedelta(days=10))), [self.convocatoria])

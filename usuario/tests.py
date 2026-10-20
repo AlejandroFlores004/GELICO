@@ -3,6 +3,8 @@ from django.contrib.auth.models import Group, Permission
 from django.test import TestCase
 from django.urls import reverse
 
+from . import services
+
 User = get_user_model()
 CLAVE = 'Clave-Segura-2026'
 
@@ -202,3 +204,38 @@ class CorreoUnicoTests(TestCase):
         self.assertIn('email', respuesta.context['adminform'].form.errors)
         self.client.post(reverse('admin:auth_user_add'), {**datos, 'email': 'nuevo.admin@example.com'})
         self.assertTrue(User.objects.filter(username='desde_admin', email='nuevo.admin@example.com').exists())
+
+
+class UsuarioServicesTests(GestionUsuariosBase):
+    def test_puede_gestionar(self):
+        superusuario = User.objects.create_superuser('root', password=CLAVE)
+        normal = User.objects.create_user('normal', password=CLAVE)
+
+        self.assertTrue(services.puede_gestionar(self.admin, normal))
+        self.assertFalse(services.puede_gestionar(self.admin, superusuario))
+        self.assertTrue(services.puede_gestionar(superusuario, superusuario))
+
+    def test_filtrar_usuarios_por_rol_y_estado(self):
+        User.objects.create_superuser('root', password=CLAVE)
+        inactivo = User.objects.create_user('inactivo', password=CLAVE, is_active=False)
+
+        self.assertEqual([u.username for u in services.filtrar_usuarios({'rol': 'superusuario'})], ['root'])
+        self.assertEqual([u.username for u in services.filtrar_usuarios({'rol': 'administrador'})], ['admin'])
+        self.assertEqual(list(services.filtrar_usuarios({'estado': 'inactivo'})), [inactivo])
+        self.assertEqual(services.filtrar_usuarios({}).count(), 3)
+
+    def test_alternar_estado_usuario(self):
+        normal = User.objects.create_user('normal', password=CLAVE)
+        services.alternar_estado_usuario(normal)
+        normal.refresh_from_db()
+        self.assertFalse(normal.is_active)
+
+    def test_filtrar_grupos_con_conteos(self):
+        grupo = Group.objects.create(name='Liquidadores')
+        Group.objects.create(name='Otros')
+        self.admin.groups.add(grupo)
+
+        grupos = list(services.filtrar_grupos({'usuario': self.admin}))
+        self.assertEqual(grupos, [grupo])
+        self.assertEqual(grupos[0].total_usuarios, 1)
+        self.assertEqual(list(services.filtrar_grupos({'q': 'otr'}).values_list('name', flat=True)), ['Otros'])

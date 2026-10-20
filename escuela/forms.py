@@ -202,7 +202,7 @@ class CDEFilterForm(forms.Form):
             'data-allow-clear': 'false',
         }),
     )
-    # Se calcula con las fechas del periodo (ver _anotar_vigencia en views.py)
+    # Se calcula con las fechas del periodo (ver anotar_vigencia en services.py)
     vigencia = forms.ChoiceField(
         choices=[
             ('', 'Todas'),

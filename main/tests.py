@@ -1,11 +1,16 @@
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from easyaudit.models import CRUDEvent, LoginEvent
 
 from escuela.models import Distrito, Escuela
-from liquidacion.models import Bono
+from liquidacion.models import Asignacion, Bono, Observacion, Recibo
+from liquidacion.services import estado_liquidacion
+from . import services
 
 
 class AuditoriaTests(TestCase):
@@ -174,3 +179,60 @@ class SeguridadTests(TestCase):
         respuesta = self.client.get('/no-existe/')
         self.assertEqual(respuesta.status_code, 404)
         self.assertTemplateUsed(respuesta, '404.html')
+
+
+class PanelInicioServicesTests(TestCase):
+    def setUp(self):
+        distrito = Distrito.objects.create(nombre='Distrito panel')
+        self.escuela = Escuela.objects.create(codigo='PAN-1', nombre='Escuela panel', nombre_corto='Panel', distrito=distrito)
+        self.bono_2025 = Bono.objects.create(nombre='Bono 2025', descripcion='', anio=2025)
+        self.bono_2026 = Bono.objects.create(nombre='Bono 2026', descripcion='', anio=2026)
+
+    def test_elegir_anio(self):
+        anios = services.anios_disponibles()
+        self.assertEqual(anios, [2026, 2025])
+        self.assertEqual(services.elegir_anio(None, anios), 2026)
+        self.assertEqual(services.elegir_anio('2025', anios), 2025)
+        self.assertEqual(services.elegir_anio('1999', anios), 2026)
+        self.assertIsNone(services.elegir_anio('todos', anios))
+        self.assertIsNone(services.elegir_anio(None, []))
+
+    def test_porcentaje(self):
+        self.assertEqual(services.porcentaje(1, 3), 33.3)
+        self.assertEqual(services.porcentaje(5, 0), 0)
+
+    def test_resumen_liquidacion_usa_el_mismo_criterio_que_liquidacion(self):
+        sin_recibos = Asignacion.objects.create(escuela=self.escuela, bono=self.bono_2025, valor=Decimal('100'))
+        con_observacion = Asignacion.objects.create(escuela=self.escuela, bono=self.bono_2026, valor=Decimal('300'))
+        recibo = Recibo.objects.create(asignacion=con_observacion, monto=Decimal('120'))
+        Observacion.objects.create(recibo=recibo, descripcion='Falta firma')
+
+        resumen = services.resumen_liquidacion(Asignacion.objects.all(), Recibo.objects.all())
+
+        self.assertEqual(resumen['asignado'], Decimal('400'))
+        self.assertEqual(resumen['recibido'], Decimal('120'))
+        self.assertEqual(resumen['porcentaje_recibido'], 30.0)
+        por_estado = {estado['clave']: estado['cantidad'] for estado in resumen['estados']}
+        for asignacion in (sin_recibos, con_observacion):
+            estado = estado_liquidacion(list(asignacion.recibo_set.all()))
+            self.assertEqual(por_estado[estado], 1, estado)
+
+    def test_panel_filtra_por_anio(self):
+        Asignacion.objects.create(escuela=self.escuela, bono=self.bono_2025, valor=Decimal('100'))
+        asignacion = Asignacion.objects.create(escuela=self.escuela, bono=self.bono_2026, valor=Decimal('300'))
+        Recibo.objects.create(asignacion=asignacion, monto=Decimal('350'))  # sobrepagada
+
+        panel = services.panel_inicio(2026, timezone.localdate())
+
+        self.assertEqual(panel['resumen']['asignado'], Decimal('300'))
+        self.assertEqual(panel['atencion']['total_sobrepagadas'], 1)
+        self.assertEqual(panel['con_saldo'], 0)
+        self.assertEqual(services.panel_inicio(None, timezone.localdate())['con_saldo'], 1)
+
+    def test_home_carga_con_cada_anio(self):
+        usuario = get_user_model().objects.create_user(username='panel', password='clave-segura-123')
+        self.client.force_login(usuario)
+        for anio in ('', '2025', 'todos'):
+            with self.subTest(anio=anio):
+                respuesta = self.client.get(reverse('home'), {'anio': anio})
+                self.assertEqual(respuesta.status_code, 200)

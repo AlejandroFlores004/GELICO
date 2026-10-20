@@ -1,56 +1,31 @@
-from collections import defaultdict
-from datetime import timedelta
 from urllib.parse import urlencode
 
 from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseRedirect
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.db.models import Count, Exists, OuterRef, Prefetch, Q
 from django.shortcuts import get_object_or_404, render
-from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.utils.formats import date_format
-from django.utils.text import capfirst
-from weasyprint import HTML
 
+from main.pdf import datos_filtro, respuesta_pdf
 from main.permisos import permiso_formulario, permiso_requerido
+from . import services
 from .agenda import (
-    MODOS, Agenda, agenda_de_convocatoria, auxiliares_asignados, con_conteos, convocatoria_por_defecto, convocatorias_agrupadas,
-    cubren_en_jornada, estado_convocatoria, etiqueta_jornada, otras_convocatorias, rango_visible,
-    resumen_estados, sumar_meses, tono_convocatoria, tonos_por_auxiliar,
+    MODOS, agenda_de_convocatoria, auxiliares_asignados, con_conteos, convocatoria_por_defecto, convocatorias_agrupadas,
+    cubren_en_jornada, etiqueta_jornada, otras_convocatorias, rango_visible, tono_convocatoria, tonos_por_auxiliar,
 )
 
 from .forms import (
     AuxiliarForm, AuxiliaresDelDia, AusenciaForm, ConvocatoriaForm, FiltrarAuxiliaresForm, HorarioForm, ProgramacionEstadoForm,
     ProgramacionFiltroForm, ProgramacionForm,
 )
-from .models import ORDEN_JORNADA, Auxiliar, Ausencia, Convocatoria, ConvocatoriaAuxiliar, Horario, Jornada, Programacion
+from .models import Auxiliar, Ausencia, Convocatoria, Horario, Jornada, Programacion
 
 
 def _programaciones_filtradas(request, paginar=True):
     filtro_form = ProgramacionFiltroForm(request.GET or None)
-    programaciones = Programacion.objects.select_related(
-        'convocatoria', 'escuela'
-    ).order_by('-fecha_programada', ORDEN_JORNADA.desc())
-
-    if filtro_form.is_valid():
-        search = filtro_form.cleaned_data.get('q', '').strip()
-        convocatoria = filtro_form.cleaned_data.get('convocatoria')
-        escuela = filtro_form.cleaned_data.get('escuela')
-
-        if convocatoria:
-            programaciones = programaciones.filter(convocatoria=convocatoria)
-        if escuela:
-            programaciones = programaciones.filter(escuela=escuela)
-        if search:
-            programaciones = programaciones.filter(
-                Q(convocatoria__nombre__icontains=search)
-                | Q(escuela__nombre__icontains=search)
-                | Q(escuela__nombre_corto__icontains=search)
-                | Q(estado__icontains=search)
-            )
+    programaciones = services.filtrar_programaciones(datos_filtro(filtro_form))
 
     if paginar:
         paginator = Paginator(programaciones, 20)
@@ -61,8 +36,6 @@ def _programaciones_filtradas(request, paginar=True):
 SECCIONES = ('calendario', 'convocatorias', 'programaciones')
 # Evento htmx que los calendarios escuchan para volver a pintarse tras guardar algo en un modal.
 EVENTO_AGENDA = 'agenda-actualizada'
-FORMATO_DIA = 'l j \\d\\e F \\d\\e Y'
-FORMATO_FECHA = 'j \\d\\e F Y'
 
 
 def _origen(request):
@@ -98,19 +71,6 @@ def _por_id(modelo, valor):
     return modelo.objects.filter(pk=valor).first() if valor and str(valor).isdigit() else None
 
 
-def _titulo_periodo(modo, dia):
-    if modo == 'dia':
-        return capfirst(date_format(dia, FORMATO_DIA))
-    if modo == 'mes':
-        return capfirst(date_format(dia, 'F Y'))
-    inicio, fin = rango_visible('semana', dia)
-    if inicio.month == fin.month:
-        return f"{inicio.day} – {fin.day} de {date_format(fin, 'F Y')}"
-    if inicio.year == fin.year:
-        return f"{inicio.day} de {date_format(inicio, 'F')} – {fin.day} de {date_format(fin, 'F Y')}"
-    return f"{date_format(inicio, FORMATO_FECHA)} – {date_format(fin, FORMATO_FECHA)}"
-
-
 # ---------------------------------------------------------------------------
 # Calendario: agenda semanal por jornadas de la convocatoria elegida
 # ---------------------------------------------------------------------------
@@ -142,11 +102,7 @@ def _contexto_agenda(request):
     def url(modo_destino, dia_destino):
         return _url_agenda(convocatoria, modo_destino, dia_destino, auxiliar)
 
-    if modo == 'mes':
-        anterior, siguiente = sumar_meses(dia, -1), sumar_meses(dia, 1)
-    else:
-        paso = timedelta(weeks=1) if modo == 'semana' else timedelta(days=1)
-        anterior, siguiente = dia - paso, dia + paso
+    anterior, siguiente = services.fechas_vecinas(modo, dia)
     inicio_visible, fin_visible = rango_visible(modo, dia)
 
     tonos = tonos_por_auxiliar(auxiliares)
@@ -158,12 +114,7 @@ def _contexto_agenda(request):
         for dia_mes in semana:
             dia_mes['url_dia'] = url('dia', dia_mes['fecha'])
 
-    programaciones = convocatoria.programacion_set.all()
-    # Cobertura de todo el periodo, para el contador de visitas que ningún auxiliar cubre.
-    periodo = Agenda(convocatoria, convocatoria.fecha_inicio, convocatoria.fecha_fin, auxiliares)
-    dias_asignados = dict(
-        convocatoria.asignaciones.values('auxiliar').annotate(dias=Count('fecha')).values_list('auxiliar', 'dias')
-    )
+    dias_asignados = services.dias_asignados_por_auxiliar(convocatoria)
 
     return {
         'convocatoria': convocatoria,
@@ -172,19 +123,14 @@ def _contexto_agenda(request):
             {'convocatoria': otra, 'tono': tono_convocatoria(otra), 'url': _url_agenda(otra, modo, dia, auxiliar)}
             for otra in otras_convocatorias(inicio_visible, fin_visible, convocatoria)
         ],
-        'estado_convocatoria': estado_convocatoria(convocatoria, hoy),
-        'duracion': (convocatoria.fecha_fin - convocatoria.fecha_inicio).days + 1,
-        'dias_restantes': (convocatoria.fecha_fin - hoy).days,
-        'estados': resumen_estados(programaciones),
-        'sin_cobertura': sum(not programacion.cubierta for programacion in periodo.programaciones),
-        'escuelas_visitadas': programaciones.values('escuela').distinct().count(),
+        **services.resumen_convocatoria(convocatoria, auxiliares, hoy),
         'modo': modo,
         'dia': dia,
         'hoy': hoy,
         'auxiliar': auxiliar,
         'auxiliares': auxiliares,
         'calendario': calendario,
-        'titulo_periodo': _titulo_periodo(modo, dia),
+        'titulo_periodo': services.titulo_periodo(modo, dia),
         'url_actual': url(modo, dia),
         # No se navega más allá del periodo de la convocatoria.
         'url_anterior': url(modo, anterior) if inicio_visible > convocatoria.fecha_inicio else None,
@@ -245,84 +191,30 @@ def convocatoria_agenda(request, pk):
 # Impresión de la agenda: convocatoria, semana, día, hoja de ruta por auxiliar...
 # ---------------------------------------------------------------------------
 
-ALCANCES_IMPRESION = ('convocatoria', 'semana', 'dia', 'auxiliar', 'sin_cobertura', 'pendientes')
-
-
 @permiso_requerido('programacion.view_programacion')
 def agenda_imprimir(request):
     convocatoria = get_object_or_404(Convocatoria, pk=request.GET.get('convocatoria') or 0)
     alcance = request.GET.get('alcance')
-    alcance = alcance if alcance in ALCANCES_IMPRESION else 'convocatoria'
+    alcance = alcance if alcance in services.ALCANCES_IMPRESION else 'convocatoria'
     dia = _fecha(request.GET.get('fecha')) or convocatoria.fecha_inicio
     auxiliar = _por_id(Auxiliar, request.GET.get('auxiliar'))
 
-    programaciones = convocatoria.programacion_set.select_related(
-        'escuela__distrito',
-    ).order_by('fecha_programada', ORDEN_JORNADA, 'escuela__nombre')
-    inicio, fin = convocatoria.fecha_inicio, convocatoria.fecha_fin
-    subtitulo = f"Del {date_format(inicio, FORMATO_FECHA)} al {date_format(fin, FORMATO_FECHA)}"
-
-    if alcance == 'semana':
-        semana_inicio, semana_fin = rango_visible('semana', dia)
-        # La semana se recorta al periodo de la convocatoria.
-        inicio, fin = max(semana_inicio, inicio), min(semana_fin, fin)
-        subtitulo = f"Semana: {_titulo_periodo('semana', dia)}"
-    elif alcance == 'dia':
-        inicio = fin = dia
-        subtitulo = capfirst(date_format(dia, FORMATO_DIA))
-    elif alcance == 'auxiliar' and auxiliar:
-        subtitulo = f"Hoja de ruta de {auxiliar.nombre} {auxiliar.apellido}"
-    elif alcance == 'sin_cobertura':
-        subtitulo = 'Visitas que ningún auxiliar cubre'
-    elif alcance == 'pendientes':
-        programaciones = programaciones.filter(estado='pendiente')
-        subtitulo = 'Visitas pendientes'
-    programaciones = list(programaciones.filter(fecha_programada__range=(inicio, fin)))
-
-    # Quién cubre cada visita: los auxiliares asignados a su día cuyo horario incluye su jornada.
-    cobertura = Agenda(convocatoria, inicio, fin, con_visitas=False)
-    for programacion in programaciones:
-        programacion.cubren = cobertura.cubren_visita(programacion)
-        programacion.cubierta = cobertura.visita_cubierta(programacion)
-    if alcance == 'auxiliar' and auxiliar:
-        # Hoja de ruta: las visitas de las jornadas en que trabaja.
-        programaciones = [programacion for programacion in programaciones if auxiliar in programacion.cubren]
-    elif alcance == 'sin_cobertura':
-        programaciones = [programacion for programacion in programaciones if not programacion.cubierta]
-
-    por_dia = defaultdict(list)
-    for programacion in programaciones:
-        programacion.bloque = programacion.get_jornada_display()
-        por_dia[programacion.fecha_programada].append(programacion)
-
-    html_string = render_to_string('partials/agenda/reporte_pdf.html', {
-        'convocatoria': convocatoria,
-        'alcance': alcance,
-        'subtitulo': subtitulo,
-        'auxiliar': auxiliar if alcance == 'auxiliar' else None,
-        'dias': [{'fecha': fecha, 'programaciones': lista} for fecha, lista in sorted(por_dia.items())],
-        'total': len(programaciones),
-        'estados': resumen_estados(programaciones),
-        # La hoja de ruta lleva columnas para llenar a mano en campo.
-        'para_campo': alcance in ('auxiliar', 'dia'),
-        'fecha_impresion': timezone.localtime(),
-    })
-    pdf = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
-
-    response = HttpResponse(pdf, content_type='application/pdf')
-    response['Content-Disposition'] = f'inline; filename="programacion-{alcance}.pdf"'
-    return response
+    return respuesta_pdf(
+        request, 'partials/agenda/reporte_pdf.html',
+        services.reporte_agenda(convocatoria, alcance, dia, auxiliar),
+        f'programacion-{alcance}.pdf',
+    )
 
 
 @permiso_requerido('programacion.view_programacion')
 def programacion_detalle(request, pk):
     """Detalle de una visita al hacer clic en su código en la agenda."""
     programacion = get_object_or_404(Programacion.objects.select_related('convocatoria', 'escuela__distrito'), pk=pk)
-    cobertura = Agenda(programacion.convocatoria, programacion.fecha_programada, programacion.fecha_programada, con_visitas=False)
+    cubren, cubierta = services.cobertura_de_visita(programacion)
     return render(request, 'partials/programacion/modal_detalle.html', {
         'programacion': programacion,
-        'cubren': cobertura.cubren_visita(programacion),
-        'cubierta': cobertura.visita_cubierta(programacion),
+        'cubren': cubren,
+        'cubierta': cubierta,
         'estados_programacion': Programacion._meta.get_field('estado').choices,
     })
 
@@ -441,85 +333,16 @@ def programacion_eliminar(request, pk):
 @permiso_requerido('programacion.view_programacion')
 def programacion_imprimir(request):
     _, programaciones = _programaciones_filtradas(request, paginar=False)
-    html_string = render_to_string('partials/programacion/reporte_pdf.html', {
-        'programaciones': programaciones,
-        'fecha_generacion': timezone.localdate(),
-    })
-    pdf = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
-    response = HttpResponse(pdf, content_type='application/pdf')
-    response['Content-Disposition'] = 'inline; filename="programaciones.pdf"'
-    return response
+    return respuesta_pdf(
+        request, 'partials/programacion/reporte_pdf.html',
+        {'programaciones': programaciones}, 'programaciones.pdf',
+    )
 
 
 def _auxiliares_filtrados(request):
     """Auxiliares filtrados, sin paginar (los usa el listado y el "Imprimir")."""
     filtro_form = FiltrarAuxiliaresForm(request.GET or None)
-    auxiliares = Auxiliar.objects.prefetch_related(
-        Prefetch(
-            'horario_set',
-            queryset=Horario.objects.order_by('dia', ORDEN_JORNADA, 'fecha_inicio'),
-            to_attr='horarios',
-        ),
-    ).order_by('apellido', 'nombre')
-    if not filtro_form.is_valid():
-        return filtro_form, auxiliares
-
-    datos = filtro_form.cleaned_data
-    hoy = timezone.localdate()
-    fecha, dia, jornada = datos['fecha'], datos['dia'], datos['jornada']
-
-    if datos['q']:
-        texto = datos['q'].strip()
-        auxiliares = auxiliares.filter(
-            Q(nombre__icontains=texto) | Q(apellido__icontains=texto) | Q(email__icontains=texto)
-            | Q(telefono__icontains=texto) | Q(institucion__icontains=texto)
-        )
-    if datos['institucion']:
-        auxiliares = auxiliares.filter(institucion=datos['institucion'])
-
-    # Horarios del auxiliar que cumplen la fecha, el día y la jornada pedidos.
-    horarios = Horario.objects.filter(auxiliar=OuterRef('pk'))
-    if fecha:
-        horarios = horarios.del_dia(fecha)
-    if dia:
-        horarios = horarios.filter(dia=dia)
-    if jornada:
-        # Quien trabaja todo el día también trabaja en la mañana y en la tarde.
-        horarios = horarios.filter(jornada__in=[jornada] if jornada == Jornada.COMPLETA else [jornada, Jornada.COMPLETA])
-    # Elegir fecha, día o jornada sin decir nada del horario se entiende como "trabaja entonces".
-    estado = datos['horario'] or ('con' if fecha or dia or jornada else '')
-    if estado == 'con':
-        auxiliares = auxiliares.filter(Exists(horarios))
-    elif estado == 'sin':
-        auxiliares = auxiliares.filter(~Exists(horarios))
-    elif estado == 'vigente':
-        auxiliares = auxiliares.filter(Exists(horarios.filter(fecha_inicio__lte=hoy, fecha_fin__gte=hoy)))
-    elif estado == 'vencido':
-        auxiliares = auxiliares.filter(Exists(horarios)).exclude(Exists(horarios.filter(fecha_fin__gte=hoy)))
-
-    # Con fecha, las asignaciones se miran solo ese día.
-    if datos['convocatoria']:
-        asignaciones = ConvocatoriaAuxiliar.objects.filter(auxiliar=OuterRef('pk'), convocatoria=datos['convocatoria'])
-        if fecha:
-            asignaciones = asignaciones.filter(fecha=fecha)
-        auxiliares = auxiliares.filter(Exists(asignaciones))
-
-    return filtro_form, auxiliares
-
-
-def _con_estado_horario(auxiliares):
-    """Marca cada auxiliar según su horario: sin horario, vigente hoy, por empezar o vencido."""
-    hoy = timezone.localdate()
-    for auxiliar in auxiliares:
-        if not auxiliar.horarios:
-            auxiliar.estado_horario = 'sin'
-        elif any(h.fecha_inicio <= hoy <= h.fecha_fin for h in auxiliar.horarios):
-            auxiliar.estado_horario = 'vigente'
-        elif any(h.fecha_inicio > hoy for h in auxiliar.horarios):
-            auxiliar.estado_horario = 'futuro'
-        else:
-            auxiliar.estado_horario = 'vencido'
-    return auxiliares
+    return filtro_form, services.filtrar_auxiliares(datos_filtro(filtro_form))
 
 
 def _filtrar_auxiliares(request):
@@ -527,7 +350,7 @@ def _filtrar_auxiliares(request):
 
     paginator = Paginator(auxiliares_list, 20)
     auxiliares = paginator.get_page(request.GET.get("page"))
-    _con_estado_horario(auxiliares)
+    services.con_estado_horario(auxiliares)
 
     return filtro_form, auxiliares
 
@@ -622,13 +445,7 @@ def horario_form(request, pk=None):
     elif instance:
         form = HorarioForm(instance=instance)
     else:
-        auxiliar_id = request.GET.get('auxiliar')
-        inicial = {'auxiliar': auxiliar_id}
-        # Lo usual es agregar más días al mismo periodo de labores: se propone el del último horario.
-        ultimo = Horario.objects.filter(auxiliar_id=auxiliar_id).order_by('-fecha_fin').first() if auxiliar_id else None
-        if ultimo:
-            inicial.update(fecha_inicio=ultimo.fecha_inicio, fecha_fin=ultimo.fecha_fin)
-        form = HorarioForm(initial=inicial)
+        form = HorarioForm(initial=services.horario_inicial(request.GET.get('auxiliar')))
 
     return render(
         request,
@@ -659,62 +476,19 @@ def horario_eliminar(request, pk):
 @permiso_requerido('programacion.view_auxiliar')
 def auxiliar_imprimir(request):
     _, auxiliares = _auxiliares_filtrados(request)
-    html_string = render_to_string(
-        "partials/auxiliar/reporte_pdf.html",
-        {"auxiliares": auxiliares},
-    )
-    pdf = HTML(
-        string=html_string,
-        base_url=request.build_absolute_uri("/"),
-    ).write_pdf()
-
-    response = HttpResponse(pdf, content_type="application/pdf")
-    response["Content-Disposition"] = 'inline; filename="auxiliares.pdf"'
-    return response
+    return respuesta_pdf(request, "partials/auxiliar/reporte_pdf.html", {"auxiliares": auxiliares}, "auxiliares.pdf")
 
 
-def _ausencias_filtradas(request, paginar=True):
+def _ausencias_filtradas(request):
+    """Ausencias filtradas, sin paginar (las usa el "Imprimir")."""
     search = request.GET.get("q", "").strip()
-    fecha = request.GET.get("fecha", "").strip()
-    ausencias = Ausencia.objects.select_related('auxiliar').order_by('-fecha', 'auxiliar__apellido', 'auxiliar__nombre')
-    if search:
-        ausencias = ausencias.filter(
-            auxiliar__nombre__icontains=search
-        ) | ausencias.filter(
-            auxiliar__apellido__icontains=search
-        ) | ausencias.filter(
-            motivo__icontains=search
-        )
-    if fecha_date := parse_date(fecha):
-        ausencias = ausencias.filter(fecha=fecha_date)
-
-    if paginar:
-        paginator = Paginator(ausencias, 20)
-        ausencias = paginator.get_page(request.GET.get('page'))
-    return search, fecha, ausencias
+    return services.filtrar_ausencias(search, _fecha(request.GET.get("fecha", "").strip()))
 
 
 def _auxiliares_con_ausencias(request):
     search = request.GET.get("q", "").strip()
-    fecha = request.GET.get("fecha", "").strip()
-    ausencias = Ausencia.objects.order_by('-fecha')
-
-    auxiliares = Auxiliar.objects.prefetch_related(
-        Prefetch('horario_set', queryset=Horario.objects.order_by('dia', ORDEN_JORNADA, 'fecha_inicio'), to_attr='horarios'),
-        Prefetch('ausencia_set', queryset=ausencias, to_attr='ausencias'),
-    ).order_by('apellido', 'nombre')
-
-    if search:
-        auxiliares = auxiliares.filter(
-            Q(nombre__icontains=search)
-            | Q(apellido__icontains=search)
-            | Q(ausencia__motivo__icontains=search)
-        ).distinct()
-    if fecha_date := parse_date(fecha):
-        auxiliares = auxiliares.filter(ausencia__fecha=fecha_date).distinct()
-
-    paginator = Paginator(auxiliares, 20)
-    return paginator.get_page(request.GET.get('page'))
+    auxiliares = services.auxiliares_con_ausencias(search, _fecha(request.GET.get("fecha", "").strip()))
+    return Paginator(auxiliares, 20).get_page(request.GET.get('page'))
 
 
 @permiso_requerido('programacion.view_ausencia')
@@ -792,29 +566,16 @@ def ausencia_eliminar(request, pk):
 
 @permiso_requerido('programacion.view_ausencia')
 def ausencia_imprimir(request):
-    _, _, ausencias = _ausencias_filtradas(request, paginar=False)
-    html_string = render_to_string("partials/ausencia/reporte_pdf.html", {"ausencias": ausencias})
-    pdf = HTML(string=html_string, base_url=request.build_absolute_uri("/")).write_pdf()
-    response = HttpResponse(pdf, content_type="application/pdf")
-    response["Content-Disposition"] = 'inline; filename="ausencias.pdf"'
-    return response
+    return respuesta_pdf(
+        request, "partials/ausencia/reporte_pdf.html", {"ausencias": _ausencias_filtradas(request)}, "ausencias.pdf",
+    )
 
 
 def _convocatorias_filtradas(request, paginar=True):
     search = request.GET.get("q", "").strip()
     fecha_inicio = request.GET.get("fecha_inicio", "").strip()
     fecha_fin = request.GET.get("fecha_fin", "").strip()
-    convocatorias = Convocatoria.objects.all().order_by('fecha_inicio')
-    if search:
-        convocatorias = convocatorias.filter(
-            nombre__icontains=search
-        ) | convocatorias.filter(
-            descripcion__icontains=search
-        )
-    if fecha_inicio_date := parse_date(fecha_inicio):
-        convocatorias = convocatorias.filter(fecha_inicio__gte=fecha_inicio_date)
-    if fecha_fin_date := parse_date(fecha_fin):
-        convocatorias = convocatorias.filter(fecha_fin__lte=fecha_fin_date)
+    convocatorias = services.filtrar_convocatorias(search, _fecha(fecha_inicio), _fecha(fecha_fin))
 
     if paginar:
         paginator = Paginator(convocatorias, 20)
@@ -938,15 +699,6 @@ def convocatoria_eliminar(request, pk):
 @permiso_requerido('programacion.view_convocatoria')
 def convocatoria_imprimir(request):
     _, _, _, convocatorias = _convocatorias_filtradas(request, paginar=False)
-    html_string = render_to_string(
-        "partials/convocatorias/reporte_pdf.html",
-        {"convocatorias": convocatorias},
+    return respuesta_pdf(
+        request, "partials/convocatorias/reporte_pdf.html", {"convocatorias": convocatorias}, "convocatorias.pdf",
     )
-    pdf = HTML(
-        string=html_string,
-        base_url=request.build_absolute_uri("/"),
-    ).write_pdf()
-
-    response = HttpResponse(pdf, content_type="application/pdf")
-    response["Content-Disposition"] = 'inline; filename="convocatorias.pdf"'
-    return response
