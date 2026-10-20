@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.contrib.auth import get_user_model, update_session_auth_hash
 from django.contrib.auth.models import Group
 from django.core.exceptions import PermissionDenied
@@ -64,7 +65,9 @@ def usuario_form(request, pk=None):
     if request.method == 'POST':
         form = UsuarioForm(request.POST, instance=instance, editor=request.user)
         if form.is_valid():
-            form.save()
+            usuario = form.save()
+            accion = 'creó' if instance is None else 'actualizó'
+            messages.success(request, f'Se {accion} el usuario {usuario.username}.')
             return _tabla_usuarios(request, 'partials/usuario/modal_form_success.html')
     else:
         form = UsuarioForm(instance=instance, editor=request.user)
@@ -83,6 +86,7 @@ def usuario_contrasena(request, pk):
             if instance.pk == request.user.pk:
                 # Sin esto, cambiar la contraseña propia cierra la sesión actual.
                 update_session_auth_hash(request, instance)
+            messages.success(request, f'Se cambió la contraseña de {instance.username}.')
             return _tabla_usuarios(request, 'partials/usuario/modal_form_success.html')
     else:
         form = ContrasenaForm(instance)
@@ -97,6 +101,8 @@ def usuario_toggle_estado(request, pk):
 
     if request.method == 'POST' and not es_propio:
         services.alternar_estado_usuario(instance)
+        estado = 'activó' if instance.is_active else 'desactivó'
+        messages.success(request, f'Se {estado} el usuario {instance.username}.')
         return _tabla_usuarios(request, 'partials/usuario/modal_form_success.html')
 
     return render(request, 'partials/usuario/modal_toggle.html', {'instance': instance, 'es_propio': es_propio})
@@ -109,6 +115,7 @@ def usuario_eliminar(request, pk):
 
     if request.method == 'POST' and not es_propio:
         instance.delete()
+        messages.success(request, f'Se eliminó el usuario {instance.username}.')
         return _tabla_usuarios(request, 'partials/usuario/modal_form_success.html')
 
     return render(request, 'partials/usuario/modal_delete.html', {'instance': instance, 'es_propio': es_propio})
@@ -164,7 +171,9 @@ def grupo_form(request, pk=None):
     if request.method == 'POST':
         form = GrupoForm(request.POST, instance=instance)
         if form.is_valid():
-            form.save()
+            grupo = form.save()
+            accion = 'creó' if instance is None else 'actualizó'
+            messages.success(request, f'Se {accion} el grupo {grupo.name}.')
             return _tabla_grupos(request, 'partials/grupo/modal_form_success.html')
     else:
         form = GrupoForm(instance=instance)
@@ -182,6 +191,7 @@ def grupo_eliminar(request, pk):
 
     if request.method == 'POST':
         instance.delete()
+        messages.success(request, f'Se eliminó el grupo {instance.name}.')
         return _tabla_grupos(request, 'partials/grupo/modal_form_success.html')
 
     return render(request, 'partials/grupo/modal_delete.html', {'instance': instance})

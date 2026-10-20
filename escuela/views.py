@@ -1,5 +1,6 @@
 from urllib.parse import urlparse
 
+from django.contrib import messages
 from django.core.paginator import Paginator
 from django.shortcuts import render, get_object_or_404
 from django.urls import Resolver404, resolve, reverse
@@ -116,7 +117,11 @@ def encargado_form(request, pk=None):
     formset = forms.TelefonoFormSet(datos, instance=instance, prefix='telefonos')
 
     if request.method == 'POST' and form.is_valid() and formset.is_valid():
-        services.guardar_encargado(form, formset)
+        encargado = services.guardar_encargado(form, formset)
+        if instance is None:
+            messages.success(request, f'Se registró a {encargado.nombre} {encargado.apellido} como encargado de {encargado.escuela.nombre_corto}.')
+        else:
+            messages.success(request, f'Se actualizaron los datos de {encargado.nombre} {encargado.apellido}.')
         return _respuesta_encargado_guardado(request)
 
     return render(
@@ -139,7 +144,8 @@ def encargado_cambiar(request, pk):
     formset = forms.TelefonoFormSet(datos, instance=nuevo_instance, prefix='telefonos')
 
     if request.method == 'POST' and form.is_valid() and formset.is_valid():
-        services.cambiar_encargado(activo, form, formset)
+        encargado = services.cambiar_encargado(activo, form, formset)
+        messages.success(request, f'{encargado.nombre} {encargado.apellido} es el nuevo encargado de {encargado.escuela.nombre_corto}.')
         return _respuesta_encargado_guardado(request)
 
     return render(
@@ -155,6 +161,8 @@ def encargado_toggle_estado(request, pk):
 
     if request.method == 'POST':
         services.alternar_estado_encargado(encargado)
+        estado = 'activó' if encargado.estado else 'desactivó'
+        messages.success(request, f'Se {estado} a {encargado.nombre} {encargado.apellido}.')
         return _respuesta_encargado_guardado(request)
 
     #Modal de confirmación para cambiar el estado de un encargado
@@ -260,7 +268,9 @@ def cde_form(request, pk=None):
         form.fields['escuela'].disabled = True
 
     if request.method == 'POST' and form.is_valid():
-        form.save()
+        cde = form.save()
+        accion = 'registró' if instance is None else 'actualizó'
+        messages.success(request, f'Se {accion} el CDE de {cde.escuela.nombre_corto}.')
         return _respuesta_cde_guardado(request)
 
     return render(
@@ -276,6 +286,7 @@ def cde_eliminar(request, pk):
 
     if request.method == 'POST':
         instance.delete()
+        messages.success(request, f'Se eliminó el CDE de {instance.escuela.nombre_corto}.')
         return _respuesta_cde_guardado(request)
 
     return render(
@@ -447,7 +458,9 @@ def escuela_form(request, pk=None):
             escuela = form.save()
             # Escuela nueva: se abre su página para agregarle encargado y CDE
             if instance is None:
+                messages.success(request, f'Se registró la escuela {escuela.nombre_corto}. Agrégale su encargado y su CDE.')
                 return _recargar_gestion(escuela)
+            messages.success(request, f'Se actualizaron los datos de {escuela.nombre_corto}.')
             return _respuesta_escuela_guardada(request)
     else:
         form = forms.EscuelaForm(instance=instance, prefix='escuela')
@@ -465,6 +478,8 @@ def escuela_toggle_estado(request, pk):
 
     if request.method == 'POST':
         services.alternar_estado_escuela(escuela)
+        estado = 'activó' if escuela.estado else 'desactivó'
+        messages.success(request, f'Se {estado} la escuela {escuela.nombre_corto}.')
         return _respuesta_escuela_guardada(request)
 
     #Modal de confirmación para cambiar el estado de una escuela

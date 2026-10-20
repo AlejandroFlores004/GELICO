@@ -1,0 +1,48 @@
+{# Campana del navbar. Se vuelve a cargar sola cada 5 minutos y después de guardar algo (evento "notificaciones-actualizar" que manda main.middleware.MensajesHtmxMiddleware). #}
+<div id="notificaciones-campana" class="dropdown dropdown-end"
+     hx-get="{% url 'notificaciones_campana' %}" hx-trigger="notificaciones-actualizar from:body, every 300s" hx-swap="outerHTML">
+    <button type="button" tabindex="0" class="btn btn-ghost btn-circle"
+            aria-label="Notificaciones{% if total %}: {{ total }} pendiente{{ total|pluralize }}{% endif %}" title="Notificaciones">
+        <span class="indicator">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
+                 stroke-width="2" fill="none" stroke="currentColor" class="size-5">
+                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+            </svg>
+            {% if total %}
+            <span class="indicator-item badge badge-sm min-w-5 px-1 tabular-nums {% if urgentes %}badge-error{% else %}badge-warning{% endif %}">{% if total > 99 %}99+{% else %}{{ total }}{% endif %}</span>
+            {% endif %}
+        </span>
+    </button>
+
+    <div tabindex="0" class="dropdown-content z-30 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-box border border-base-300 bg-base-100 shadow-lg">
+        <div class="flex items-center justify-between gap-3 border-b border-base-300 px-4 py-3">
+            <p class="font-semibold">Notificaciones</p>
+            {% if total %}
+            <span class="text-xs text-base-content/60">{{ total }} pendiente{{ total|pluralize }}{% if urgentes %} · <span class="font-medium text-error">{{ urgentes }} urgente{{ urgentes|pluralize }}</span>{% endif %}</span>
+            {% endif %}
+        </div>
+
+        {% if notificaciones %}
+        <div class="max-h-96 space-y-0.5 overflow-y-auto p-1.5">
+            {% for notificacion in notificaciones %}
+                {% include "partials/notificaciones/_item.html" %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="flex flex-col items-center gap-2 px-4 py-8 text-center">
+            <span class="flex size-10 items-center justify-center rounded-full bg-success/15 text-success">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round" stroke-width="2.25" fill="none" stroke="currentColor" class="size-5"><path d="M20 6 9 17l-5-5"/></svg>
+            </span>
+            <p class="text-sm font-medium">Todo al día</p>
+            <p class="text-xs text-base-content/60">No hay pendientes por atender.</p>
+        </div>
+        {% endif %}
+
+        <div class="border-t border-base-300 p-1.5">
+            <a href="{% url 'home_notificaciones' %}" class="btn btn-ghost btn-sm btn-block font-medium text-primary">
+                {% if total > notificaciones|length %}Ver las {{ total }} notificaciones{% else %}Ver todas{% endif %}
+            </a>
+        </div>
+    </div>
+</div>

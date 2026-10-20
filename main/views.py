@@ -11,6 +11,7 @@ from easyaudit.models import CRUDEvent
 
 from . import services
 from .forms import FiltrarAuditoriaForm
+from .notificaciones import NIVELES, agrupar_por_categoria, notificaciones_de
 from .pdf import datos_filtro, respuesta_pdf
 from .permisos import staff_requerido
 
@@ -28,6 +29,37 @@ def home_view(request):
         'anio': anio,
         **services.panel_inicio(anio, hoy),
     })
+
+# ---------------------------------------------------------------------------
+# Notificaciones. Sin decorador de permisos: cualquier usuario con sesión las ve,
+# y cada uno solo recibe las de los módulos que tiene permitidos.
+# ---------------------------------------------------------------------------
+
+LIMITE_CAMPANA = 6
+
+
+def notificaciones_campana(request):
+    """Campana del navbar con el conteo y las más urgentes."""
+    notificaciones = notificaciones_de(request.user)
+    return render(request, 'partials/notificaciones/_campana.html', {
+        'notificaciones': notificaciones[:LIMITE_CAMPANA],
+        'total': len(notificaciones),
+        'urgentes': sum(notificacion.nivel == 'error' for notificacion in notificaciones),
+    })
+
+
+def notificacionesHomeView(request):
+    notificaciones = notificaciones_de(request.user)
+    return render(request, 'notificaciones/notificacionesHome.html', {
+        'breadcrumbs': [
+            {'name': 'Inicio', 'url': reverse('home')},
+            {'name': 'Notificaciones'},
+        ],
+        'grupos': agrupar_por_categoria(notificaciones),
+        'total': len(notificaciones),
+        'por_nivel': {nivel: sum(n.nivel == nivel for n in notificaciones) for nivel in NIVELES},
+    })
+
 
 @login_not_required
 def login_view(request):

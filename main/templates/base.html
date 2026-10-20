@@ -51,7 +51,8 @@
         });
 
         // htmx no hace swap de respuestas de error (4xx/5xx): sin esto, un botón
-        // sin permiso (403) o que falla simplemente "no haría nada". Se avisa con un toast.
+        // sin permiso (403) o que falla simplemente "no haría nada". Se avisa con un aviso
+        // (mostrarAviso está en partials/base/_messages.html).
         var MENSAJES_ERROR_HTMX = {
             403: 'No tienes permiso para realizar esta acción.',
             404: 'El registro ya no existe o fue eliminado.',
@@ -59,13 +60,7 @@
         document.body.addEventListener('htmx:responseError', function (evt) {
             var estado = evt.detail.xhr.status;
             var mensaje = MENSAJES_ERROR_HTMX[estado] || 'Ocurrió un error inesperado. Intenta de nuevo.';
-            var contenedor = document.getElementById('toast-errores');
-            var aviso = document.createElement('div');
-            aviso.setAttribute('role', 'alert');
-            aviso.className = 'alert ' + (estado === 403 ? 'alert-warning' : 'alert-error') + ' shadow-lg';
-            aviso.textContent = mensaje;
-            contenedor.appendChild(aviso);
-            setTimeout(function () { aviso.remove(); }, 5000);
+            mostrarAviso(estado === 403 ? 'warning' : 'error', mensaje);
         });
     </script>
     <!-- ===== MAIN CONTENT SIDE ===== -->
@@ -93,7 +88,17 @@
           </a>
         </div>
 
-        <div class="flex flex-none items-center">
+        <div class="flex flex-none items-center gap-1">
+          <!-- Notificaciones: la campana se carga aparte para no hacer más lenta cada página -->
+          <div id="notificaciones-campana" hx-get="{% url 'notificaciones_campana' %}" hx-trigger="load" hx-swap="outerHTML">
+            <span class="btn btn-ghost btn-circle pointer-events-none text-base-content/40" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
+                  stroke-width="2" fill="none" stroke="currentColor" class="size-5">
+                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+              </svg>
+            </span>
+          </div>
           <div class="dropdown dropdown-end">
             <button type="button" tabindex="0" class="flex items-center gap-2.5 rounded-full py-1.5 pl-1.5 pr-2.5 transition-colors hover:bg-base-200">
               <div class="avatar avatar-placeholder">
@@ -166,7 +171,6 @@
 
   {% include 'partials/base/_logout.html' %}
   {% include 'partials/base/_messages.html' %}
-  <div id="toast-errores" class="toast toast-end toast-bottom z-50"></div>
 
   
   </body>

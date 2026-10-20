@@ -59,6 +59,8 @@ MIDDLEWARE = [
     # Toda vista exige sesión iniciada, salvo las marcadas con @login_not_required
     'main.middleware.SesionRequeridaMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    # Mensajes de guardado/eliminado como avisos en peticiones htmx (va después de MessageMiddleware)
+    'main.middleware.MensajesHtmxMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'easyaudit.middleware.easyaudit.EasyAuditMiddleware',
 ]

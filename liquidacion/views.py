@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -90,7 +91,9 @@ def asignacion_form(request, pk=None):
         if form.is_valid():
             asignacion = form.save()
             if instance:
+                messages.success(request, f'Se actualizó el valor asignado a {asignacion.escuela.nombre_corto}.')
                 return _cerrar_y_recargar(request, asignacion.pk)
+            messages.success(request, f'Se asignó {asignacion.bono.nombre} a {asignacion.escuela.nombre_corto}.')
             return _tabla_asignaciones(request)
     else:
         form = form_class(instance=instance, prefix="asignacion")
@@ -108,6 +111,7 @@ def asignacion_eliminar(request, pk):
 
     if request.method == "POST":
         instance.delete()
+        messages.success(request, f'Se eliminó la asignación de {instance.bono.nombre} a {instance.escuela.nombre_corto}.')
         return _tabla_asignaciones(request)
 
     return render(
@@ -181,6 +185,7 @@ def recibo_nuevo(request, asignacion_pk):
         form = ReciboForm(request.POST, instance=Recibo(asignacion=asignacion), prefix="recibo")
         if form.is_valid():
             recibo = form.save()
+            messages.success(request, 'Se registró el recibo.')
             return _cerrar_y_recargar(request, asignacion.pk, recibo.pk)
     else:
         form = ReciboForm(prefix="recibo")
@@ -200,6 +205,7 @@ def recibo_editar(request, pk):
         form = ReciboForm(request.POST, instance=instance, prefix="recibo")
         if form.is_valid():
             form.save()
+            messages.success(request, 'Se actualizó el recibo.')
             return _cerrar_y_recargar(request, instance.asignacion_id, instance.pk)
     else:
         form = ReciboForm(instance=instance, prefix="recibo")
@@ -217,6 +223,7 @@ def recibo_eliminar(request, pk):
 
     if request.method == "POST":
         instance.delete()
+        messages.success(request, 'Se eliminó el recibo y sus abonos.')
         return _cerrar_y_recargar(request, instance.asignacion_id)
 
     return render(
@@ -234,6 +241,7 @@ def abono_nuevo(request, recibo_pk):
         form = AbonoForm(request.POST, instance=Abono(recibo=recibo), prefix="abono")
         if form.is_valid():
             form.save()
+            messages.success(request, 'Se registró el abono.')
             return _cerrar_y_recargar(request, recibo.asignacion_id, recibo.pk)
     else:
         form = AbonoForm(prefix="abono")
@@ -253,6 +261,7 @@ def abono_editar(request, pk):
         form = AbonoForm(request.POST, instance=instance, prefix="abono")
         if form.is_valid():
             form.save()
+            messages.success(request, 'Se actualizó el abono.')
             return _cerrar_y_recargar(request, instance.recibo.asignacion_id, instance.recibo_id)
     else:
         form = AbonoForm(instance=instance, prefix="abono")
@@ -272,6 +281,7 @@ def abono_eliminar(request, pk):
 
     if request.method == "POST":
         instance.delete()
+        messages.success(request, 'Se eliminó el abono.')
         return _cerrar_y_recargar(request, asignacion_pk, recibo_pk)
 
     return render(
@@ -289,6 +299,7 @@ def observacion_nueva(request, recibo_pk):
         form = ObservacionForm(request.POST, instance=Observacion(recibo=recibo), prefix="observacion")
         if form.is_valid():
             form.save()
+            messages.success(request, 'Se registró la observación.')
             return _cerrar_y_recargar(request, recibo.asignacion_id, recibo.pk)
     else:
         form = ObservacionForm(prefix="observacion")
@@ -308,6 +319,7 @@ def observacion_editar(request, pk):
         form = ObservacionForm(request.POST, instance=instance, prefix="observacion")
         if form.is_valid():
             form.save()
+            messages.success(request, 'Se actualizó la observación.')
             return _cerrar_y_recargar(request, instance.recibo.asignacion_id, instance.recibo_id)
     else:
         form = ObservacionForm(instance=instance, prefix="observacion")
@@ -327,6 +339,7 @@ def observacion_eliminar(request, pk):
 
     if request.method == "POST":
         instance.delete()
+        messages.success(request, 'Se eliminó la observación.')
         return _cerrar_y_recargar(request, asignacion_pk, recibo_pk)
 
     return render(
@@ -341,6 +354,7 @@ def observacion_eliminar(request, pk):
 def observacion_toggle(request, pk):
     instance = get_object_or_404(Observacion, pk=pk)
     services.alternar_observacion(instance)
+    messages.success(request, 'Observación marcada como resuelta.' if instance.resuelta else 'Observación reabierta.')
 
     if request.GET.get('origen') == 'detalle':
         return asignacion_detalle(request, instance.recibo.asignacion_id)
@@ -412,7 +426,9 @@ def bono_form(request, pk=None):
     if request.method == "POST":
         form = BonoForm(request.POST, instance=instance)
         if form.is_valid():
-            form.save()
+            bono = form.save()
+            accion = 'registró' if instance is None else 'actualizó'
+            messages.success(request, f'Se {accion} el bono {bono.nombre}.')
             return _tabla_bonos(request)
     else:
         form = BonoForm(instance=instance)
@@ -430,6 +446,7 @@ def bono_eliminar(request, pk):
 
     if request.method == "POST":
         instance.delete()
+        messages.success(request, f'Se eliminó el bono {instance.nombre}.')
         return _tabla_bonos(request)
 
     return render(

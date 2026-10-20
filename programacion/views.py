@@ -1,5 +1,6 @@
 from urllib.parse import urlencode
 
+from django.contrib import messages
 from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseRedirect
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
@@ -229,6 +230,7 @@ def programacion_estado(request, pk):
     form = ProgramacionEstadoForm(request.POST, instance=programacion)
     if programacion.ya_empezo and form.is_valid():
         form.save()
+        messages.success(request, f'Visita a {programacion.escuela.nombre_corto} marcada como «{programacion.get_estado_display()}».')
     respuesta = HttpResponse('<div id="programacion-modal-wrapper"></div>')
     respuesta['HX-Trigger'] = EVENTO_AGENDA
     return respuesta
@@ -291,7 +293,9 @@ def programacion_form(request, pk=None):
         form = ProgramacionForm(request.POST, instance=instance, convocatoria_fija=convocatoria_fija)
         convocatoria_actual = _por_id(Convocatoria, request.POST.get('convocatoria')) or convocatoria_actual
         if form.is_valid():
-            form.save()
+            programacion = form.save()
+            accion = 'programó' if instance is None else 'actualizó'
+            messages.success(request, f'Se {accion} la visita a {programacion.escuela.nombre_corto}.')
             programaciones = None if _desde_calendario(request) else _programaciones_filtradas(request)[1]
             return _respuesta_guardado(request, 'partials/programacion/modal_form_success.html', {
                 'programaciones': programaciones,
@@ -321,6 +325,7 @@ def programacion_eliminar(request, pk):
     instance = get_object_or_404(Programacion, pk=pk)
     if request.method == 'POST':
         instance.delete()
+        messages.success(request, f'Se eliminó la visita a {instance.escuela.nombre_corto}.')
         programaciones = None if _desde_calendario(request) else _programaciones_filtradas(request)[1]
         return _respuesta_guardado(request, 'partials/programacion/modal_form_success.html', {
             'programaciones': programaciones,
@@ -392,7 +397,9 @@ def auxiliar_form(request, pk=None):
     if request.method == "POST":
         form = AuxiliarForm(request.POST, instance=instance)
         if form.is_valid():
-            form.save()
+            auxiliar = form.save()
+            accion = 'registró' if instance is None else 'actualizó'
+            messages.success(request, f'Se {accion} al auxiliar {auxiliar.nombre} {auxiliar.apellido}.')
             _, auxiliares = _filtrar_auxiliares(request)
             return render(
                 request,
@@ -415,6 +422,7 @@ def auxiliar_eliminar(request, pk):
 
     if request.method == "POST":
         instance.delete()
+        messages.success(request, f'Se eliminó al auxiliar {instance.nombre} {instance.apellido}.')
         _, auxiliares = _filtrar_auxiliares(request)
         return render(
             request,
@@ -435,7 +443,14 @@ def horario_form(request, pk=None):
     if request.method == "POST":
         form = HorarioForm(request.POST, instance=instance)
         if form.is_valid():
-            form.save()
+            # Al crear se guarda un horario por cada día elegido (save devuelve la lista).
+            guardados = form.save()
+            auxiliar = form.cleaned_data['auxiliar']
+            if instance is None:
+                dias = len(guardados)
+                messages.success(request, f"Se agregó el horario de {auxiliar.nombre} {auxiliar.apellido} ({dias} día{'s' if dias != 1 else ''}).")
+            else:
+                messages.success(request, f'Se actualizó el horario de {auxiliar.nombre} {auxiliar.apellido}.')
             _, auxiliares = _filtrar_auxiliares(request)
             return render(
                 request,
@@ -459,6 +474,7 @@ def horario_eliminar(request, pk):
     instance = get_object_or_404(Horario, pk=pk)
     if request.method == "POST":
         instance.delete()
+        messages.success(request, f'Se eliminó el horario de {instance.auxiliar.nombre} {instance.auxiliar.apellido}.')
         _, auxiliares = _filtrar_auxiliares(request)
         return render(
             request,
@@ -524,7 +540,9 @@ def ausencia_form(request, pk=None):
             auxiliar_seleccionado = Auxiliar.objects.filter(pk=request.POST.get('auxiliar')).first()
         form = AusenciaForm(request.POST, instance=instance, auxiliar=auxiliar_seleccionado)
         if form.is_valid():
-            form.save()
+            ausencia = form.save()
+            accion = 'registró' if instance is None else 'actualizó'
+            messages.success(request, f'Se {accion} la ausencia de {ausencia.auxiliar.nombre} {ausencia.auxiliar.apellido}.')
             contexto = {'origen_auxiliares': origen_auxiliares}
             if origen_auxiliares:
                 _, auxiliares = _filtrar_auxiliares(request)
@@ -553,6 +571,7 @@ def ausencia_eliminar(request, pk):
     instance = get_object_or_404(Ausencia, pk=pk)
     if request.method == "POST":
         instance.delete()
+        messages.success(request, f'Se eliminó la ausencia de {instance.auxiliar.nombre} {instance.auxiliar.apellido}.')
         origen_auxiliares = request.GET.get('origen') == 'auxiliares'
         contexto = {'origen_auxiliares': origen_auxiliares}
         if origen_auxiliares:
@@ -606,6 +625,8 @@ def convocatoria_form(request, pk=None):
         form = ConvocatoriaForm(request.POST, instance=instance)
         if form.is_valid():
             convocatoria = form.save()
+            accion = 'creó' if instance is None else 'actualizó'
+            messages.success(request, f'Se {accion} la convocatoria {convocatoria.nombre}.')
             if instance is None and _desde_calendario(request):
                 # Recién creada, lo siguiente es asignarle programaciones en su agenda.
                 return _redirigir_htmx(f"{reverse('home_programacion')}?{urlencode({'convocatoria': convocatoria.pk})}")
@@ -634,6 +655,12 @@ ACCIONES_DIA = {
     'quitar': None,
     'no_llego': 'programacion.add_ausencia',
     'si_llego': 'programacion.delete_ausencia',
+}
+MENSAJES_DIA = {
+    'agregar': 'Auxiliar asignado al día.',
+    'quitar': 'Auxiliar quitado del día.',
+    'no_llego': 'Se registró que el auxiliar no llegó.',
+    'si_llego': 'Se quitó la inasistencia del auxiliar.',
 }
 
 
@@ -668,6 +695,8 @@ def convocatoria_dia_auxiliares(request, pk):
         contexto['asignados'], contexto['disponibles'] = del_dia.opciones()
         respuesta = render(request, "partials/agenda/_asignar_auxiliares_lista.html", {**contexto, "error": error})
         if not error:
+            if accion:
+                messages.success(request, MENSAJES_DIA[accion])
             respuesta['HX-Trigger'] = EVENTO_AGENDA
         return respuesta
 
@@ -681,6 +710,7 @@ def convocatoria_eliminar(request, pk):
 
     if request.method == "POST":
         instance.delete()
+        messages.success(request, f'Se eliminó la convocatoria {instance.nombre}.')
         if _origen(request) == "convocatoria":
             # Se estaba dentro de su agenda, que ya no existe.
             return _redirigir_htmx(reverse("home_programacion"))

@@ -1,14 +1,82 @@
-<!-- ===== FLASH MESSAGES ===== -->
-{% if messages %}
-<div class="container mx-auto px-6 pt-4 space-y-2">
-  {% for message in messages %}
-  <div role="alert" class="alert
-    {% if message.tags == 'success' %}alert-success
-    {% elif message.tags == 'error' %}alert-error
-    {% elif message.tags == 'warning' %}alert-warning
-    {% else %}alert-info{% endif %}">
-    <span>{{ message }}</span>
+<!-- ===== AVISOS (toasts) =====
+  Arriba a la derecha, debajo de la barra superior. Se cierran solos (se pausan al pasar
+  el mouse) o con la X. Llegan de tres lados:
+  - messages de Django al cargar la página (ej: después de un HX-Redirect),
+  - el evento htmx "aviso" que arma main.middleware.MensajesHtmxMiddleware,
+  - errores de htmx (403, 404, 500) en htmx:responseError.
+-->
+<div id="avisos" class="pointer-events-none fixed right-4 top-24 z-[60] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2" aria-live="polite"></div>
+
+<template id="aviso-plantilla">
+  <div class="aviso pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-box border border-base-300 bg-base-100 py-3 pl-3 pr-2 shadow-lg transition duration-300 ease-out translate-x-6 opacity-0">
+    <span class="aviso-icono mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full"></span>
+    <p class="aviso-texto flex-1 self-center text-sm leading-snug"></p>
+    <button type="button" class="aviso-cerrar btn btn-ghost btn-xs btn-square text-base-content/50" aria-label="Cerrar aviso">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round" stroke-width="2" fill="none" stroke="currentColor" class="size-4"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+    <span class="aviso-barra absolute bottom-0 left-0 h-0.5 w-full"></span>
   </div>
-  {% endfor %}
-</div>
-{% endif %}
+</template>
+
+<script>
+  (function () {
+    var DURACION = 4500;
+    // Clases completas (no armadas por partes) para que Tailwind las detecte.
+    var ESTILOS = {
+      success: {icono: 'bg-success/15 text-success', barra: 'bg-success', trazo: '<path d="M20 6 9 17l-5-5"/>'},
+      error: {icono: 'bg-error/15 text-error', barra: 'bg-error', trazo: '<circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/>'},
+      warning: {icono: 'bg-warning/15 text-warning', barra: 'bg-warning', trazo: '<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>'},
+      info: {icono: 'bg-info/15 text-info', barra: 'bg-info', trazo: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>'},
+    };
+
+    function cerrar(aviso) {
+      aviso.classList.add('translate-x-6', 'opacity-0');
+      setTimeout(function () { aviso.remove(); }, 300);
+    }
+
+    window.mostrarAviso = function (nivel, texto) {
+      var estilo = ESTILOS[nivel] || ESTILOS.info;
+      var aviso = document.getElementById('aviso-plantilla').content.firstElementChild.cloneNode(true);
+      aviso.setAttribute('role', nivel === 'error' || nivel === 'warning' ? 'alert' : 'status');
+      aviso.querySelector('.aviso-texto').textContent = texto;
+      var icono = aviso.querySelector('.aviso-icono');
+      icono.className += ' ' + estilo.icono;
+      icono.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round" stroke-width="2.25" fill="none" stroke="currentColor" class="size-4">' + estilo.trazo + '</svg>';
+      var barra = aviso.querySelector('.aviso-barra');
+      barra.className += ' ' + estilo.barra;
+      aviso.querySelector('.aviso-cerrar').addEventListener('click', function () { cerrar(aviso); });
+      document.getElementById('avisos').appendChild(aviso);
+
+      // La barra inferior se vacía mientras corre el tiempo; con el mouse encima se pausa.
+      var restante = DURACION, inicio, temporizador;
+      function correr() {
+        inicio = Date.now();
+        barra.style.transition = 'width ' + restante + 'ms linear';
+        barra.style.width = '0%';
+        temporizador = setTimeout(function () { cerrar(aviso); }, restante);
+      }
+      aviso.addEventListener('mouseenter', function () {
+        clearTimeout(temporizador);
+        restante -= Date.now() - inicio;
+        barra.style.transition = 'none';
+        barra.style.width = getComputedStyle(barra).width;
+      });
+      aviso.addEventListener('mouseleave', correr);
+
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          aviso.classList.remove('translate-x-6', 'opacity-0');
+          correr();
+        });
+      });
+    };
+
+    document.body.addEventListener('aviso', function (evt) {
+      (evt.detail.avisos || []).forEach(function (aviso) { mostrarAviso(aviso.nivel, aviso.texto); });
+    });
+
+    {% for message in messages %}
+    mostrarAviso('{{ message.level_tag|escapejs }}', '{{ message|escapejs }}');
+    {% endfor %}
+  })();
+</script>

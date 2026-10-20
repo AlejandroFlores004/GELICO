@@ -1,3 +1,5 @@
+import json
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -7,10 +9,14 @@ from django.urls import reverse
 from django.utils import timezone
 from easyaudit.models import CRUDEvent, LoginEvent
 
-from escuela.models import Distrito, Escuela
+from escuela.models import CDE, Distrito, Escuela
 from liquidacion.models import Asignacion, Bono, Observacion, Recibo
 from liquidacion.services import estado_liquidacion
+from programacion.models import Convocatoria, Programacion
+from . import notificaciones as notificaciones_service
 from . import services
+from .middleware import _leer_disparadores
+from .notificaciones import notificaciones_de
 
 
 class AuditoriaTests(TestCase):
@@ -236,3 +242,187 @@ class PanelInicioServicesTests(TestCase):
             with self.subTest(anio=anio):
                 respuesta = self.client.get(reverse('home'), {'anio': anio})
                 self.assertEqual(respuesta.status_code, 200)
+
+
+class AvisosTests(TestCase):
+    """Mensajes de guardado/eliminado: en htmx viajan en HX-Trigger (evento "aviso")."""
+
+    def setUp(self):
+        self.usuario = get_user_model().objects.create_superuser(username='admin', password='clave-segura-123')
+        self.client.force_login(self.usuario)
+        self.distrito = Distrito.objects.create(nombre='Distrito avisos')
+        self.escuela = Escuela.objects.create(codigo='AVI-1', nombre='Escuela avisos', nombre_corto='Avisos', distrito=self.distrito)
+
+    def _disparadores(self, respuesta):
+        return json.loads(respuesta['HX-Trigger'])
+
+    def test_guardar_por_htmx_manda_el_aviso_en_el_header(self):
+        respuesta = self.client.post(
+            reverse('escuela_toggle', args=[self.escuela.pk]), HTTP_HX_REQUEST='true',
+        )
+
+        disparadores = self._disparadores(respuesta)
+        self.assertEqual(disparadores['aviso'], {'avisos': [{'nivel': 'success', 'texto': 'Se desactivó la escuela Avisos.'}]})
+        self.assertIn('notificaciones-actualizar', disparadores)
+        # Ya se entregó: no vuelve a salir en la siguiente página.
+        self.assertEqual(list(self.client.get(reverse('home')).context['messages']), [])
+
+    def test_conserva_los_eventos_que_ya_mandaba_la_vista(self):
+        convocatoria = Convocatoria.objects.create(
+            nombre='Convocatoria avisos', descripcion='', fecha_inicio=date(2026, 5, 1), fecha_fin=date(2026, 5, 31),
+        )
+        respuesta = self.client.post(
+            reverse('convocatoria_eliminar', args=[convocatoria.pk]), HTTP_HX_REQUEST='true',
+        )
+
+        disparadores = self._disparadores(respuesta)
+        self.assertIn('agenda-actualizada', disparadores)
+        self.assertEqual(disparadores['aviso']['avisos'][0]['texto'], 'Se eliminó la convocatoria Convocatoria avisos.')
+
+    def test_si_la_respuesta_recarga_la_pagina_el_aviso_sale_en_la_pagina_nueva(self):
+        respuesta = self.client.post(reverse('escuela_nueva'), {
+            'escuela-codigo': 'AVI-2', 'escuela-nombre': 'Escuela nueva', 'escuela-nombre_corto': 'Nueva',
+            'escuela-distrito': self.distrito.pk,
+        }, HTTP_HX_REQUEST='true')
+
+        self.assertIn('HX-Redirect', respuesta)
+        self.assertNotIn('HX-Trigger', respuesta)
+        pagina = self.client.get(respuesta['HX-Redirect'])
+        self.assertContains(pagina, "mostrarAviso('success'")
+        self.assertContains(pagina, 'Se registró la escuela Nueva')
+
+    def test_sin_mensajes_no_toca_el_header(self):
+        respuesta = self.client.get(reverse('escuela_buscar'), {'estado': '1'}, HTTP_HX_REQUEST='true')
+        self.assertNotIn('HX-Trigger', respuesta)
+
+    def test_formulario_con_errores_no_avisa(self):
+        respuesta = self.client.post(reverse('escuela_nueva'), {'escuela-codigo': ''}, HTTP_HX_REQUEST='true')
+        self.assertNotIn('HX-Trigger', respuesta)
+
+    def test_leer_disparadores(self):
+        self.assertEqual(_leer_disparadores(None), {})
+        self.assertEqual(_leer_disparadores('uno, dos'), {'uno': None, 'dos': None})
+        self.assertEqual(_leer_disparadores('{"uno": {"a": 1}}'), {'uno': {'a': 1}})
+
+
+class NotificacionesTests(TestCase):
+    def setUp(self):
+        self.hoy = timezone.localdate()
+        self.distrito = Distrito.objects.create(nombre='Distrito notificaciones')
+
+    def _escuela(self, codigo, **extra):
+        return Escuela.objects.create(
+            codigo=codigo, nombre=f'Escuela {codigo}', nombre_corto=f'E{codigo}', distrito=self.distrito, **extra,
+        )
+
+    def _cde(self, escuela, inicio_dias, fin_dias):
+        return CDE.objects.create(
+            escuela=escuela, FechaInicio=self.hoy + timedelta(days=inicio_dias), FechaFin=self.hoy + timedelta(days=fin_dias),
+        )
+
+    def _titulos(self, notificaciones):
+        return [notificacion.titulo for notificacion in notificaciones]
+
+    def test_cde_por_vencer_y_vencido(self):
+        por_vencer = self._escuela('N1')
+        self._cde(por_vencer, -300, 10)
+        vencida = self._escuela('N2')
+        self._cde(vencida, -800, -400)
+        self._cde(vencida, -399, -5)  # el último periodo es el que cuenta
+        al_dia = self._escuela('N3')
+        self._cde(al_dia, -10, 300)
+
+        notificaciones = notificaciones_service.cde_por_vencer_y_vencidos(self.hoy)
+
+        self.assertEqual(self._titulos(notificaciones), [
+            'El CDE de EN1 está por vencer',
+            'El CDE de EN2 está vencido',
+        ])
+        self.assertEqual(notificaciones[0].detalle.split(',')[0], 'Vence en 10 días')
+        self.assertIn('hace 5 días', notificaciones[1].detalle)
+        self.assertEqual(notificaciones[1].url, reverse('escuela_gestionar', args=[vencida.pk]))
+
+    def test_cde_renovado_o_escuela_inactiva_no_avisan(self):
+        renovada = self._escuela('N1')
+        self._cde(renovada, -300, 10)
+        self._cde(renovada, 11, 400)   # ya tiene el siguiente periodo
+        inactiva = self._escuela('N2', estado=False)
+        self._cde(inactiva, -800, -5)
+
+        self.assertEqual(notificaciones_service.cde_por_vencer_y_vencidos(self.hoy), [])
+
+    def test_escuelas_sin_cde_y_sin_encargado_se_agrupan(self):
+        self._escuela('N1')
+        self._escuela('N2')
+        self._escuela('N3', estado=False)
+
+        self.assertEqual(self._titulos(notificaciones_service.escuelas_sin_cde(self.hoy)), [
+            '2 escuelas activas no tienen CDE registrado',
+        ])
+        self.assertEqual(self._titulos(notificaciones_service.escuelas_sin_encargado(self.hoy)), [
+            '2 escuelas activas no tienen encargado activo',
+        ])
+
+    def test_visitas_sin_resultado(self):
+        escuela = self._escuela('N1')
+        convocatoria = Convocatoria.objects.create(
+            nombre='Ronda', descripcion='', fecha_inicio=self.hoy - timedelta(days=60), fecha_fin=self.hoy,
+        )
+
+        def visita(dias, estado='pendiente', jornada='manana'):
+            return Programacion.objects.create(
+                convocatoria=convocatoria, escuela=escuela, jornada=jornada, estado=estado,
+                fecha_programada=self.hoy - timedelta(days=dias),
+            )
+
+        visita(2)
+        visita(2, jornada='tarde')
+        visita(3, estado='completado')
+        visita(45)
+        visita(0)  # hoy todavía no cuenta
+
+        notificaciones = notificaciones_service.visitas_sin_resultado(self.hoy)
+
+        self.assertEqual(len(notificaciones), 2)
+        self.assertTrue(notificaciones[0].titulo.startswith('2 visitas sin resultado del '))
+        self.assertIn('modo=dia', notificaciones[0].url)
+        self.assertEqual(notificaciones[1].titulo, '1 visita antigua sigue pendiente')
+
+    def test_orden_y_permisos(self):
+        escuela = self._escuela('N1')
+        self._cde(escuela, -800, -5)      # urgente (vencido)
+        otra = self._escuela('N2')
+        self._cde(otra, -300, 10)         # por atender
+
+        superusuario = get_user_model().objects.create_superuser(username='root', password='x')
+        niveles = [notificacion.nivel for notificacion in notificaciones_de(superusuario, self.hoy)]
+        self.assertEqual(niveles, sorted(niveles, key=['error', 'warning', 'info'].index))
+        self.assertEqual(niveles[0], 'error')
+
+        sin_permisos = get_user_model().objects.create_user(username='nadie', password='x')
+        self.assertEqual(notificaciones_de(sin_permisos, self.hoy), [])
+
+        solo_escuelas = get_user_model().objects.create_user(username='escuelas', password='x')
+        solo_escuelas.user_permissions.add(Permission.objects.get(codename='view_escuela'))
+        categorias = {n.categoria for n in notificaciones_de(solo_escuelas, self.hoy)}
+        self.assertEqual(categorias, {'Escuelas'})
+
+    def test_campana_y_pagina(self):
+        self._cde(self._escuela('N1'), -800, -5)
+        usuario = get_user_model().objects.create_superuser(username='root', password='x')
+        self.client.force_login(usuario)
+
+        campana = self.client.get(reverse('notificaciones_campana'), HTTP_HX_REQUEST='true')
+        self.assertEqual(campana.context['urgentes'], 1)
+        self.assertContains(campana, 'El CDE de EN1 está vencido')
+
+        pagina = self.client.get(reverse('home_notificaciones'))
+        self.assertEqual(pagina.status_code, 200)
+        self.assertEqual(pagina.context['por_nivel']['error'], 1)
+        self.assertIn('CDE', dict(pagina.context['grupos']))
+
+    def test_sin_pendientes_muestra_todo_al_dia(self):
+        usuario = get_user_model().objects.create_user(username='nadie', password='x')
+        self.client.force_login(usuario)
+        self.assertContains(self.client.get(reverse('notificaciones_campana')), 'Todo al día')
+        self.assertContains(self.client.get(reverse('home_notificaciones')), 'Todo al día')
