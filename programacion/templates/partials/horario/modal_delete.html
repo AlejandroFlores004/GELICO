@@ -12,7 +12,7 @@
                 </div>
             </div>
             <div class="bg-base-200 rounded-lg p-4 mt-5 space-y-2 text-sm">
-                <div class="flex justify-between gap-4"><span class="text-base-content/60">Auxiliar</span><span class="font-medium text-right">{{ instance.auxiliar.nombre }} {{ instance.auxiliar.apellido }}</span></div>
+                <div class="flex justify-between gap-4"><span class="text-base-content/60">Practicante</span><span class="font-medium text-right">{{ instance.persona.nombre }} {{ instance.persona.apellido }}</span></div>
                 <div class="flex justify-between gap-4"><span class="text-base-content/60">Día</span><span class="font-medium text-right">{{ instance.get_dia_display }}</span></div>
                 <div class="flex justify-between gap-4"><span class="text-base-content/60">Jornada</span><span class="font-medium text-right">{{ instance.get_jornada_display }}</span></div>
                 <div class="flex justify-between gap-4"><span class="text-base-content/60">Periodo de labores</span><span class="font-medium text-right">{{ instance.fecha_inicio|date:"d/m/Y" }} al {{ instance.fecha_fin|date:"d/m/Y" }}</span></div>

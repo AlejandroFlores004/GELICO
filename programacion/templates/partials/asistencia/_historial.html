@@ -1,0 +1,22 @@
+<div class="card bg-base-100 shadow-md border border-base-300">
+    <div class="card-body p-4 sm:p-5 gap-3">
+        <form hx-get="{% url 'buscar_asistencias' %}" hx-target="#historial-resultados" hx-swap="outerHTML"
+              hx-indicator="#asistencia-search-spinner" class="space-y-3">
+            <input type="hidden" name="vista" value="historial">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {% for campo in filtro_form %}
+                <div class="form-control w-full">
+                    <label class="label pt-0 pb-1" for="{{ campo.id_for_label }}"><span class="label-text font-medium">{{ campo.label }}</span></label>
+                    {{ campo }}
+                    {% if campo.errors %}<span class="text-error text-xs mt-1">{{ campo.errors.0 }}</span>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="flex justify-end">
+                {% url 'home_asistencia' as asistencia_url %}{% with limpiar=asistencia_url|add:"?vista=historial" %}{% include "partials/base/_filtros_botones.html" with limpiar_url=limpiar spinner_id="asistencia-search-spinner" %}{% endwith %}
+            </div>
+        </form>
+    </div>
+</div>
+
+{% include "partials/asistencia/_historial_resultados.html" %}

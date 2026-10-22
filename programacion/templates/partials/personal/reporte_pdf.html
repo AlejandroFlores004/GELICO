@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <title>Reporte de auxiliares</title>
+    <title>Reporte de personal</title>
     <style>
         @page { size: letter landscape; margin: 1.5cm; }
         body { font-family: sans-serif; color: #222; font-size: 11px; }
@@ -14,27 +14,29 @@
     </style>
 </head>
 <body>
-    <h1>Auxiliares</h1>
+    <h1>Personal</h1>
     <p>Reporte generado el {% now "d/m/Y" %}</p>
     <table>
         <thead>
             <tr>
                 <th>Nombre</th>
+                <th>Tipo</th>
+                <th>Cargo / institución</th>
                 <th>Correo</th>
-                <th>Institución</th>
                 <th>Teléfono</th>
             </tr>
         </thead>
         <tbody>
-            {% for auxiliar in auxiliares %}
+            {% for persona in personas %}
             <tr>
-                <td>{{ auxiliar.nombre }} {{ auxiliar.apellido }}</td>
-                <td>{{ auxiliar.email }}</td>
-                <td>{{ auxiliar.institucion }}</td>
-                <td>{{ auxiliar.telefono|default:"-" }}</td>
+                <td>{{ persona.nombre }} {{ persona.apellido }}</td>
+                <td>{{ persona.get_tipo_display }}</td>
+                <td>{% if persona.es_practicante %}{{ persona.institucion }}{% else %}{{ persona.cargo }}{% endif %}</td>
+                <td>{{ persona.email }}</td>
+                <td>{{ persona.telefono|default:"-" }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="4">No existen registros.</td></tr>
+            <tr><td colspan="5">No existen registros.</td></tr>
             {% endfor %}
         </tbody>
     </table>

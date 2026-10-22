@@ -1,8 +1,8 @@
-{# Auxiliares que cubren un turno: iniciales con su color. Recibe `cubren` (lista de {auxiliar, tono}). #}
+{# Personas que cubren un turno: iniciales con su color. Recibe `cubren` (lista de {persona, tono}). #}
 {% if cubren %}
-<div class="flex flex-wrap items-center gap-0.5" title="La cubren: {% for item in cubren %}{{ item.auxiliar.nombre }} {{ item.auxiliar.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+<div class="flex flex-wrap items-center gap-0.5" title="La cubren: {% for item in cubren %}{{ item.persona.nombre }} {{ item.persona.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}">
     {% for item in cubren %}
-    <span class="flex size-5 items-center justify-center rounded-full text-[9px] font-bold text-white {{ item.tono.punto }}" aria-label="{{ item.auxiliar.nombre }} {{ item.auxiliar.apellido }}">{{ item.auxiliar.nombre|first|upper }}{{ item.auxiliar.apellido|first|upper }}</span>
+    <span class="flex size-5 items-center justify-center rounded-full text-[9px] font-bold text-white {{ item.tono.punto }}" aria-label="{{ item.persona.nombre }} {{ item.persona.apellido }}">{{ item.persona.nombre|first|upper }}{{ item.persona.apellido|first|upper }}</span>
     {% endfor %}
 </div>
 {% endif %}

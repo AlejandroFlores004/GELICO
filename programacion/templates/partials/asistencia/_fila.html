@@ -1,0 +1,49 @@
+{# Un practicante en el pase de lista. Recibe `fila` ({persona, jornadas, asistencia, convocatorias}). #}
+{% with asistencia=fila.asistencia persona=fila.persona %}
+<li class="px-3 py-3 sm:px-4">
+    <form class="flex flex-col gap-3 lg:flex-row lg:items-center"
+          hx-post="{% url 'asistencia_registrar' %}" hx-target="#pase-de-lista" hx-swap="outerHTML">
+        <input type="hidden" name="persona" value="{{ persona.pk }}">
+        <input type="hidden" name="fecha" value="{{ fecha|date:'Y-m-d' }}">
+
+        <div class="min-w-0 flex-1">
+            <p class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span class="font-medium">{{ persona.nombre }} {{ persona.apellido }}</span>
+                {% for jornada in fila.jornadas %}<span class="badge badge-primary badge-soft badge-xs whitespace-nowrap">{{ jornada }}</span>{% endfor %}
+                {% if not asistencia %}<span class="badge badge-ghost badge-xs">Sin registrar</span>{% endif %}
+            </p>
+            <p class="truncate text-xs text-base-content/60">
+                {{ persona.institucion }}{% for convocatoria in fila.convocatorias %} · Asignado en {{ convocatoria.nombre }}{% endfor %}
+            </p>
+        </div>
+
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div class="join" role="group" aria-label="Asistencia de {{ persona.nombre }} {{ persona.apellido }}">
+                {% for valor, etiqueta in estados %}
+                <button type="submit" name="estado" value="{{ valor }}" aria-pressed="{% if asistencia.estado == valor %}true{% else %}false{% endif %}"
+                        class="join-item btn btn-sm
+                        {% if asistencia.estado == valor %}{% if valor == 'presente' %}btn-success{% elif valor == 'tarde' %}btn-warning{% elif valor == 'ausente' %}btn-error{% else %}btn-info{% endif %}{% else %}btn-outline border-base-300 font-normal text-base-content/70{% endif %}"
+                        {% if not puede_registrar or es_futuro and valor != 'justificado' %}disabled{% endif %}>
+                    {% if valor == 'tarde' %}Tarde{% else %}{{ etiqueta }}{% endif %}
+                </button>
+                {% endfor %}
+            </div>
+            <input type="text" name="observacion" value="{{ asistencia.observacion|default:'' }}" maxlength="500"
+                   class="input input-bordered input-sm w-full sm:w-52" placeholder="Observación (opcional)"
+                   aria-label="Observación de {{ persona.nombre }} {{ persona.apellido }}"
+                   {% if not puede_registrar %}disabled{% endif %}
+                   onkeydown="if (event.key === 'Enter') { event.preventDefault(); this.blur(); }"
+                   {% if asistencia %}hx-post="{% url 'asistencia_registrar' %}" hx-trigger="change" hx-target="#pase-de-lista" hx-swap="outerHTML"
+                   hx-vals='{"estado": "{{ asistencia.estado }}"}'{% endif %}>
+            {% if asistencia and perms.programacion.delete_asistencia %}
+            <button type="button" class="btn btn-ghost btn-sm btn-square text-base-content/50" title="Quitar el registro (dejar sin registrar)"
+                    aria-label="Quitar el registro de {{ persona.nombre }} {{ persona.apellido }}"
+                    hx-post="{% url 'asistencia_quitar' %}" hx-vals='{"persona": "{{ persona.pk }}", "fecha": "{{ fecha|date:'Y-m-d' }}"}'
+                    hx-target="#pase-de-lista" hx-swap="outerHTML">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round" stroke-width="2" fill="none" stroke="currentColor" class="size-4"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+            </button>
+            {% endif %}
+        </div>
+    </form>
+</li>
+{% endwith %}

@@ -57,11 +57,11 @@
         <p class="py-4 text-center text-sm text-base-content/50">No hay visitas programadas para hoy.</p>
         {% endif %}
 
-        {% if ausencias_hoy %}
+        {% if ausentes_hoy %}
         <div class="alert alert-warning alert-soft text-sm py-2">
             <span>
-                Ausente{{ ausencias_hoy|length|pluralize }} hoy:
-                {% for ausencia in ausencias_hoy %}{{ ausencia.auxiliar.nombre }} {{ ausencia.auxiliar.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                No trabajan hoy:
+                {% for asistencia in ausentes_hoy %}{{ asistencia.persona.nombre }} {{ asistencia.persona.apellido }} ({{ asistencia.get_estado_display|lower }}){% if not forloop.last %}, {% endif %}{% endfor %}
             </span>
         </div>
         {% endif %}

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <title>Reporte de asistencia</title>
+    <style>
+        @page { size: letter landscape; margin: 1.5cm; }
+        body { font-family: sans-serif; color: #222; font-size: 11px; }
+        h1 { margin: 0 0 4px; font-size: 22px; }
+        h2 { margin: 22px 0 8px; font-size: 15px; }
+        p { color: #666; margin: 0 0 6px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #eeeeee; text-align: left; }
+        th, td { border: 1px solid #cccccc; padding: 6px 8px; }
+        .num { text-align: right; }
+    </style>
+</head>
+<body>
+    <h1>Asistencia de practicantes</h1>
+    <p>
+        {% if filtros.persona %}{{ filtros.persona.nombre }} {{ filtros.persona.apellido }} · {% endif %}
+        {% if filtros.desde or filtros.hasta %}Del {{ filtros.desde|date:"d/m/Y"|default:"inicio" }} al {{ filtros.hasta|date:"d/m/Y"|default:"hoy" }} · {% endif %}
+        Generado el {{ fecha_impresion|date:"d/m/Y H:i" }}
+    </p>
+
+    <h2>Resumen por practicante</h2>
+    <table>
+        <thead><tr><th>Practicante</th><th class="num">Presente</th><th class="num">Tarde</th><th class="num">Ausente</th><th class="num">Justificado</th><th class="num">% asistencia</th></tr></thead>
+        <tbody>
+            {% for fila in por_practicante %}
+            <tr>
+                <td>{{ fila.persona.nombre }} {{ fila.persona.apellido }}</td>
+                <td class="num">{{ fila.presente }}</td>
+                <td class="num">{{ fila.tarde }}</td>
+                <td class="num">{{ fila.ausente }}</td>
+                <td class="num">{{ fila.justificado }}</td>
+                <td class="num">{% if fila.porcentaje is None %}—{% else %}{{ fila.porcentaje }}%{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">No hay asistencias registradas.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Detalle</h2>
+    <table>
+        <thead><tr><th>Fecha</th><th>Practicante</th><th>Estado</th><th>Observación</th></tr></thead>
+        <tbody>
+            {% for asistencia in asistencias %}
+            <tr>
+                <td>{{ asistencia.fecha|date:"D d/m/Y" }}</td>
+                <td>{{ asistencia.persona.nombre }} {{ asistencia.persona.apellido }}</td>
+                <td>{{ asistencia.get_estado_display }}</td>
+                <td>{{ asistencia.observacion|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4">No hay asistencias registradas.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

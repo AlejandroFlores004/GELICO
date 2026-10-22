@@ -1,11 +1,11 @@
 from django.contrib import admin
-from .models import Convocatoria, ConvocatoriaAuxiliar, Auxiliar, Programacion, Horario, Ausencia
+from .models import Asistencia, Convocatoria, ConvocatoriaPersonal, Personal, Programacion, Horario
 
 
-class ConvocatoriaAuxiliarInline(admin.TabularInline):
-    model = ConvocatoriaAuxiliar
+class ConvocatoriaPersonalInline(admin.TabularInline):
+    model = ConvocatoriaPersonal
     extra = 0
-    autocomplete_fields = ('auxiliar',)
+    autocomplete_fields = ('persona',)
 
 
 @admin.register(Convocatoria)
@@ -13,7 +13,7 @@ class ConvocatoriaAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'fecha_inicio', 'fecha_fin')
     search_fields = ('nombre', 'descripcion')
     ordering = ('fecha_inicio',)
-    inlines = (ConvocatoriaAuxiliarInline,)
+    inlines = (ConvocatoriaPersonalInline,)
     fieldsets = (
         ('Información básica', {
             'fields': ('nombre', 'descripcion', 'fecha_inicio', 'fecha_fin')
@@ -21,14 +21,18 @@ class ConvocatoriaAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(Auxiliar)
-class AuxiliarAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'apellido', 'email', 'telefono', 'institucion')
-    search_fields = ('nombre', 'apellido', 'email', 'institucion')
+@admin.register(Personal)
+class PersonalAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'apellido', 'tipo', 'cargo', 'institucion', 'email', 'telefono')
+    list_filter = ('tipo',)
+    search_fields = ('nombre', 'apellido', 'email', 'cargo', 'institucion')
     ordering = ('apellido', 'nombre')
     fieldsets = (
         ('Información personal', {
-            'fields': ('nombre', 'apellido', 'email', 'telefono', 'institucion')
+            'fields': ('tipo', 'nombre', 'apellido', 'email', 'telefono')
+        }),
+        ('Planta / práctica', {
+            'fields': ('cargo', 'institucion')
         }),
     )
 
@@ -48,13 +52,13 @@ class ProgramacionAdmin(admin.ModelAdmin):
 
 @admin.register(Horario)
 class HorarioAdmin(admin.ModelAdmin):
-    list_display = ('auxiliar', 'dia', 'jornada', 'fecha_inicio', 'fecha_fin')
-    list_filter = ('dia', 'auxiliar')
-    search_fields = ('auxiliar__nombre', 'auxiliar__apellido')
-    ordering = ('auxiliar', 'dia')
+    list_display = ('persona', 'dia', 'jornada', 'fecha_inicio', 'fecha_fin')
+    list_filter = ('dia', 'persona')
+    search_fields = ('persona__nombre', 'persona__apellido')
+    ordering = ('persona', 'dia')
     fieldsets = (
         ('Información básica', {
-            'fields': ('auxiliar', 'dia', 'jornada')
+            'fields': ('persona', 'dia', 'jornada')
         }),
         ('Periodo de labores', {
             'fields': ('fecha_inicio', 'fecha_fin')
@@ -62,14 +66,15 @@ class HorarioAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(Ausencia)
-class AusenciaAdmin(admin.ModelAdmin):
-    list_display = ('auxiliar', 'fecha', 'motivo')
-    list_filter = ('fecha', 'auxiliar')
-    search_fields = ('auxiliar__nombre', 'auxiliar__apellido', 'motivo')
+@admin.register(Asistencia)
+class AsistenciaAdmin(admin.ModelAdmin):
+    list_display = ('persona', 'fecha', 'estado', 'observacion')
+    list_filter = ('estado', 'fecha')
+    search_fields = ('persona__nombre', 'persona__apellido', 'observacion')
+    autocomplete_fields = ('persona',)
     ordering = ('-fecha',)
     fieldsets = (
         ('Información básica', {
-            'fields': ('auxiliar', 'fecha', 'motivo')
+            'fields': ('persona', 'fecha', 'estado', 'observacion')
         }),
     )

@@ -31,7 +31,7 @@
                 <div class="rounded-lg p-3 {% if cubierta %}bg-base-200/60{% else %}bg-warning/10{% endif %}">
                     <dt class="text-xs text-base-content/60">La cubren</dt>
                     <dd class="font-semibold">
-                        {% for auxiliar in cubren %}{{ auxiliar.nombre }} {{ auxiliar.apellido }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-warning">Nadie</span>{% endfor %}
+                        {% for persona in cubren %}{{ persona.nombre }} {{ persona.apellido }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-warning">Nadie</span>{% endfor %}
                         {% if cubren and not cubierta %}<span class="block text-xs font-medium text-warning">Cobertura parcial</span>{% endif %}
                     </dd>
                 </div>

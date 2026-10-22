@@ -1,0 +1,92 @@
+{% comment %}
+  Pase de lista de un día. Cada botón de estado guarda al momento y vuelve a pintar este bloque
+  (con el aviso de guardado arriba a la derecha). Los días futuros solo admiten "Justificado" (permisos).
+{% endcomment %}
+{% with puede_registrar=perms.programacion.add_asistencia %}
+<section id="pase-de-lista" class="card bg-base-100 shadow-xl border border-base-300">
+    <div class="card-body gap-4 p-4 sm:p-6">
+
+        <!-- Día -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-1">
+                <button type="button" class="btn btn-ghost btn-sm btn-square" aria-label="Día anterior"
+                        hx-get="{% url 'asistencia_dia' %}?fecha={{ anterior|date:'Y-m-d' }}" hx-target="#pase-de-lista" hx-swap="outerHTML"
+                        hx-push-url="{% url 'home_asistencia' %}?fecha={{ anterior|date:'Y-m-d' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round" stroke-width="2" fill="none" stroke="currentColor" class="size-4"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <div class="px-1">
+                    <h2 class="text-lg font-semibold leading-tight">{{ fecha|date:"l j \d\e F"|capfirst }}</h2>
+                    <p class="text-xs text-base-content/60">{% if fecha == hoy %}Hoy{% elif es_futuro %}Día futuro{% else %}{{ fecha|date:"Y" }}{% endif %}</p>
+                </div>
+                <button type="button" class="btn btn-ghost btn-sm btn-square" aria-label="Día siguiente"
+                        hx-get="{% url 'asistencia_dia' %}?fecha={{ siguiente|date:'Y-m-d' }}" hx-target="#pase-de-lista" hx-swap="outerHTML"
+                        hx-push-url="{% url 'home_asistencia' %}?fecha={{ siguiente|date:'Y-m-d' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round" stroke-width="2" fill="none" stroke="currentColor" class="size-4"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+            </div>
+            <div class="flex items-center gap-2">
+                {% if fecha != hoy %}
+                <button type="button" class="btn btn-ghost btn-sm"
+                        hx-get="{% url 'asistencia_dia' %}?fecha={{ hoy|date:'Y-m-d' }}" hx-target="#pase-de-lista" hx-swap="outerHTML"
+                        hx-push-url="{% url 'home_asistencia' %}">Hoy</button>
+                {% endif %}
+                <input type="date" name="fecha" value="{{ fecha|date:'Y-m-d' }}" class="input input-bordered input-sm w-40" aria-label="Ir a otra fecha"
+                       hx-get="{% url 'asistencia_dia' %}" hx-trigger="change" hx-target="#pase-de-lista" hx-swap="outerHTML">
+            </div>
+        </div>
+
+        {% if error %}
+        <div role="alert" class="alert alert-error alert-soft text-sm">{{ error }}</div>
+        {% endif %}
+
+        {% if filas %}
+        <!-- Resumen -->
+        <div class="rounded-box border border-base-300 p-3 sm:p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <p class="text-sm">
+                    <span class="font-semibold tabular-nums">{{ resumen.registrados }} de {{ resumen.total }}</span>
+                    <span class="text-base-content/60">practicante{{ resumen.total|pluralize }} con asistencia registrada</span>
+                </p>
+                {% if resumen.pendientes and not es_futuro and puede_registrar %}
+                <button type="button" class="btn btn-success btn-soft btn-sm gap-2"
+                        hx-post="{% url 'asistencia_todos_presentes' %}" hx-vals='{"fecha": "{{ fecha|date:'Y-m-d' }}"}'
+                        hx-target="#pase-de-lista" hx-swap="outerHTML">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round" stroke-width="2.25" fill="none" stroke="currentColor" class="size-4"><path d="M20 6 9 17l-5-5"/></svg>
+                    Marcar {{ resumen.pendientes }} pendiente{{ resumen.pendientes|pluralize }} como presente{{ resumen.pendientes|pluralize }}
+                </button>
+                {% endif %}
+            </div>
+            <progress class="progress {% if resumen.pendientes %}progress-primary{% else %}progress-success{% endif %} w-full" value="{{ resumen.registrados }}" max="{{ resumen.total }}"></progress>
+            <div class="flex flex-wrap gap-2 text-xs">
+                <span class="badge badge-success badge-soft gap-1">Presentes <b class="tabular-nums">{{ resumen.presente }}</b></span>
+                <span class="badge badge-warning badge-soft gap-1">Tarde <b class="tabular-nums">{{ resumen.tarde }}</b></span>
+                <span class="badge badge-error badge-soft gap-1">Ausentes <b class="tabular-nums">{{ resumen.ausente }}</b></span>
+                <span class="badge badge-info badge-soft gap-1">Justificados <b class="tabular-nums">{{ resumen.justificado }}</b></span>
+                {% if resumen.pendientes %}<span class="badge badge-ghost gap-1">Sin registrar <b class="tabular-nums">{{ resumen.pendientes }}</b></span>{% endif %}
+            </div>
+        </div>
+
+        {% if es_futuro %}
+        <div role="status" class="alert alert-info alert-soft text-sm">
+            <span>Este día aún no llega: solo puedes registrar <b>permisos</b> (ausencia justificada). La asistencia se toma desde ese día.</span>
+        </div>
+        {% endif %}
+
+        <!-- Practicantes del día -->
+        <ul class="divide-y divide-base-200 rounded-box border border-base-300">
+            {% for fila in filas %}
+                {% include "partials/asistencia/_fila.html" %}
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="flex flex-col items-center gap-2 py-10 text-center">
+            <span class="flex size-12 items-center justify-center rounded-full bg-base-200 text-base-content/50">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round" stroke-width="2" fill="none" stroke="currentColor" class="size-6"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            </span>
+            <p class="font-medium">Ningún practicante trabaja este día</p>
+            <p class="text-sm text-base-content/60">Según los horarios registrados en <a href="{% url 'home_personal' %}?tipo=practicante" class="link">Personal</a>, nadie tiene horario el {{ fecha|date:"l" }}.</p>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endwith %}

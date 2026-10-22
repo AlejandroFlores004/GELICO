@@ -1,21 +1,39 @@
-<div id="auxiliar-modal-wrapper">
-    <dialog id="auxiliar-modal" class="modal">
+<div id="persona-modal-wrapper">
+    <dialog id="persona-modal" class="modal">
         <div class="modal-box max-w-3xl rounded-2xl border border-base-300 shadow-2xl">
             <form method="dialog">
                 <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
             </form>
 
             <h3 class="font-bold text-xl">
-                {% if instance %}Editar Auxiliar{% else %}Agregar Auxiliar{% endif %}
+                {% if instance %}Editar persona{% else %}Agregar persona{% endif %}
             </h3>
 
             <form
-                hx-post="{% if instance %}{% url 'auxiliar_editar' instance.pk %}{% else %}{% url 'auxiliar_nuevo' %}{% endif %}{% querystring %}"
-                hx-target="#auxiliar-modal-wrapper"
+                hx-post="{% if instance %}{% url 'persona_editar' instance.pk %}{% else %}{% url 'persona_nuevo' %}{% endif %}{% querystring %}"
+                hx-target="#persona-modal-wrapper"
                 hx-swap="outerHTML"
                 class="space-y-4 mt-4"
             >
                 {% csrf_token %}
+
+                <fieldset class="form-control w-full">
+                    <legend class="label"><span class="label-text font-medium">Tipo</span></legend>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {% for opcion in form.tipo %}
+                        <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-base-300 p-3 has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                            {{ opcion.tag }}
+                            <span>
+                                <span class="block font-medium">{{ opcion.choice_label }}</span>
+                                <span class="block text-xs text-base-content/60">
+                                    {% if opcion.data.value == 'planta' %}Trabajador de la institución (contador, técnico...). Sin horario fijo ni asistencia.{% else %}Joven en prácticas. Tiene horario semanal y se le toma asistencia.{% endif %}
+                                </span>
+                            </span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% if form.tipo.errors %}<span class="text-error text-xs mt-1">{{ form.tipo.errors.0 }}</span>{% endif %}
+                </fieldset>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="form-control w-full">
@@ -46,23 +64,32 @@
 
                     <div class="form-control w-full">
                         <label class="label" for="{{ form.telefono.id_for_label }}">
-                            <span class="label-text font-medium">Telefono</span>
+                            <span class="label-text font-medium">Teléfono</span>
                         </label>
                         {{ form.telefono }}
                         {% if form.telefono.errors %}<span class="text-error text-xs mt-1">{{ form.telefono.errors.0 }}</span>{% endif %}
                     </div>
                 </div>
 
-                <div class="form-control w-full">
+                <div class="form-control w-full" data-solo-tipo="planta">
+                    <label class="label" for="{{ form.cargo.id_for_label }}">
+                        <span class="label-text font-medium">Cargo</span>
+                    </label>
+                    {{ form.cargo }}
+                    <datalist id="cargos-existentes">{% for cargo in cargos %}<option value="{{ cargo }}">{% endfor %}</datalist>
+                    {% if form.cargo.errors %}<span class="text-error text-xs mt-1">{{ form.cargo.errors.0 }}</span>{% endif %}
+                </div>
+
+                <div class="form-control w-full" data-solo-tipo="practicante">
                     <label class="label" for="{{ form.institucion.id_for_label }}">
-                        <span class="label-text font-medium">Institucion</span>
+                        <span class="label-text font-medium">Institución</span>
                     </label>
                     {{ form.institucion }}
                     {% if form.institucion.errors %}<span class="text-error text-xs mt-1">{{ form.institucion.errors.0 }}</span>{% endif %}
                 </div>
 
                 <div class="modal-action">
-                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('auxiliar-modal').close()">Cancelar</button>
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('persona-modal').close()">Cancelar</button>
                     <button type="submit" class="btn btn-primary">Guardar</button>
                 </div>
             </form>
@@ -74,10 +101,23 @@
 
     <script>
         (function () {
-            var wrapper = document.currentScript.closest('#auxiliar-modal-wrapper');
-            var dialog = wrapper.querySelector('#auxiliar-modal');
+            var wrapper = document.currentScript.closest('#persona-modal-wrapper');
+            var dialog = wrapper.querySelector('#persona-modal');
             var telefono = wrapper.querySelector('#{{ form.telefono.id_for_label }}');
             dialog.showModal();
+
+            // Cargo solo para planta; institución solo para practicantes.
+            function mostrarSegunTipo() {
+                var elegido = wrapper.querySelector('input[name="tipo"]:checked');
+                wrapper.querySelectorAll('[data-solo-tipo]').forEach(function (campo) {
+                    campo.classList.toggle('hidden', !elegido || campo.dataset.soloTipo !== elegido.value);
+                });
+            }
+            wrapper.querySelectorAll('input[name="tipo"]').forEach(function (radio) {
+                radio.classList.add('radio', 'radio-primary', 'radio-sm', 'mt-0.5');
+                radio.addEventListener('change', mostrarSegunTipo);
+            });
+            mostrarSegunTipo();
 
             if (telefono) {
                 telefono.addEventListener('input', function () {

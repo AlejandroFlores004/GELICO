@@ -4,8 +4,8 @@ No se guardan en la base de datos: se calculan cada vez, así que desaparecen so
 cuando se resuelve lo que las provoca (ej: al registrar el CDE nuevo de la escuela).
 
 Cada fuente es una función que recibe la fecha de hoy y devuelve una lista de
-Notificacion. Para agregar una nueva (ej: asistencia de auxiliares sin registrar),
-se escribe la función y se agrega a FUENTES con el permiso que exige.
+Notificacion. Para agregar una nueva, se escribe la función y se agrega a FUENTES
+con el permiso que exige.
 """
 from dataclasses import dataclass
 from datetime import timedelta
@@ -19,9 +19,12 @@ from django.utils.formats import date_format
 from escuela.models import CDE, Escuela
 from escuela.services import DIAS_POR_VENCER, anotar_vigencia
 from programacion.models import Programacion
+from programacion.services import dias_sin_pase_de_lista
 
 # Orden de importancia: lo urgente primero.
 NIVELES = ('error', 'warning', 'info')
+# Días hacia atrás en que se revisa si quedó asistencia sin registrar.
+DIAS_ASISTENCIA = 14
 # Días hacia atrás en que se avisa de cada día con visitas sin resultado; lo anterior se agrupa.
 DIAS_VISITAS_RECIENTES = 30
 FORMATO_FECHA = 'j \\d\\e F \\d\\e Y'
@@ -146,12 +149,40 @@ def visitas_sin_resultado(hoy):
     return notificaciones
 
 
+def asistencia_sin_registrar(hoy):
+    """Días en que algún practicante trabajaba según su horario y no se le tomó asistencia."""
+    notificaciones = []
+    for fecha, pendientes in dias_sin_pase_de_lista(hoy, DIAS_ASISTENCIA):
+        practicantes = _plural(pendientes, 'practicante', 'practicantes')
+        url = f"{reverse('home_asistencia')}?{urlencode({'fecha': fecha.isoformat()})}"
+        if fecha == hoy:
+            notificaciones.append(Notificacion(
+                categoria='Asistencia',
+                nivel='info',
+                titulo='Falta pasar lista de hoy',
+                detalle=f'{practicantes} sin asistencia registrada.',
+                url=url,
+                urgencia=1,
+            ))
+        else:
+            notificaciones.append(Notificacion(
+                categoria='Asistencia',
+                nivel='warning',
+                titulo=f'No registraste la asistencia del {date_format(fecha, FORMATO_DIA)}',
+                detalle=f'{practicantes} sin registro ese día.',
+                url=url,
+                urgencia=-(hoy - fecha).days,
+            ))
+    return notificaciones
+
+
 # (permiso que exige, fuente). Cada usuario solo ve las de los módulos que puede ver.
 FUENTES = [
     ('escuela.view_cde', cde_por_vencer_y_vencidos),
     ('escuela.view_cde', escuelas_sin_cde),
     ('escuela.view_escuela', escuelas_sin_encargado),
     ('programacion.view_programacion', visitas_sin_resultado),
+    ('programacion.add_asistencia', asistencia_sin_registrar),
 ]
 
 

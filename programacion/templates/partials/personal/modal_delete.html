@@ -1,5 +1,5 @@
-<div id="auxiliar-modal-wrapper">
-    <dialog id="auxiliar-modal" class="modal">
+<div id="persona-modal-wrapper">
+    <dialog id="persona-modal" class="modal">
         <div class="modal-box">
             <form method="dialog">
                 <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
@@ -12,9 +12,9 @@
                     </svg>
                 </div>
                 <div>
-                    <h3 class="font-bold text-lg">Eliminar Auxiliar</h3>
+                    <h3 class="font-bold text-lg">Eliminar persona</h3>
                     <p class="text-base-content/70 text-sm mt-1">
-                        Esta acción no se puede deshacer. El auxiliar se eliminará de forma permanente.
+                        Esta acción no se puede deshacer. La persona se eliminará de forma permanente.
                     </p>
                 </div>
             </div>
@@ -29,19 +29,19 @@
                     <span class="font-medium text-right">{{ instance.email }}</span>
                 </div>
                 <div class="flex justify-between gap-4">
-                    <span class="text-base-content/60">Institución</span>
-                    <span class="font-medium text-right">{{ instance.institucion }}</span>
+                    <span class="text-base-content/60">{% if instance.es_practicante %}Institución{% else %}Cargo{% endif %}</span>
+                    <span class="font-medium text-right">{% if instance.es_practicante %}{{ instance.institucion }}{% else %}{{ instance.cargo }}{% endif %}</span>
                 </div>
             </div>
 
             <form
-                hx-post="{% url 'auxiliar_eliminar' instance.pk %}{% querystring %}"
-                hx-target="#auxiliar-modal-wrapper"
+                hx-post="{% url 'persona_eliminar' instance.pk %}{% querystring %}"
+                hx-target="#persona-modal-wrapper"
                 hx-swap="outerHTML"
             >
                 {% csrf_token %}
                 <div class="modal-action">
-                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('auxiliar-modal').close()">Cancelar</button>
+                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('persona-modal').close()">Cancelar</button>
                     <button type="submit" class="btn btn-error">Borrar</button>
                 </div>
             </form>
@@ -53,8 +53,8 @@
 
     <script>
         (function () {
-            var wrapper = document.currentScript.closest('#auxiliar-modal-wrapper');
-            var dialog = wrapper.querySelector('#auxiliar-modal');
+            var wrapper = document.currentScript.closest('#persona-modal-wrapper');
+            var dialog = wrapper.querySelector('#persona-modal');
             dialog.showModal();
 
             dialog.addEventListener('close', function () {

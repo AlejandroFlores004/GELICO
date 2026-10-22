@@ -1,6 +1,6 @@
 {% comment %}
   Semana o día: una fila por turno (mañana y tarde) y una columna por día. Cada celda muestra
-  las visitas de ese turno y qué auxiliares de la convocatoria lo cubren según su horario.
+  las visitas de ese turno y qué personas de la convocatoria lo cubren (practicantes según su horario; planta, el día completo).
   Una visita de todo el día aparece en las dos filas.
 {% endcomment %}
 <div class="overflow-x-auto">
@@ -70,7 +70,7 @@
                             class="flex cursor-pointer items-center justify-center gap-0.5 border border-dashed transition hover:border-primary hover:bg-primary/5 hover:text-primary focus-visible:outline-2 focus-visible:outline-primary
                                 {% if celda.cubren %}border-primary/40 text-primary/70{% else %}border-base-300 text-base-content/40{% endif %}
                                 {% if celda.programaciones %}w-full rounded-md py-1 text-xs font-medium{% else %}h-full w-full flex-col rounded-lg{% endif %}"
-                            title="Asignar una visita en la jornada de la {{ fila.etiqueta|lower }} · {% if celda.cubren %}La cubren: {% for aux in celda.cubren %}{{ aux.nombre }} {{ aux.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}ningún auxiliar asignado a este día trabaja esta jornada{% endif %}"
+                            title="Asignar una visita en la jornada de la {{ fila.etiqueta|lower }} · {% if celda.cubren %}La cubren: {% for aux in celda.cubren %}{{ aux.nombre }} {{ aux.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}ninguna persona asignada a este día trabaja esta jornada{% endif %}"
                             aria-label="Asignar una visita el {{ celda.fecha|date:'l j \d\e F' }} en la jornada de la {{ fila.etiqueta|lower }}"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="{% if celda.programaciones %}w-3.5 h-3.5{% else %}w-5 h-5{% endif %}" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>

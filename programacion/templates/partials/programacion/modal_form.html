@@ -100,7 +100,7 @@
                     try { $el.select2('destroy'); } catch (ignored) { /* aún no inicializado */ }
                     $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
                     if (el.id === 'id_convocatoria') {
-                        // Los auxiliares que cubren dependen de la convocatoria.
+                        // Las personas que cubren dependen de la convocatoria.
                         $el.on('select2:select select2:clear', refrescarCobertura);
                     }
                 } catch (err) {

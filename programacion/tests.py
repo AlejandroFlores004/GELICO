@@ -1,3 +1,4 @@
+import json
 from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
@@ -9,9 +10,9 @@ from django.utils import timezone
 
 from escuela.models import Distrito, Escuela
 from . import services
-from .agenda import agenda_de_convocatoria, auxiliares_asignados, convocatoria_por_defecto, tonos_por_auxiliar
-from .forms import AuxiliaresDelDia, ProgramacionForm
-from .models import Auxiliar, Ausencia, Convocatoria, ConvocatoriaAuxiliar, Horario, Programacion
+from .agenda import agenda_de_convocatoria, personal_asignado, convocatoria_por_defecto, tonos_por_persona
+from .forms import HorarioForm, PersonalDelDia, ProgramacionForm
+from .models import Asistencia, Personal, Convocatoria, ConvocatoriaPersonal, Horario, Programacion
 
 
 class ProgramacionFormTests(TestCase):
@@ -34,9 +35,9 @@ class ProgramacionFormTests(TestCase):
 			**extra,
 		})
 
-	def test_ya_no_tiene_campo_de_auxiliar(self):
+	def test_ya_no_tiene_campo_de_persona(self):
 		form = self._formulario('manana')
-		self.assertNotIn('auxiliar', form.fields)
+		self.assertNotIn('persona', form.fields)
 		self.assertTrue(form.is_valid(), form.errors)
 
 	def test_rechaza_fecha_fuera_de_la_convocatoria(self):
@@ -75,28 +76,28 @@ class AgendaBase(TestCase):
 			nombre='Convocatoria agenda', descripcion='',
 			fecha_inicio=self.dia - timedelta(days=10), fecha_fin=self.dia + timedelta(days=10),
 		)
-		self.auxiliar = self._auxiliar('Luis', 'Gómez', 'manana')
-		self._asignar(self.auxiliar)
+		self.persona = self._persona('Luis', 'Gómez', 'manana')
+		self._asignar(self.persona)
 
-	def _auxiliar(self, nombre, apellido, jornada):
-		"""Auxiliar con horario solo el día de prueba, en la jornada dada."""
-		auxiliar = Auxiliar.objects.create(
+	def _persona(self, nombre, apellido, jornada):
+		"""Personal con horario solo el día de prueba, en la jornada dada."""
+		persona = Personal.objects.create(
 			nombre=nombre, apellido=apellido, email=f'{nombre.lower()}.agenda@example.com', institucion='UES',
 		)
-		Horario.objects.create(auxiliar=auxiliar, dia=self.dia.isoweekday(), fecha_inicio=self.dia, fecha_fin=self.dia, jornada=jornada)
-		return auxiliar
+		Horario.objects.create(persona=persona, dia=self.dia.isoweekday(), fecha_inicio=self.dia, fecha_fin=self.dia, jornada=jornada)
+		return persona
 
-	def _asignar(self, auxiliar, fecha=None):
-		return ConvocatoriaAuxiliar.objects.create(convocatoria=self.convocatoria, auxiliar=auxiliar, fecha=fecha or self.dia)
+	def _asignar(self, persona, fecha=None):
+		return ConvocatoriaPersonal.objects.create(convocatoria=self.convocatoria, persona=persona, fecha=fecha or self.dia)
 
 	def _celda(self, calendario, turno):
 		fila = next(fila for fila in calendario['filas'] if fila['turno'] == turno)
 		return next(celda for celda in fila['celdas'] if celda['fecha'] == self.dia)
 
-	def _agenda(self, modo='dia', convocatoria=None, auxiliares=None, **extra):
+	def _agenda(self, modo='dia', convocatoria=None, personas=None, **extra):
 		convocatoria = convocatoria or self.convocatoria
-		auxiliares = auxiliares if auxiliares is not None else list(auxiliares_asignados(convocatoria))
-		return agenda_de_convocatoria(convocatoria, modo, self.dia, auxiliares, tonos_por_auxiliar(auxiliares), **extra)
+		personas = personas if personas is not None else list(personal_asignado(convocatoria))
+		return agenda_de_convocatoria(convocatoria, modo, self.dia, personas, tonos_por_persona(personas), **extra)
 
 	def _programar(self, jornada='manana', convocatoria=None):
 		return Programacion.objects.create(
@@ -111,30 +112,30 @@ class AgendaTests(AgendaBase):
 		self.assertEqual(len(calendario['columnas']), 1)
 		self.assertTrue(all(fila['celdas'][0]['puede_programar'] for fila in calendario['filas']))
 
-	def test_cubren_los_auxiliares_de_la_convocatoria_segun_su_horario(self):
+	def test_cubren_los_personas_de_la_convocatoria_segun_su_horario(self):
 		calendario = self._agenda()
 		# Su horario es solo de la mañana.
-		self.assertEqual(self._celda(calendario, 'manana')['cubren'], [self.auxiliar])
+		self.assertEqual(self._celda(calendario, 'manana')['cubren'], [self.persona])
 		self.assertEqual(self._celda(calendario, 'tarde')['cubren'], [])
 
-	def test_auxiliar_sin_asignar_a_ese_dia_no_cubre(self):
-		self._auxiliar('Eva', 'Paz', 'tarde')  # tiene horario ese día, pero no está asignado
+	def test_persona_sin_asignar_a_ese_dia_no_cubre(self):
+		self._persona('Eva', 'Paz', 'tarde')  # tiene horario ese día, pero no está asignado
 		self.assertEqual(self._celda(self._agenda(), 'tarde')['cubren'], [])
 
 	def test_solo_cubre_los_dias_asignados(self):
 		# Mismo horario todas las semanas, pero asignado solo a self.dia.
-		Horario.objects.filter(auxiliar=self.auxiliar).update(
+		Horario.objects.filter(persona=self.persona).update(
 			fecha_inicio=self.convocatoria.fecha_inicio, fecha_fin=self.convocatoria.fecha_fin,
 		)
 		otra_semana = self.dia + timedelta(days=7)
 		calendario = agenda_de_convocatoria(
-			self.convocatoria, 'semana', otra_semana, [self.auxiliar], tonos_por_auxiliar([self.auxiliar]),
+			self.convocatoria, 'semana', otra_semana, [self.persona], tonos_por_persona([self.persona]),
 		)
 		celda = next(c for c in calendario['filas'][0]['celdas'] if c['fecha'] == otra_semana)
 		self.assertEqual(celda['cubren'], [])
-		self.assertEqual(self._celda(self._agenda('semana'), 'manana')['cubren'], [self.auxiliar])
+		self.assertEqual(self._celda(self._agenda('semana'), 'manana')['cubren'], [self.persona])
 		columna = next(c for c in self._agenda('semana')['columnas'] if c['fecha'] == self.dia)
-		self.assertEqual([item['auxiliar'] for item in columna['asignados']], [self.auxiliar])
+		self.assertEqual([item['persona'] for item in columna['asignados']], [self.persona])
 
 	def test_visita_cubierta_parcial_o_sin_cobertura(self):
 		manana = self._programar('manana')
@@ -146,11 +147,11 @@ class AgendaTests(AgendaBase):
 		self.assertTrue(next(p for p in calendario['programaciones'] if p.pk == manana.pk).cubierta)
 		# Todo el día: la mañana la cubre Luis, pero la tarde nadie.
 		visita = next(p for p in calendario['programaciones'] if p.pk == completa.pk)
-		self.assertEqual(visita.cubren, [self.auxiliar])
+		self.assertEqual(visita.cubren, [self.persona])
 		self.assertFalse(visita.cubierta)
 		self.assertTrue(calendario['hay_sin_cobertura'])
 		# Con alguien en la tarde queda cubierta.
-		self._asignar(self._auxiliar('Ana', 'Ruiz', 'tarde'))
+		self._asignar(self._persona('Ana', 'Ruiz', 'tarde'))
 		visita = next(p for p in self._agenda()['programaciones'] if p.pk == completa.pk)
 		self.assertTrue(visita.cubierta)
 
@@ -162,16 +163,16 @@ class AgendaTests(AgendaBase):
 				self.assertEqual([p.pk for p in self._celda(calendario, turno)['programaciones']], [completa.pk])
 
 	def test_ausencia_quita_la_cobertura(self):
-		Ausencia.objects.create(auxiliar=self.auxiliar, fecha=self.dia, motivo='Enfermedad')
+		Asistencia.objects.create(persona=self.persona, fecha=self.dia, estado='ausente', observacion='Enfermedad')
 		self.assertEqual(self._celda(self._agenda(), 'manana')['cubren'], [])
 
-	def test_filtrar_por_auxiliar_muestra_solo_lo_que_cubre(self):
-		otra = self._auxiliar('Ana', 'Ruiz', 'tarde')
+	def test_filtrar_por_persona_muestra_solo_lo_que_cubre(self):
+		otra = self._persona('Ana', 'Ruiz', 'tarde')
 		self._asignar(otra)
 		self._programar('manana')
 		tarde = self._programar('tarde')
 		# Ana solo trabaja en la tarde: su hoja de ruta no incluye la visita de la mañana.
-		calendario = self._agenda('semana', auxiliares=[otra], solo_las_que_cubren=True)
+		calendario = self._agenda('semana', personas=[otra], solo_las_que_cubren=True)
 		self.assertEqual([p.pk for p in calendario['programaciones']], [tarde.pk])
 
 	def test_fuera_del_periodo_no_se_programa(self):
@@ -202,27 +203,27 @@ class AgendaTests(AgendaBase):
 		self.assertEqual(convocatoria_por_defecto(hoy), en_curso)
 
 
-class AsignarAuxiliaresDiaTests(AgendaBase):
+class AsignarPersonalDiaTests(AgendaBase):
 	def setUp(self):
 		super().setUp()
 		self.client.force_login(get_user_model().objects.create_superuser('convocatoria', password='Clave-2026'))
-		self.url = f"{reverse('convocatoria_dia_auxiliares', args=[self.convocatoria.pk])}?fecha={self.dia.isoformat()}"
+		self.url = f"{reverse('convocatoria_dia_personas', args=[self.convocatoria.pk])}?fecha={self.dia.isoformat()}"
 
 	def _asignados(self, fecha=None):
-		return set(self.convocatoria.asignaciones.filter(fecha=fecha or self.dia).values_list('auxiliar__nombre', flat=True))
+		return set(self.convocatoria.asignaciones.filter(fecha=fecha or self.dia).values_list('persona__nombre', flat=True))
 
-	def _auxiliares(self, respuesta, lista):
-		return [fila['auxiliar'] for fila in respuesta.context[lista]]
+	def _personas(self, respuesta, lista):
+		return [fila['persona'] for fila in respuesta.context[lista]]
 
 	def test_lista_asignados_y_los_que_tienen_horario_ese_dia(self):
-		con_horario = self._auxiliar('Ana', 'Ruiz', 'tarde')
-		sin_horario = Auxiliar.objects.create(nombre='Eva', apellido='Paz', email='eva.paz@example.com', institucion='UES')
-		ausente = self._auxiliar('Leo', 'Sol', 'completa')
-		Ausencia.objects.create(auxiliar=ausente, fecha=self.dia, motivo='Enfermedad')
+		con_horario = self._persona('Ana', 'Ruiz', 'tarde')
+		sin_horario = Personal.objects.create(nombre='Eva', apellido='Paz', email='eva.paz@example.com', institucion='UES')
+		ausente = self._persona('Leo', 'Sol', 'completa')
+		Asistencia.objects.create(persona=ausente, fecha=self.dia, estado='justificado', observacion='Enfermedad')
 
 		respuesta = self.client.get(self.url)
-		self.assertEqual(self._auxiliares(respuesta, 'asignados'), [self.auxiliar])
-		disponibles = {fila['auxiliar']: fila for fila in respuesta.context['disponibles']}
+		self.assertEqual(self._personas(respuesta, 'asignados'), [self.persona])
+		disponibles = {fila['persona']: fila for fila in respuesta.context['disponibles']}
 		self.assertEqual(list(disponibles), [con_horario, ausente])  # por apellido (Ruiz, Sol); sin_horario no aparece
 		self.assertNotIn(sin_horario, disponibles)
 		self.assertEqual(disponibles[con_horario]['jornadas'], ['Tarde'])
@@ -232,105 +233,106 @@ class AsignarAuxiliaresDiaTests(AgendaBase):
 		self.assertContains(respuesta, 'Agregar')
 
 	def test_agregar_y_quitar(self):
-		ana = self._auxiliar('Ana', 'Ruiz', 'tarde')
+		ana = self._persona('Ana', 'Ruiz', 'tarde')
 		respuesta = self.client.post(self.url, {'agregar': ana.pk})
 		self.assertEqual(respuesta['HX-Trigger'], 'agenda-actualizada')
 		self.assertEqual(self._asignados(), {'Luis', 'Ana'})
-		self.assertEqual(self._auxiliares(respuesta, 'asignados'), [self.auxiliar, ana])
+		self.assertEqual(self._personas(respuesta, 'asignados'), [self.persona, ana])
 
-		respuesta = self.client.post(self.url, {'quitar': self.auxiliar.pk})
+		respuesta = self.client.post(self.url, {'quitar': self.persona.pk})
 		self.assertEqual(respuesta['HX-Trigger'], 'agenda-actualizada')
 		self.assertEqual(self._asignados(), {'Ana'})
 		# El que se quita vuelve a la lista de los que se pueden agregar.
-		self.assertIn(self.auxiliar, self._auxiliares(respuesta, 'disponibles'))
+		self.assertIn(self.persona, self._personas(respuesta, 'disponibles'))
 
 	def test_no_agrega_sin_horario_o_ausente(self):
-		sin_horario = Auxiliar.objects.create(nombre='Eva', apellido='Paz', email='eva.paz@example.com', institucion='UES')
-		ausente = self._auxiliar('Leo', 'Sol', 'completa')
-		Ausencia.objects.create(auxiliar=ausente, fecha=self.dia, motivo='Enfermedad')
-		for auxiliar, motivo in ((sin_horario, 'no tiene horario'), (ausente, 'no llegó')):
-			with self.subTest(auxiliar=auxiliar.nombre):
-				respuesta = self.client.post(self.url, {'agregar': auxiliar.pk})
+		sin_horario = Personal.objects.create(nombre='Eva', apellido='Paz', email='eva.paz@example.com', institucion='UES')
+		ausente = self._persona('Leo', 'Sol', 'completa')
+		Asistencia.objects.create(persona=ausente, fecha=self.dia, estado='justificado', observacion='Enfermedad')
+		for persona, motivo in ((sin_horario, 'no tiene horario'), (ausente, '«justificado»')):
+			with self.subTest(persona=persona.nombre):
+				respuesta = self.client.post(self.url, {'agregar': persona.pk})
 				self.assertIn(motivo, respuesta.context['error'])
 				self.assertNotIn('HX-Trigger', respuesta)
 		self.assertEqual(self._asignados(), {'Luis'})
 
 	def test_la_asignacion_es_solo_de_ese_dia(self):
-		Horario.objects.filter(auxiliar=self.auxiliar).update(
+		Horario.objects.filter(persona=self.persona).update(
 			fecha_inicio=self.convocatoria.fecha_inicio, fecha_fin=self.convocatoria.fecha_fin,
 		)
 		otro_dia = self.dia + timedelta(days=7)
-		self.assertIsNone(AuxiliaresDelDia(self.convocatoria, otro_dia).agregar(self.auxiliar.pk))
+		self.assertIsNone(PersonalDelDia(self.convocatoria, otro_dia).agregar(self.persona.pk))
 		self.assertEqual(self._asignados(otro_dia), {'Luis'})
-		AuxiliaresDelDia(self.convocatoria, otro_dia).quitar(self.auxiliar.pk)
+		PersonalDelDia(self.convocatoria, otro_dia).quitar(self.persona.pk)
 		self.assertEqual(self._asignados(otro_dia), set())
 		self.assertEqual(self._asignados(), {'Luis'})
 
 	def test_se_puede_quitar_aunque_ya_no_tenga_horario(self):
-		Horario.objects.filter(auxiliar=self.auxiliar).delete()
+		Horario.objects.filter(persona=self.persona).delete()
 		respuesta = self.client.get(self.url)
-		self.assertEqual(self._auxiliares(respuesta, 'asignados'), [self.auxiliar])
-		self.client.post(self.url, {'quitar': self.auxiliar.pk})
+		self.assertEqual(self._personas(respuesta, 'asignados'), [self.persona])
+		self.client.post(self.url, {'quitar': self.persona.pk})
 		self.assertEqual(self._asignados(), set())
 
 	def _hoy_asignado(self):
 		"""Luis con horario y asignado hoy (la inasistencia solo se registra desde ese día)."""
 		hoy = timezone.localdate()
-		Horario.objects.create(auxiliar=self.auxiliar, dia=hoy.isoweekday(), fecha_inicio=hoy, fecha_fin=hoy, jornada='completa')
-		self._asignar(self.auxiliar, hoy)
-		return hoy, f"{reverse('convocatoria_dia_auxiliares', args=[self.convocatoria.pk])}?fecha={hoy.isoformat()}"
+		Horario.objects.create(persona=self.persona, dia=hoy.isoweekday(), fecha_inicio=hoy, fecha_fin=hoy, jornada='completa')
+		self._asignar(self.persona, hoy)
+		return hoy, f"{reverse('convocatoria_dia_personas', args=[self.convocatoria.pk])}?fecha={hoy.isoformat()}"
 
 	def test_registrar_que_no_llego_y_deshacerlo(self):
 		hoy, url = self._hoy_asignado()
 		visita = Programacion.objects.create(convocatoria=self.convocatoria, escuela=self.escuela, fecha_programada=hoy, jornada='manana')
-		self.assertTrue(AuxiliaresDelDia(self.convocatoria, hoy).asignados_ids())
+		self.assertTrue(PersonalDelDia(self.convocatoria, hoy).asignados_ids())
 
-		respuesta = self.client.post(url, {'no_llego': self.auxiliar.pk, 'motivo': 'Enfermo'})
+		respuesta = self.client.post(url, {'no_llego': self.persona.pk, 'motivo': 'Enfermo'})
 		self.assertEqual(respuesta['HX-Trigger'], 'agenda-actualizada')
-		self.assertEqual(Ausencia.objects.get(auxiliar=self.auxiliar, fecha=hoy).motivo, 'Enfermo')
+		asistencia = Asistencia.objects.get(persona=self.persona, fecha=hoy)
+		self.assertEqual((asistencia.estado, asistencia.observacion), ('ausente', 'Enfermo'))
 		fila = respuesta.context['asignados'][0]
-		self.assertEqual(fila['ausencia'].motivo, 'Enfermo')
+		self.assertEqual(fila['asistencia'].observacion, 'Enfermo')
 		self.assertContains(respuesta, 'Sí llegó')
 		# Sigue asignado, pero ya no cubre la visita.
 		detalle = self.client.get(reverse('programacion_detalle', args=[visita.pk]))
 		self.assertEqual(detalle.context['cubren'], [])
 
-		self.client.post(url, {'si_llego': self.auxiliar.pk})
-		self.assertFalse(Ausencia.objects.filter(auxiliar=self.auxiliar, fecha=hoy).exists())
-		self.assertEqual(self.client.get(reverse('programacion_detalle', args=[visita.pk])).context['cubren'], [self.auxiliar])
+		self.client.post(url, {'si_llego': self.persona.pk})
+		self.assertEqual(Asistencia.objects.get(persona=self.persona, fecha=hoy).estado, 'presente')
+		self.assertEqual(self.client.get(reverse('programacion_detalle', args=[visita.pk])).context['cubren'], [self.persona])
 
 	def test_motivo_por_defecto(self):
 		hoy, url = self._hoy_asignado()
-		self.client.post(url, {'no_llego': self.auxiliar.pk, 'motivo': '  '})
-		self.assertEqual(Ausencia.objects.get(auxiliar=self.auxiliar, fecha=hoy).motivo, AuxiliaresDelDia.MOTIVO_POR_DEFECTO)
+		self.client.post(url, {'no_llego': self.persona.pk, 'motivo': '  '})
+		self.assertEqual(Asistencia.objects.get(persona=self.persona, fecha=hoy).observacion, PersonalDelDia.MOTIVO_POR_DEFECTO)
 
 	def test_no_se_registra_en_un_dia_que_no_ha_llegado(self):
-		respuesta = self.client.post(self.url, {'no_llego': self.auxiliar.pk})  # self.dia es la próxima semana
+		respuesta = self.client.post(self.url, {'no_llego': self.persona.pk})  # self.dia es la próxima semana
 		self.assertIn('a partir de ese día', respuesta.context['error'])
-		self.assertFalse(Ausencia.objects.exists())
+		self.assertFalse(Asistencia.objects.exists())
 		self.assertFalse(self.client.get(self.url).context['del_dia'].se_puede_registrar_inasistencia)
 
 	def test_solo_se_registra_a_asignados(self):
 		hoy, url = self._hoy_asignado()
-		otra = self._auxiliar('Ana', 'Ruiz', 'tarde')
+		otra = self._persona('Ana', 'Ruiz', 'tarde')
 		respuesta = self.client.post(url, {'no_llego': otra.pk})
-		self.assertIn('asignados', respuesta.context['error'])
+		self.assertIn('asignadas', respuesta.context['error'])
 
-	def test_inasistencia_pide_permiso_de_ausencias(self):
+	def test_inasistencia_pide_permiso_de_asistencia(self):
 		hoy, url = self._hoy_asignado()
 		usuario = get_user_model().objects.create_user('coordinador', password='Clave-2026')
-		usuario.user_permissions.add(*Permission.objects.filter(codename__in=['add_convocatoriaauxiliar', 'delete_convocatoriaauxiliar']))
+		usuario.user_permissions.add(*Permission.objects.filter(codename__in=['add_convocatoriapersonal', 'delete_convocatoriapersonal']))
 		self.client.force_login(usuario)
-		self.assertEqual(self.client.post(url, {'no_llego': self.auxiliar.pk}).status_code, 403)
-		self.assertFalse(Ausencia.objects.exists())
+		self.assertEqual(self.client.post(url, {'no_llego': self.persona.pk}).status_code, 403)
+		self.assertFalse(Asistencia.objects.exists())
 
 	def test_rechaza_dia_fuera_de_la_convocatoria(self):
 		fuera = self.convocatoria.fecha_fin + timedelta(days=1)
-		url = f"{reverse('convocatoria_dia_auxiliares', args=[self.convocatoria.pk])}?fecha={fuera.isoformat()}"
+		url = f"{reverse('convocatoria_dia_personas', args=[self.convocatoria.pk])}?fecha={fuera.isoformat()}"
 		self.assertEqual(self.client.get(url).status_code, 400)
 
 	def test_validacion_del_modelo(self):
-		asignacion = ConvocatoriaAuxiliar(convocatoria=self.convocatoria, auxiliar=self.auxiliar, fecha=self.dia + timedelta(days=1))
+		asignacion = ConvocatoriaPersonal(convocatoria=self.convocatoria, persona=self.persona, fecha=self.dia + timedelta(days=1))
 		with self.assertRaises(ValidationError):
 			asignacion.clean()
 
@@ -352,14 +354,14 @@ class ProgramacionPaginaTests(AgendaBase):
 		self.assertEqual(respuesta.status_code, 200)
 		self.assertEqual(respuesta.context['convocatoria'], self.convocatoria)
 		self.assertEqual(respuesta.context['modo'], 'semana')
-		self.assertEqual(respuesta.context['auxiliares'], [self.auxiliar])
+		self.assertEqual(respuesta.context['personas'], [self.persona])
 		self.assertContains(respuesta, 'Estás programando en la convocatoria')
 		semana = self.client.get(reverse('home_programacion'), {'convocatoria': self.convocatoria.pk, 'fecha': self.dia.isoformat()})
-		self.assertContains(semana, 'Agregar o quitar auxiliares del')  # el día de prueba ya tiene a Luis
+		self.assertContains(semana, 'Agregar o quitar personas del')  # el día de prueba ya tiene a Luis
 
 	def test_agenda_en_cada_modo_y_listas(self):
 		self._programar('completa')
-		for parametros in ({'modo': 'mes'}, {'modo': 'semana'}, {'modo': 'dia'}, {'modo': 'semana', 'auxiliar': self.auxiliar.pk}, {'seccion': 'convocatorias'}, {'seccion': 'programaciones'}):
+		for parametros in ({'modo': 'mes'}, {'modo': 'semana'}, {'modo': 'dia'}, {'modo': 'semana', 'persona': self.persona.pk}, {'seccion': 'convocatorias'}, {'seccion': 'programaciones'}):
 			with self.subTest(**parametros):
 				respuesta = self.client.get(reverse('home_programacion'), {
 					'convocatoria': self.convocatoria.pk, 'fecha': self.dia.isoformat(), **parametros,
@@ -375,7 +377,7 @@ class ProgramacionPaginaTests(AgendaBase):
 		detalle = self.client.get(reverse('programacion_detalle', args=[programacion.pk]))
 		self.assertContains(detalle, self.escuela.nombre)
 		self.assertContains(detalle, self.escuela.codigo)
-		self.assertEqual(detalle.context['cubren'], [self.auxiliar])
+		self.assertEqual(detalle.context['cubren'], [self.persona])
 		self.assertTrue(detalle.context['cubierta'])
 		self.assertContains(detalle, reverse('programacion_editar', args=[programacion.pk]))
 
@@ -419,18 +421,18 @@ class ProgramacionPaginaTests(AgendaBase):
 		self.assertEqual(form.initial['jornada'], 'manana')
 		self.assertEqual(form.fields['convocatoria'].initial, self.convocatoria.pk)
 		self.assertTrue(form.fields['convocatoria'].widget.is_hidden)
-		self.assertEqual(respuesta.context['cubren'], [self.auxiliar])
+		self.assertEqual(respuesta.context['cubren'], [self.persona])
 		self.assertTrue(respuesta.context['cubierta'])
 
 	def test_cobertura_en_el_formulario(self):
 		url = reverse('programacion_cobertura')
 		base = {'convocatoria': self.convocatoria.pk, 'fecha_programada': self.dia.isoformat()}
-		self.assertEqual(self.client.get(url, {**base, 'jornada': 'manana'}).context['cubren'], [self.auxiliar])
+		self.assertEqual(self.client.get(url, {**base, 'jornada': 'manana'}).context['cubren'], [self.persona])
 		for jornada in ('tarde', 'completa'):
 			with self.subTest(jornada=jornada):
 				respuesta = self.client.get(url, {**base, 'jornada': jornada})
 				self.assertFalse(respuesta.context['cubierta'])
-		self.assertContains(self.client.get(url, {**base, 'jornada': 'tarde'}), 'Ningún auxiliar asignado a ese día trabaja esta jornada')
+		self.assertContains(self.client.get(url, {**base, 'jornada': 'tarde'}), 'Ninguna persona asignada a ese día trabaja esta jornada')
 		self.assertContains(self.client.get(url, {'convocatoria': self.convocatoria.pk}), 'Elige la fecha y la jornada')
 
 	def test_guardar_desde_la_agenda_avisa_para_refrescarla(self):
@@ -448,9 +450,9 @@ class ProgramacionPaginaTests(AgendaBase):
 		self._programar('manana')
 		self._programar('tarde')
 		base = {'convocatoria': self.convocatoria.pk, 'fecha': self.dia.isoformat()}
-		for alcance in ('convocatoria', 'semana', 'dia', 'auxiliar', 'sin_cobertura', 'pendientes'):
+		for alcance in ('convocatoria', 'semana', 'dia', 'persona', 'sin_cobertura', 'pendientes'):
 			with self.subTest(alcance=alcance):
-				respuesta = self.client.get(reverse('agenda_imprimir'), {**base, 'alcance': alcance, 'auxiliar': self.auxiliar.pk})
+				respuesta = self.client.get(reverse('agenda_imprimir'), {**base, 'alcance': alcance, 'persona': self.persona.pk})
 				self.assertEqual(respuesta['Content-Type'], 'application/pdf')
 				self.assertTrue(respuesta.content.startswith(b'%PDF'))
 
@@ -491,18 +493,18 @@ class HorarioSemanalTests(TestCase):
 
 	def setUp(self):
 		self.client.force_login(get_user_model().objects.create_superuser('horarios', password='Clave-2026'))
-		self.auxiliar = Auxiliar.objects.create(
+		self.persona = Personal.objects.create(
 			nombre='Luis', apellido='Gómez', email='luis.semanal@example.com', institucion='Institución de prueba',
 		)
 		# Lunes en la mañana, del lunes 4 al domingo 31 de mayo de 2026.
 		self.horario = Horario.objects.create(
-			auxiliar=self.auxiliar, dia=Horario.Dia.LUNES, jornada='manana',
+			persona=self.persona, dia=Horario.Dia.LUNES, jornada='manana',
 			fecha_inicio=date(2026, 5, 4), fecha_fin=date(2026, 5, 31),
 		)
 
 	def _datos(self, **cambios):
 		datos = {
-			'auxiliar': self.auxiliar.pk, 'jornada': 'tarde',
+			'persona': self.persona.pk, 'jornada': 'tarde',
 			'fecha_inicio': '2026-05-04', 'fecha_fin': '2026-05-31',
 		}
 		datos.update(cambios)
@@ -520,7 +522,7 @@ class HorarioSemanalTests(TestCase):
 		for dia in range(1, 32):
 			fecha = date(2026, 5, dia)
 			with self.subTest(fecha=fecha):
-				self.assertEqual(AuxiliaresDelDia(mayo, fecha).puede_agregarse(self.auxiliar.pk), fecha in lunes_de_mayo)
+				self.assertEqual(PersonalDelDia(mayo, fecha).puede_agregarse(self.persona), fecha in lunes_de_mayo)
 
 	def test_crear_varios_dias_a_la_vez(self):
 		respuesta = self.client.post(reverse('horario_nuevo'), self._datos(dias=['2', '4']))
@@ -550,39 +552,39 @@ class HorarioSemanalTests(TestCase):
 		self.horario.refresh_from_db()
 		self.assertEqual(self.horario.dia, Horario.Dia.MIERCOLES)
 
-	def test_ausencia_solo_en_dia_con_horario(self):
-		datos = {'auxiliar': self.auxiliar.pk, 'motivo': 'Consulta médica'}
-		respuesta = self.client.post(reverse('ausencia_nueva'), {**datos, 'fecha': '2026-05-05'})
-		self.assertIn('fecha', respuesta.context['form'].errors)
-		self.client.post(reverse('ausencia_nueva'), {**datos, 'fecha': '2026-05-11'})
-		self.assertTrue(Ausencia.objects.filter(auxiliar=self.auxiliar, fecha=date(2026, 5, 11)).exists())
+	def test_asistencia_solo_en_dia_con_horario(self):
+		datos = {'persona': self.persona.pk, 'estado': 'ausente', 'observacion': 'Consulta médica'}
+		respuesta = self.client.post(reverse('asistencia_registrar'), {**datos, 'fecha': '2026-05-05'})  # martes
+		self.assertIn('no tiene horario', respuesta.context['error'])
+		self.client.post(reverse('asistencia_registrar'), {**datos, 'fecha': '2026-05-11'})  # lunes
+		self.assertTrue(Asistencia.objects.filter(persona=self.persona, fecha=date(2026, 5, 11), estado='ausente').exists())
 
 
-class FiltrosAuxiliaresTests(TestCase):
+class FiltrosPersonalTests(TestCase):
 	def setUp(self):
 		self.client.force_login(get_user_model().objects.create_superuser('filtros', password='Clave-2026'))
 		self.hoy = timezone.localdate()
 		self.lunes = self.hoy + timedelta(days=(1 - self.hoy.isoweekday()) % 7 or 7)  # próximo lunes
 
-		def auxiliar(nombre, institucion='UES'):
-			return Auxiliar.objects.create(nombre=nombre, apellido='Prueba', email=f'{nombre.lower()}.filtro@example.com', institucion=institucion)
+		def persona(nombre, institucion='UES'):
+			return Personal.objects.create(nombre=nombre, apellido='Prueba', email=f'{nombre.lower()}.filtro@example.com', institucion=institucion)
 
 		def horario(aux, dia, jornada, inicio, fin):
-			Horario.objects.create(auxiliar=aux, dia=dia, jornada=jornada, fecha_inicio=inicio, fecha_fin=fin)
+			Horario.objects.create(persona=aux, dia=dia, jornada=jornada, fecha_inicio=inicio, fecha_fin=fin)
 
 		mes = timedelta(days=30)
-		self.manana = auxiliar('Mañanero')
+		self.manana = persona('Mañanero')
 		horario(self.manana, Horario.Dia.LUNES, 'manana', self.hoy - mes, self.hoy + mes)
-		self.completo = auxiliar('Completo', 'UCA')
+		self.completo = persona('Completo', 'UCA')
 		horario(self.completo, Horario.Dia.LUNES, 'completa', self.hoy - mes, self.hoy + mes)
-		self.vencido = auxiliar('Vencido')
+		self.vencido = persona('Vencido')
 		horario(self.vencido, Horario.Dia.LUNES, 'tarde', self.hoy - 3 * mes, self.hoy - 2 * mes)
-		self.sin_horario = auxiliar('Libre', 'UCA')
+		self.sin_horario = persona('Libre', 'UCA')
 
 	def _nombres(self, **filtros):
-		respuesta = self.client.get(reverse('buscar_auxiliares'), filtros)
+		respuesta = self.client.get(reverse('buscar_personas'), filtros)
 		self.assertEqual(respuesta.status_code, 200)
-		return {auxiliar.nombre for auxiliar in respuesta.context['auxiliares']}
+		return {persona.nombre for persona in respuesta.context['personas']}
 
 	def test_sin_filtros_lista_todos(self):
 		self.assertEqual(self._nombres(), {'Mañanero', 'Completo', 'Vencido', 'Libre'})
@@ -616,27 +618,28 @@ class FiltrosAuxiliaresTests(TestCase):
 
 	def test_asignados_en_convocatoria(self):
 		convocatoria = Convocatoria.objects.create(nombre='Filtro', descripcion='', fecha_inicio=self.lunes, fecha_fin=self.lunes + timedelta(days=6))
-		ConvocatoriaAuxiliar.objects.create(convocatoria=convocatoria, auxiliar=self.completo, fecha=self.lunes)
+		ConvocatoriaPersonal.objects.create(convocatoria=convocatoria, persona=self.completo, fecha=self.lunes)
 		self.assertEqual(self._nombres(convocatoria=convocatoria.pk), {'Completo'})
 		self.assertEqual(self._nombres(convocatoria=convocatoria.pk, fecha=(self.lunes + timedelta(days=7)).isoformat()), set())
 
 	def test_estado_del_horario_en_el_listado(self):
-		respuesta = self.client.get(reverse('home_auxiliar'))
-		estados = {auxiliar.nombre: auxiliar.estado_horario for auxiliar in respuesta.context['auxiliares']}
+		respuesta = self.client.get(reverse('home_personal'))
+		estados = {persona.nombre: persona.estado_horario for persona in respuesta.context['personas']}
 		self.assertEqual(estados, {'Mañanero': 'vigente', 'Completo': 'vigente', 'Vencido': 'vencido', 'Libre': 'sin'})
 		self.assertContains(respuesta, 'Sin horario')
 
 	def test_imprimir_respeta_los_filtros(self):
-		respuesta = self.client.get(reverse('auxiliar_imprimir'), {'horario': 'sin'})
+		respuesta = self.client.get(reverse('persona_imprimir'), {'horario': 'sin'})
 		self.assertEqual(respuesta['Content-Type'], 'application/pdf')
 
 	def test_al_crear_devuelve_el_listado_para_actualizarlo(self):
-		respuesta = self.client.post(f"{reverse('auxiliar_nuevo')}?horario=sin", {
-			'nombre': 'Nuevo', 'apellido': 'Prueba', 'email': 'nuevo.filtro@example.com', 'telefono': '', 'institucion': 'UES',
+		respuesta = self.client.post(f"{reverse('persona_nuevo')}?horario=sin", {
+			'tipo': 'practicante', 'nombre': 'Nuevo', 'apellido': 'Prueba', 'email': 'nuevo.filtro@example.com',
+			'telefono': '', 'institucion': 'UES',
 		})
-		self.assertContains(respuesta, 'id="listado-auxiliares" hx-swap-oob="true"')
+		self.assertContains(respuesta, 'id="listado-personas" hx-swap-oob="true"')
 		# El listado vuelve con los filtros que estaban aplicados.
-		self.assertEqual({a.nombre for a in respuesta.context['auxiliares']}, {'Libre', 'Nuevo'})
+		self.assertEqual({a.nombre for a in respuesta.context['personas']}, {'Libre', 'Nuevo'})
 
 
 class ProgramacionServicesTests(AgendaBase):
@@ -660,7 +663,7 @@ class ProgramacionServicesTests(AgendaBase):
 
 	def test_cobertura_de_visita(self):
 		cubren, cubierta = services.cobertura_de_visita(self._programar('manana'))
-		self.assertEqual(list(cubren), [self.auxiliar])
+		self.assertEqual(list(cubren), [self.persona])
 		self.assertTrue(cubierta)
 
 		cubren, cubierta = services.cobertura_de_visita(self._programar('tarde'))
@@ -668,14 +671,14 @@ class ProgramacionServicesTests(AgendaBase):
 
 	def test_resumen_convocatoria(self):
 		self._programar('manana')
-		self._programar('tarde')  # el auxiliar solo trabaja en la mañana
+		self._programar('tarde')  # la persona solo trabaja en la mañana
 
-		resumen = services.resumen_convocatoria(self.convocatoria, [self.auxiliar], timezone.localdate())
+		resumen = services.resumen_convocatoria(self.convocatoria, [self.persona], timezone.localdate())
 
 		self.assertEqual(resumen['duracion'], 21)
 		self.assertEqual(resumen['sin_cobertura'], 1)
 		self.assertEqual(resumen['escuelas_visitadas'], 1)
-		self.assertEqual(services.dias_asignados_por_auxiliar(self.convocatoria), {self.auxiliar.pk: 1})
+		self.assertEqual(services.dias_asignados_por_persona(self.convocatoria), {self.persona.pk: 1})
 
 	def test_reporte_agenda_por_alcance(self):
 		manana = self._programar('manana')
@@ -683,38 +686,37 @@ class ProgramacionServicesTests(AgendaBase):
 		tarde.estado = 'completado'
 		tarde.save()
 
-		def visitas(alcance, auxiliar=None):
-			reporte = services.reporte_agenda(self.convocatoria, alcance, self.dia, auxiliar)
+		def visitas(alcance, persona=None):
+			reporte = services.reporte_agenda(self.convocatoria, alcance, self.dia, persona)
 			return [p for dia in reporte['dias'] for p in dia['programaciones']]
 
 		self.assertEqual(visitas('convocatoria'), [manana, tarde])
 		self.assertEqual(visitas('dia'), [manana, tarde])
 		self.assertEqual(visitas('sin_cobertura'), [tarde])
 		self.assertEqual(visitas('pendientes'), [manana])
-		self.assertEqual(visitas('auxiliar', self.auxiliar), [manana])
+		self.assertEqual(visitas('persona', self.persona), [manana])
 
-		reporte = services.reporte_agenda(self.convocatoria, 'auxiliar', self.dia, self.auxiliar)
+		reporte = services.reporte_agenda(self.convocatoria, 'persona', self.dia, self.persona)
 		self.assertEqual(reporte['subtitulo'], 'Hoja de ruta de Luis Gómez')
 		self.assertTrue(reporte['para_campo'])
 
 	def test_estado_horario_y_horario_inicial(self):
-		auxiliar = services.con_estado_horario(list(services.filtrar_auxiliares({'q': 'Luis'})))[0]
+		persona = services.con_estado_horario(list(services.filtrar_personas({'q': 'Luis'})))[0]
 		# El horario de prueba empieza la próxima semana.
-		self.assertEqual(auxiliar.estado_horario, 'futuro')
+		self.assertEqual(persona.estado_horario, 'futuro')
 
-		inicial = services.horario_inicial(self.auxiliar.pk)
+		inicial = services.horario_inicial(self.persona.pk)
 		self.assertEqual((inicial['fecha_inicio'], inicial['fecha_fin']), (self.dia, self.dia))
-		self.assertEqual(services.horario_inicial(None), {'auxiliar': None})
+		self.assertEqual(services.horario_inicial(None), {'persona': None})
 
-	def test_filtrar_ausencias(self):
-		otro = self._auxiliar('Ana', 'Ruiz', 'tarde')
-		ausencia = Ausencia.objects.create(auxiliar=self.auxiliar, fecha=self.dia, motivo='Cita médica')
-		Ausencia.objects.create(auxiliar=otro, fecha=self.dia + timedelta(days=1), motivo='Clases')
+	def test_filtrar_asistencias(self):
+		otro = self._persona('Ana', 'Ruiz', 'tarde')
+		justificada = Asistencia.objects.create(persona=self.persona, fecha=self.dia, estado='justificado', observacion='Cita médica')
+		Asistencia.objects.create(persona=otro, fecha=self.dia, estado='presente')
 
-		self.assertEqual(list(services.filtrar_ausencias('médica')), [ausencia])
-		self.assertEqual(list(services.filtrar_ausencias(fecha=self.dia)), [ausencia])
-		self.assertEqual(list(services.auxiliares_con_ausencias('Ruiz')), [otro])
-		self.assertEqual(list(services.auxiliares_con_ausencias(fecha=self.dia)), [self.auxiliar])
+		self.assertEqual(list(services.filtrar_asistencias({'estado': 'justificado'})), [justificada])
+		self.assertEqual(list(services.filtrar_asistencias({'persona': self.persona})), [justificada])
+		self.assertEqual(services.filtrar_asistencias({'desde': self.dia + timedelta(days=1)}).count(), 0)
 
 	def test_filtrar_convocatorias(self):
 		otra = Convocatoria.objects.create(
@@ -724,3 +726,197 @@ class ProgramacionServicesTests(AgendaBase):
 		self.assertEqual(list(services.filtrar_convocatorias('ronda')), [otra])
 		self.assertEqual(list(services.filtrar_convocatorias(fecha_inicio=self.dia)), [otra])
 		self.assertEqual(list(services.filtrar_convocatorias(fecha_fin=self.dia + timedelta(days=10))), [self.convocatoria])
+
+
+
+class PersonalPlantaTests(AgendaBase):
+	"""El personal de planta no tiene horario fijo: asignado a un día, cubre la jornada completa."""
+
+	def setUp(self):
+		super().setUp()
+		self.contador = Personal.objects.create(
+			tipo=Personal.Tipo.PLANTA, nombre='Rosa', apellido='Mejía', email='rosa.planta@example.com', cargo='Contador',
+		)
+
+	def test_validacion_de_cargo_e_institucion(self):
+		with self.assertRaises(ValidationError):
+			Personal(tipo=Personal.Tipo.PLANTA, nombre='Sin', apellido='Cargo', email='sin.cargo@example.com').full_clean()
+		with self.assertRaises(ValidationError):
+			Personal(tipo=Personal.Tipo.PRACTICANTE, nombre='Sin', apellido='Inst', email='sin.inst@example.com').full_clean()
+		self.assertEqual(self.contador.detalle, 'Contador')
+		self.assertEqual(self.persona.detalle, 'UES')
+
+	def test_se_asigna_sin_horario_y_cubre_todo_el_dia(self):
+		del_dia = PersonalDelDia(self.convocatoria, self.dia)
+		_, disponibles = del_dia.opciones()
+		self.assertIn(self.contador, [fila['persona'] for fila in disponibles])
+		self.assertIsNone(del_dia.agregar(self.contador.pk))
+
+		completa = self._programar('completa')
+		calendario = self._agenda()
+		for turno in ('manana', 'tarde'):
+			with self.subTest(turno=turno):
+				self.assertIn(self.contador, self._celda(calendario, turno)['cubren'])
+		cubren, cubierta = services.cobertura_de_visita(completa)
+		self.assertIn(self.contador, cubren)
+		self.assertTrue(cubierta)
+
+	def test_validacion_de_la_asignacion(self):
+		# El practicante necesita horario ese día; el de planta no.
+		otro_dia = self.dia + timedelta(days=1)
+		ConvocatoriaPersonal(convocatoria=self.convocatoria, persona=self.contador, fecha=otro_dia).full_clean()
+		with self.assertRaises(ValidationError):
+			ConvocatoriaPersonal(convocatoria=self.convocatoria, persona=self.persona, fecha=otro_dia).full_clean()
+
+	def test_no_se_le_toma_asistencia(self):
+		hoy = timezone.localdate()
+		self._asignar(self.contador, hoy)
+		error = PersonalDelDia(self.convocatoria, hoy).registrar_inasistencia(self.contador.pk)
+		self.assertIn('planta', error)
+		with self.assertRaises(ValidationError):
+			services.registrar_asistencia(self.contador.pk, hoy, 'presente')
+		self.assertNotIn(self.contador, [fila['persona'] for fila in services.pase_de_lista(hoy)])
+
+	def test_formulario_guarda_solo_el_dato_de_su_tipo(self):
+		self.client.force_login(get_user_model().objects.create_superuser('planta', password='Clave-2026'))
+		self.client.post(reverse('persona_nuevo'), {
+			'tipo': 'planta', 'nombre': 'Mario', 'apellido': 'Cruz', 'email': 'mario.cruz@example.com',
+			'cargo': 'Contador', 'institucion': 'UES',
+		})
+		mario = Personal.objects.get(email='mario.cruz@example.com')
+		self.assertEqual((mario.tipo, mario.cargo, mario.institucion), ('planta', 'Contador', ''))
+
+		respuesta = self.client.post(reverse('persona_nuevo'), {
+			'tipo': 'planta', 'nombre': 'Ana', 'apellido': 'Sin', 'email': 'ana.sin@example.com',
+		})
+		self.assertIn('cargo', respuesta.context['form'].errors)
+
+	def test_horario_solo_para_practicantes(self):
+		self.assertNotIn(self.contador, HorarioForm().fields['persona'].queryset)
+
+
+class AsistenciaTests(TestCase):
+	"""Pase de lista de los practicantes según su horario."""
+
+	def setUp(self):
+		self.hoy = timezone.localdate()
+		self.client.force_login(get_user_model().objects.create_superuser('asistencia', password='Clave-2026'))
+
+		def practicante(nombre, jornada='manana'):
+			persona = Personal.objects.create(nombre=nombre, apellido='Prueba', email=f'{nombre.lower()}.asis@example.com', institucion='UES')
+			Horario.objects.create(
+				persona=persona, dia=self.hoy.isoweekday(), jornada=jornada,
+				fecha_inicio=self.hoy - timedelta(days=30), fecha_fin=self.hoy + timedelta(days=30),
+			)
+			return persona
+
+		self.ana = practicante('Ana')
+		self.beto = practicante('Beto', 'tarde')
+		# Sin horario hoy: no aparece en el pase de lista.
+		Personal.objects.create(nombre='Ciro', apellido='Prueba', email='ciro.asis@example.com', institucion='UES')
+
+	def _registrar(self, persona, estado, fecha=None, **extra):
+		"""Registra la asistencia como lo hace el pase de lista (extra: observación)."""
+		return self.client.post(reverse('asistencia_registrar'), {
+			'persona': persona.pk, 'fecha': (fecha or self.hoy).isoformat(), 'estado': estado, **extra,
+		})
+
+	def test_pase_de_lista_del_dia(self):
+		respuesta = self.client.get(reverse('home_asistencia'))
+		self.assertEqual(respuesta.status_code, 200)
+		self.assertEqual([fila['persona'] for fila in respuesta.context['filas']], [self.ana, self.beto])
+		self.assertEqual(respuesta.context['filas'][1]['jornadas'], ['Tarde'])
+		self.assertEqual(respuesta.context['resumen']['pendientes'], 2)
+
+	def test_registrar_cambiar_y_quitar(self):
+		respuesta = self._registrar(self.ana, 'tarde', observacion='Llegó 8:20')
+		self.assertEqual(respuesta.context['resumen']['tarde'], 1)
+		asistencia = Asistencia.objects.get(persona=self.ana, fecha=self.hoy)
+		self.assertEqual((asistencia.estado, asistencia.observacion), ('tarde', 'Llegó 8:20'))
+
+		self._registrar(self.ana, 'presente')
+		self.assertEqual(Asistencia.objects.get(persona=self.ana, fecha=self.hoy).estado, 'presente')
+		self.assertEqual(Asistencia.objects.count(), 1)  # una por día
+
+		self.client.post(reverse('asistencia_quitar'), {'persona': self.ana.pk, 'fecha': self.hoy.isoformat()})
+		self.assertFalse(Asistencia.objects.exists())
+
+	def test_aviso_al_registrar_por_htmx(self):
+		respuesta = self.client.post(
+			reverse('asistencia_registrar'),
+			{'persona': self.ana.pk, 'fecha': self.hoy.isoformat(), 'estado': 'ausente'},
+			HTTP_HX_REQUEST='true',
+		)
+		self.assertEqual(json.loads(respuesta['HX-Trigger'])['aviso']['avisos'][0]['texto'], 'Ana Prueba: ausente.')
+
+	def test_marcar_pendientes_como_presentes(self):
+		self._registrar(self.beto, 'ausente')
+		self.client.post(reverse('asistencia_todos_presentes'), {'fecha': self.hoy.isoformat()})
+		estados = dict(Asistencia.objects.values_list('persona__nombre', 'estado'))
+		self.assertEqual(estados, {'Ana': 'presente', 'Beto': 'ausente'})  # no pisa lo ya registrado
+
+	def test_dia_futuro_solo_permisos(self):
+		manana = self.hoy + timedelta(days=7)  # mismo día de la semana: tiene horario
+		respuesta = self._registrar(self.ana, 'presente', manana)
+		self.assertIn('adelantado', respuesta.context['error'])
+		self._registrar(self.ana, 'justificado', manana, observacion='Examen')
+		self.assertEqual(Asistencia.objects.get(fecha=manana).estado, 'justificado')
+
+		respuesta = self.client.post(reverse('asistencia_todos_presentes'), {'fecha': manana.isoformat()})
+		self.assertIn('aún no llega', respuesta.context['error'])
+
+	def test_ausente_o_justificado_no_cubre_ni_se_asigna(self):
+		convocatoria = Convocatoria.objects.create(
+			nombre='Ronda', descripcion='', fecha_inicio=self.hoy, fecha_fin=self.hoy + timedelta(days=10),
+		)
+		ConvocatoriaPersonal.objects.create(convocatoria=convocatoria, persona=self.ana, fecha=self.hoy)
+		escuela = Escuela.objects.create(
+			codigo='ASI-1', nombre='Escuela asistencia', nombre_corto='Asistencia',
+			distrito=Distrito.objects.create(nombre='Distrito asistencia'),
+		)
+		visita = Programacion.objects.create(convocatoria=convocatoria, escuela=escuela, fecha_programada=self.hoy, jornada='manana')
+		self.assertEqual(services.cobertura_de_visita(visita)[0], [self.ana])
+
+		self._registrar(self.ana, 'tarde')
+		self.assertEqual(services.cobertura_de_visita(visita)[0], [self.ana])  # llegó tarde, pero llegó
+
+		self._registrar(self.ana, 'justificado')
+		self.assertEqual(services.cobertura_de_visita(visita)[0], [])
+		self._registrar(self.beto, 'ausente')
+		self.assertIn('«ausente»', PersonalDelDia(convocatoria, self.hoy).agregar(self.beto.pk))
+
+	def test_historial_resumen_e_imprimir(self):
+		ayer = self.hoy - timedelta(days=7)
+		Asistencia.objects.create(persona=self.ana, fecha=ayer, estado='presente')
+		Asistencia.objects.create(persona=self.ana, fecha=self.hoy, estado='ausente')
+		Asistencia.objects.create(persona=self.beto, fecha=self.hoy, estado='justificado')
+
+		resumen = {fila['persona'].nombre: fila for fila in services.resumen_por_practicante(Asistencia.objects.all())}
+		self.assertEqual(resumen['Ana']['porcentaje'], 50)
+		self.assertIsNone(resumen['Beto']['porcentaje'])  # solo justificados: no hay días esperados
+
+		respuesta = self.client.get(reverse('home_asistencia'), {'vista': 'historial', 'persona': self.ana.pk})
+		self.assertEqual(respuesta.context['asistencias'].paginator.count, 2)
+		respuesta = self.client.get(reverse('buscar_asistencias'), {'estado': 'justificado'})
+		self.assertEqual([a.persona for a in respuesta.context['asistencias']], [self.beto])
+
+		pdf = self.client.get(reverse('asistencia_imprimir'))
+		self.assertEqual(pdf['Content-Type'], 'application/pdf')
+
+	def test_dias_sin_pase_de_lista(self):
+		hace_una_semana = self.hoy - timedelta(days=7)
+		Asistencia.objects.create(persona=self.ana, fecha=hace_una_semana, estado='presente')
+
+		pendientes = dict(services.dias_sin_pase_de_lista(self.hoy, dias=14))
+		self.assertEqual(pendientes[self.hoy], 2)
+		self.assertEqual(pendientes[hace_una_semana], 1)  # faltó Beto
+
+		services.marcar_pendientes_presentes(self.hoy)
+		self.assertNotIn(self.hoy, dict(services.dias_sin_pase_de_lista(self.hoy, dias=14)))
+
+	def test_permisos(self):
+		usuario = get_user_model().objects.create_user('solo_ver', password='Clave-2026')
+		usuario.user_permissions.add(Permission.objects.get(codename='view_asistencia'))
+		self.client.force_login(usuario)
+		self.assertEqual(self.client.get(reverse('home_asistencia')).status_code, 200)
+		self.assertEqual(self._registrar(self.ana, 'presente').status_code, 403)

@@ -80,10 +80,12 @@
       {% endif %}
 
       <!-- Personal -->
-      {% if perms.programacion.view_auxiliar %}
+      {% if perms.programacion.view_personal or perms.programacion.view_asistencia %}
       <li class="menu-title"><span class="gelico-sidebar-label">Personal</span></li>
+      {% endif %}
+      {% if perms.programacion.view_personal %}
       <li>
-        <a href="{% url 'home_auxiliar' %}" class="{% if url_name == 'home_auxiliar' %}menu-active{% endif %}" title="Auxiliares">
+        <a href="{% url 'home_personal' %}" class="{% if url_name == 'home_personal' %}menu-active{% endif %}" title="Personal">
           <span class="gelico-sidebar-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
                 stroke-width="2" fill="none" stroke="currentColor">
@@ -93,7 +95,22 @@
               <path d="M9 16h6"/>
             </svg>
           </span>
-          <span class="gelico-sidebar-label">Auxiliares</span>
+          <span class="gelico-sidebar-label">Personal</span>
+        </a>
+      </li>
+      {% endif %}
+      {% if perms.programacion.view_asistencia %}
+      <li>
+        <a href="{% url 'home_asistencia' %}" class="{% if url_name == 'home_asistencia' %}menu-active{% endif %}" title="Asistencia">
+          <span class="gelico-sidebar-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
+                stroke-width="2" fill="none" stroke="currentColor">
+              <rect x="3" y="4" width="18" height="18" rx="2"/>
+              <path d="M16 2v4M8 2v4M3 10h18"/>
+              <path d="m9 16 2 2 4-4"/>
+            </svg>
+          </span>
+          <span class="gelico-sidebar-label">Asistencia</span>
         </a>
       </li>
       {% endif %}

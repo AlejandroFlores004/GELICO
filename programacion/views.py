@@ -1,27 +1,29 @@
+from datetime import timedelta
 from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseRedirect
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from django.views.decorators.http import require_POST
 
 from main.pdf import datos_filtro, respuesta_pdf
 from main.permisos import permiso_formulario, permiso_requerido
 from . import services
 from .agenda import (
-    MODOS, agenda_de_convocatoria, auxiliares_asignados, con_conteos, convocatoria_por_defecto, convocatorias_agrupadas,
-    cubren_en_jornada, etiqueta_jornada, otras_convocatorias, rango_visible, tono_convocatoria, tonos_por_auxiliar,
+    MODOS, agenda_de_convocatoria, personal_asignado, con_conteos, convocatoria_por_defecto, convocatorias_agrupadas,
+    cubren_en_jornada, etiqueta_jornada, otras_convocatorias, rango_visible, tono_convocatoria, tonos_por_persona,
 )
 
 from .forms import (
-    AuxiliarForm, AuxiliaresDelDia, AusenciaForm, ConvocatoriaForm, FiltrarAuxiliaresForm, HorarioForm, ProgramacionEstadoForm,
+    PersonalForm, PersonalDelDia, ConvocatoriaForm, FiltrarAsistenciaForm, FiltrarPersonalForm, HorarioForm, ProgramacionEstadoForm,
     ProgramacionFiltroForm, ProgramacionForm,
 )
-from .models import Auxiliar, Ausencia, Convocatoria, Horario, Jornada, Programacion
+from .models import Asistencia, Personal, Convocatoria, Horario, Jornada, Programacion
 
 
 def _programaciones_filtradas(request, paginar=True):
@@ -76,10 +78,10 @@ def _por_id(modelo, valor):
 # Calendario: agenda semanal por jornadas de la convocatoria elegida
 # ---------------------------------------------------------------------------
 
-def _url_agenda(convocatoria, modo, dia, auxiliar=None):
+def _url_agenda(convocatoria, modo, dia, persona=None):
     parametros = {'convocatoria': convocatoria.pk, 'modo': modo, 'fecha': dia.isoformat()}
-    if auxiliar:
-        parametros['auxiliar'] = auxiliar.pk
+    if persona:
+        parametros['persona'] = persona.pk
     return f"{reverse('home_programacion')}?{urlencode(parametros)}"
 
 
@@ -96,40 +98,40 @@ def _contexto_agenda(request):
     modo = modo if modo in MODOS else 'semana'
     # Sin fecha, se abre en hoy si la convocatoria está en curso; si no, en su primer día.
     dia = _fecha(request.GET.get('fecha')) or (hoy if en_periodo else convocatoria.fecha_inicio)
-    auxiliares = list(auxiliares_asignados(convocatoria))
-    # Solo se filtra por auxiliares asignados a algún día de la convocatoria.
-    auxiliar = next((a for a in auxiliares if str(a.pk) == request.GET.get('auxiliar')), None)
+    personas = list(personal_asignado(convocatoria))
+    # Solo se filtra por personas asignadas a algún día de la convocatoria.
+    persona = next((a for a in personas if str(a.pk) == request.GET.get('persona')), None)
 
     def url(modo_destino, dia_destino):
-        return _url_agenda(convocatoria, modo_destino, dia_destino, auxiliar)
+        return _url_agenda(convocatoria, modo_destino, dia_destino, persona)
 
     anterior, siguiente = services.fechas_vecinas(modo, dia)
     inicio_visible, fin_visible = rango_visible(modo, dia)
 
-    tonos = tonos_por_auxiliar(auxiliares)
-    mostrados = [auxiliar] if auxiliar else auxiliares
-    calendario = agenda_de_convocatoria(convocatoria, modo, dia, mostrados, tonos, solo_las_que_cubren=bool(auxiliar))
+    tonos = tonos_por_persona(personas)
+    mostrados = [persona] if persona else personas
+    calendario = agenda_de_convocatoria(convocatoria, modo, dia, mostrados, tonos, solo_las_que_cubren=bool(persona))
     for columna in calendario.get('columnas', []):
         columna['url_dia'] = url('dia', columna['fecha'])
     for semana in calendario.get('semanas', []):
         for dia_mes in semana:
             dia_mes['url_dia'] = url('dia', dia_mes['fecha'])
 
-    dias_asignados = services.dias_asignados_por_auxiliar(convocatoria)
+    dias_asignados = services.dias_asignados_por_persona(convocatoria)
 
     return {
         'convocatoria': convocatoria,
         'convocatorias_agrupadas': convocatorias_agrupadas(hoy),
         'otras_convocatorias': [
-            {'convocatoria': otra, 'tono': tono_convocatoria(otra), 'url': _url_agenda(otra, modo, dia, auxiliar)}
+            {'convocatoria': otra, 'tono': tono_convocatoria(otra), 'url': _url_agenda(otra, modo, dia, persona)}
             for otra in otras_convocatorias(inicio_visible, fin_visible, convocatoria)
         ],
-        **services.resumen_convocatoria(convocatoria, auxiliares, hoy),
+        **services.resumen_convocatoria(convocatoria, personas, hoy),
         'modo': modo,
         'dia': dia,
         'hoy': hoy,
-        'auxiliar': auxiliar,
-        'auxiliares': auxiliares,
+        'persona': persona,
+        'personas': personas,
         'calendario': calendario,
         'titulo_periodo': services.titulo_periodo(modo, dia),
         'url_actual': url(modo, dia),
@@ -140,7 +142,7 @@ def _contexto_agenda(request):
         'url_primer_dia': url(modo, convocatoria.fecha_inicio),
         'modos': [(clave, etiqueta, url(clave, dia)) for clave, etiqueta in (('semana', 'Semana'), ('dia', 'Día'), ('mes', 'Mes'))],
         'leyenda': [
-            {'auxiliar': aux, 'tono': tonos[aux.pk], 'dias': dias_asignados.get(aux.pk, 0)} for aux in auxiliares
+            {'persona': aux, 'tono': tonos[aux.pk], 'dias': dias_asignados.get(aux.pk, 0)} for aux in personas
         ],
     }
 
@@ -189,7 +191,7 @@ def convocatoria_agenda(request, pk):
 
 
 # ---------------------------------------------------------------------------
-# Impresión de la agenda: convocatoria, semana, día, hoja de ruta por auxiliar...
+# Impresión de la agenda: convocatoria, semana, día, hoja de ruta por persona...
 # ---------------------------------------------------------------------------
 
 @permiso_requerido('programacion.view_programacion')
@@ -198,11 +200,11 @@ def agenda_imprimir(request):
     alcance = request.GET.get('alcance')
     alcance = alcance if alcance in services.ALCANCES_IMPRESION else 'convocatoria'
     dia = _fecha(request.GET.get('fecha')) or convocatoria.fecha_inicio
-    auxiliar = _por_id(Auxiliar, request.GET.get('auxiliar'))
+    persona = _por_id(Personal, request.GET.get('persona'))
 
     return respuesta_pdf(
         request, 'partials/agenda/reporte_pdf.html',
-        services.reporte_agenda(convocatoria, alcance, dia, auxiliar),
+        services.reporte_agenda(convocatoria, alcance, dia, persona),
         f'programacion-{alcance}.pdf',
     )
 
@@ -246,7 +248,7 @@ def buscar_programaciones(request):
 
 @permiso_requerido('programacion.add_programacion', 'programacion.change_programacion', cualquiera=True)
 def programacion_cobertura(request):
-    """Qué auxiliares asignados a ese día cubren la jornada elegida en el formulario."""
+    """Qué personas asignadas a ese día cubren la jornada elegida en el formulario."""
     return render(request, 'partials/programacion/_cobertura.html', _contexto_cobertura(
         _por_id(Convocatoria, request.GET.get('convocatoria')),
         _fecha(request.GET.get('fecha_programada')),
@@ -344,95 +346,95 @@ def programacion_imprimir(request):
     )
 
 
-def _auxiliares_filtrados(request):
-    """Auxiliares filtrados, sin paginar (los usa el listado y el "Imprimir")."""
-    filtro_form = FiltrarAuxiliaresForm(request.GET or None)
-    return filtro_form, services.filtrar_auxiliares(datos_filtro(filtro_form))
+def _personas_filtrados(request):
+    """Personal filtrados, sin paginar (los usa el listado y el "Imprimir")."""
+    filtro_form = FiltrarPersonalForm(request.GET or None)
+    return filtro_form, services.filtrar_personas(datos_filtro(filtro_form))
 
 
-def _filtrar_auxiliares(request):
-    filtro_form, auxiliares_list = _auxiliares_filtrados(request)
+def _filtrar_personas(request):
+    filtro_form, personas_list = _personas_filtrados(request)
 
-    paginator = Paginator(auxiliares_list, 20)
-    auxiliares = paginator.get_page(request.GET.get("page"))
-    services.con_estado_horario(auxiliares)
+    paginator = Paginator(personas_list, 20)
+    personas = paginator.get_page(request.GET.get("page"))
+    services.con_estado_horario(personas)
 
-    return filtro_form, auxiliares
+    return filtro_form, personas
 
 
-@permiso_requerido('programacion.view_auxiliar')
-def auxiliarHomeView(request):
-    filtro_form, auxiliares = _filtrar_auxiliares(request)
+@permiso_requerido('programacion.view_personal')
+def personalHomeView(request):
+    filtro_form, personas = _filtrar_personas(request)
 
     return render(
         request,
-        "auxiliar/auxiliarHome.html",
+        "personal/personalHome.html",
         {
-            "auxiliares": auxiliares,
+            "personas": personas,
             "filtro_form": filtro_form,
             "form_media": HorarioForm().media + filtro_form.media,
             "breadcrumbs": [
                 {"name": "Inicio", "url": reverse("home")},
-                {"name": "Auxiliares"},
+                {"name": "Personal"},
             ],
         },
     )
 
 
-@permiso_requerido('programacion.view_auxiliar')
-def buscar_auxiliares(request):
-    _, auxiliares = _filtrar_auxiliares(request)
+@permiso_requerido('programacion.view_personal')
+def buscar_personas(request):
+    _, personas = _filtrar_personas(request)
 
     return render(
         request,
-        "partials/tabla.html",
-        {"auxiliares": auxiliares},
+        "partials/personal/tabla.html",
+        {"personas": personas},
     )
 
 
-@permiso_formulario('programacion.auxiliar')
-def auxiliar_form(request, pk=None):
-    instance = get_object_or_404(Auxiliar, pk=pk) if pk else None
+@permiso_formulario('programacion.personal')
+def persona_form(request, pk=None):
+    instance = get_object_or_404(Personal, pk=pk) if pk else None
 
     if request.method == "POST":
-        form = AuxiliarForm(request.POST, instance=instance)
+        form = PersonalForm(request.POST, instance=instance)
         if form.is_valid():
-            auxiliar = form.save()
+            persona = form.save()
             accion = 'registró' if instance is None else 'actualizó'
-            messages.success(request, f'Se {accion} al auxiliar {auxiliar.nombre} {auxiliar.apellido}.')
-            _, auxiliares = _filtrar_auxiliares(request)
+            messages.success(request, f'Se {accion} a la persona {persona.nombre} {persona.apellido}.')
+            _, personas = _filtrar_personas(request)
             return render(
                 request,
-                "partials/auxiliar/modal_form_success.html",
-                {"auxiliares": auxiliares},
+                "partials/personal/modal_form_success.html",
+                {"personas": personas},
             )
     else:
-        form = AuxiliarForm(instance=instance)
+        form = PersonalForm(instance=instance)
 
     return render(
         request,
-        "partials/auxiliar/modal_form.html",
-        {"form": form, "instance": instance},
+        "partials/personal/modal_form.html",
+        {"form": form, "instance": instance, "cargos": services.cargos_existentes()},
     )
 
 
-@permiso_requerido('programacion.delete_auxiliar')
-def auxiliar_eliminar(request, pk):
-    instance = get_object_or_404(Auxiliar, pk=pk)
+@permiso_requerido('programacion.delete_personal')
+def persona_eliminar(request, pk):
+    instance = get_object_or_404(Personal, pk=pk)
 
     if request.method == "POST":
         instance.delete()
-        messages.success(request, f'Se eliminó al auxiliar {instance.nombre} {instance.apellido}.')
-        _, auxiliares = _filtrar_auxiliares(request)
+        messages.success(request, f'Se eliminó a la persona {instance.nombre} {instance.apellido}.')
+        _, personas = _filtrar_personas(request)
         return render(
             request,
-            "partials/auxiliar/modal_form_success.html",
-            {"auxiliares": auxiliares},
+            "partials/personal/modal_form_success.html",
+            {"personas": personas},
         )
 
     return render(
         request,
-        "partials/auxiliar/modal_delete.html",
+        "partials/personal/modal_delete.html",
         {"instance": instance},
     )
 
@@ -445,22 +447,22 @@ def horario_form(request, pk=None):
         if form.is_valid():
             # Al crear se guarda un horario por cada día elegido (save devuelve la lista).
             guardados = form.save()
-            auxiliar = form.cleaned_data['auxiliar']
+            persona = form.cleaned_data['persona']
             if instance is None:
                 dias = len(guardados)
-                messages.success(request, f"Se agregó el horario de {auxiliar.nombre} {auxiliar.apellido} ({dias} día{'s' if dias != 1 else ''}).")
+                messages.success(request, f"Se agregó el horario de {persona.nombre} {persona.apellido} ({dias} día{'s' if dias != 1 else ''}).")
             else:
-                messages.success(request, f'Se actualizó el horario de {auxiliar.nombre} {auxiliar.apellido}.')
-            _, auxiliares = _filtrar_auxiliares(request)
+                messages.success(request, f'Se actualizó el horario de {persona.nombre} {persona.apellido}.')
+            _, personas = _filtrar_personas(request)
             return render(
                 request,
                 "partials/horario/modal_form_success.html",
-                {"auxiliares": auxiliares},
+                {"personas": personas},
             )
     elif instance:
         form = HorarioForm(instance=instance)
     else:
-        form = HorarioForm(initial=services.horario_inicial(request.GET.get('auxiliar')))
+        form = HorarioForm(initial=services.horario_inicial(request.GET.get('persona')))
 
     return render(
         request,
@@ -474,12 +476,12 @@ def horario_eliminar(request, pk):
     instance = get_object_or_404(Horario, pk=pk)
     if request.method == "POST":
         instance.delete()
-        messages.success(request, f'Se eliminó el horario de {instance.auxiliar.nombre} {instance.auxiliar.apellido}.')
-        _, auxiliares = _filtrar_auxiliares(request)
+        messages.success(request, f'Se eliminó el horario de {instance.persona.nombre} {instance.persona.apellido}.')
+        _, personas = _filtrar_personas(request)
         return render(
             request,
             "partials/horario/modal_form_success.html",
-            {"auxiliares": auxiliares},
+            {"personas": personas},
         )
 
     return render(
@@ -489,105 +491,136 @@ def horario_eliminar(request, pk):
     )
 
 
-@permiso_requerido('programacion.view_auxiliar')
-def auxiliar_imprimir(request):
-    _, auxiliares = _auxiliares_filtrados(request)
-    return respuesta_pdf(request, "partials/auxiliar/reporte_pdf.html", {"auxiliares": auxiliares}, "auxiliares.pdf")
+@permiso_requerido('programacion.view_personal')
+def persona_imprimir(request):
+    _, personas = _personas_filtrados(request)
+    return respuesta_pdf(request, "partials/personal/reporte_pdf.html", {"personas": personas}, "personal.pdf")
 
 
-def _ausencias_filtradas(request):
-    """Ausencias filtradas, sin paginar (las usa el "Imprimir")."""
-    search = request.GET.get("q", "").strip()
-    return services.filtrar_ausencias(search, _fecha(request.GET.get("fecha", "").strip()))
+# ---------------------------------------------------------------------------
+# Asistencia de practicantes: pase de lista por día e historial
+# ---------------------------------------------------------------------------
+
+VISTAS_ASISTENCIA = ('dia', 'historial')
 
 
-def _auxiliares_con_ausencias(request):
-    search = request.GET.get("q", "").strip()
-    auxiliares = services.auxiliares_con_ausencias(search, _fecha(request.GET.get("fecha", "").strip()))
-    return Paginator(auxiliares, 20).get_page(request.GET.get('page'))
+def _fecha_pase_de_lista(request):
+    return _fecha(request.GET.get('fecha') or request.POST.get('fecha')) or timezone.localdate()
 
 
-@permiso_requerido('programacion.view_ausencia')
-def ausenciaHomeView(request):
-    search = request.GET.get("q", "").strip()
-    fecha = request.GET.get("fecha", "").strip()
-    auxiliares = _auxiliares_con_ausencias(request)
-    return render(request, "ausencia/ausenciaHome.html", {
-        "auxiliares": auxiliares,
-        "search": search,
-        "fecha": fecha,
-        "form_media": AusenciaForm().media,
-        "breadcrumbs": [
-            {"name": "Inicio", "url": reverse("home")},
-            {"name": "Ausencias"},
+def _contexto_pase_de_lista(fecha):
+    filas = services.pase_de_lista(fecha)
+    hoy = timezone.localdate()
+    return {
+        'fecha': fecha,
+        'hoy': hoy,
+        'es_futuro': fecha > hoy,
+        'filas': filas,
+        'resumen': services.resumen_pase_de_lista(filas),
+        'estados': Asistencia.Estado.choices,
+        'anterior': fecha - timedelta(days=1),
+        'siguiente': fecha + timedelta(days=1),
+    }
+
+
+def _asistencias_filtradas(request):
+    """Formulario y asistencias filtradas, SIN paginar (lo reutiliza el imprimir)."""
+    filtro_form = FiltrarAsistenciaForm(request.GET or None)
+    return filtro_form, services.filtrar_asistencias(datos_filtro(filtro_form))
+
+
+def _contexto_historial(request):
+    filtro_form, asistencias = _asistencias_filtradas(request)
+    return {
+        'filtro_form': filtro_form,
+        'asistencias': Paginator(asistencias, 25).get_page(request.GET.get('page')),
+        'por_practicante': services.resumen_por_practicante(asistencias),
+    }
+
+
+@permiso_requerido('programacion.view_asistencia')
+def asistenciaHomeView(request):
+    vista = request.GET.get('vista')
+    vista = vista if vista in VISTAS_ASISTENCIA else 'dia'
+    contexto = {
+        'vista': vista,
+        'breadcrumbs': [
+            {'name': 'Inicio', 'url': reverse('home')},
+            {'name': 'Asistencia'},
         ],
-    })
-
-
-@permiso_requerido('programacion.view_ausencia')
-def buscar_ausencias(request):
-    auxiliares = _auxiliares_con_ausencias(request)
-    return render(request, "partials/ausencia/tabla.html", {"auxiliares": auxiliares})
-
-
-@permiso_formulario('programacion.ausencia')
-def ausencia_form(request, pk=None):
-    instance = get_object_or_404(Ausencia, pk=pk) if pk else None
-    origen_auxiliares = request.GET.get('origen') == 'auxiliares'
-    auxiliar_seleccionado = instance.auxiliar if instance else None
-    if request.method == "POST":
-        if not auxiliar_seleccionado and request.POST.get('auxiliar'):
-            auxiliar_seleccionado = Auxiliar.objects.filter(pk=request.POST.get('auxiliar')).first()
-        form = AusenciaForm(request.POST, instance=instance, auxiliar=auxiliar_seleccionado)
-        if form.is_valid():
-            ausencia = form.save()
-            accion = 'registró' if instance is None else 'actualizó'
-            messages.success(request, f'Se {accion} la ausencia de {ausencia.auxiliar.nombre} {ausencia.auxiliar.apellido}.')
-            contexto = {'origen_auxiliares': origen_auxiliares}
-            if origen_auxiliares:
-                _, auxiliares = _filtrar_auxiliares(request)
-                contexto['auxiliares'] = auxiliares
-            else:
-                contexto['auxiliares'] = _auxiliares_con_ausencias(request)
-            return render(request, "partials/ausencia/modal_form_success.html", contexto)
+        'form_media': FiltrarAsistenciaForm().media,
+    }
+    if vista == 'dia':
+        contexto.update(_contexto_pase_de_lista(_fecha_pase_de_lista(request)))
     else:
-        auxiliar_id = request.GET.get('auxiliar') if not instance else None
-        if auxiliar_id:
-            auxiliar_seleccionado = Auxiliar.objects.filter(pk=auxiliar_id).first()
-        form = AusenciaForm(
-            instance=instance,
-            initial={'auxiliar': auxiliar_id},
-            auxiliar=auxiliar_seleccionado,
-        )
-    return render(request, "partials/ausencia/modal_form.html", {
-        "form": form,
-        "instance": instance,
-        "auxiliar_seleccionado": auxiliar_seleccionado,
-    })
+        contexto.update(_contexto_historial(request))
+    return render(request, 'asistencia/asistenciaHome.html', contexto)
 
 
-@permiso_requerido('programacion.delete_ausencia')
-def ausencia_eliminar(request, pk):
-    instance = get_object_or_404(Ausencia, pk=pk)
-    if request.method == "POST":
-        instance.delete()
-        messages.success(request, f'Se eliminó la ausencia de {instance.auxiliar.nombre} {instance.auxiliar.apellido}.')
-        origen_auxiliares = request.GET.get('origen') == 'auxiliares'
-        contexto = {'origen_auxiliares': origen_auxiliares}
-        if origen_auxiliares:
-            _, auxiliares = _filtrar_auxiliares(request)
-            contexto['auxiliares'] = auxiliares
-        else:
-            contexto['auxiliares'] = _auxiliares_con_ausencias(request)
-        return render(request, "partials/ausencia/modal_form_success.html", contexto)
-    return render(request, "partials/ausencia/modal_delete.html", {"instance": instance})
+@permiso_requerido('programacion.view_asistencia')
+def asistencia_dia(request):
+    """Pase de lista de otro día (navegación con htmx)."""
+    return render(request, 'partials/asistencia/_pase_de_lista.html', _contexto_pase_de_lista(_fecha_pase_de_lista(request)))
 
 
-@permiso_requerido('programacion.view_ausencia')
-def ausencia_imprimir(request):
-    return respuesta_pdf(
-        request, "partials/ausencia/reporte_pdf.html", {"ausencias": _ausencias_filtradas(request)}, "ausencias.pdf",
-    )
+@permiso_requerido('programacion.add_asistencia', 'programacion.change_asistencia')
+@require_POST
+def asistencia_registrar(request):
+    """Guarda el estado de un practicante en un día y vuelve a pintar el pase de lista."""
+    fecha = _fecha_pase_de_lista(request)
+    persona = get_object_or_404(Personal, pk=request.POST.get('persona') or 0)
+    estado = request.POST.get('estado')
+    contexto = _contexto_pase_de_lista(fecha)
+    if estado not in Asistencia.Estado.values:
+        return render(request, 'partials/asistencia/_pase_de_lista.html', {**contexto, 'error': 'Elige un estado válido.'})
+    try:
+        asistencia = services.registrar_asistencia(persona.pk, fecha, estado, request.POST.get('observacion', ''))
+    except ValidationError as error:
+        mensaje = ' '.join(error.messages)
+        return render(request, 'partials/asistencia/_pase_de_lista.html', {**contexto, 'error': f'{persona.nombre} {persona.apellido}: {mensaje}'})
+    messages.success(request, f'{persona.nombre} {persona.apellido}: {asistencia.get_estado_display().lower()}.')
+    return render(request, 'partials/asistencia/_pase_de_lista.html', _contexto_pase_de_lista(fecha))
+
+
+@permiso_requerido('programacion.delete_asistencia')
+@require_POST
+def asistencia_quitar(request):
+    """Deja a un practicante "sin registrar" ese día (para corregir un error)."""
+    fecha = _fecha_pase_de_lista(request)
+    persona = get_object_or_404(Personal, pk=request.POST.get('persona') or 0)
+    services.quitar_asistencia(persona.pk, fecha)
+    messages.info(request, f'Se quitó el registro de {persona.nombre} {persona.apellido}.')
+    return render(request, 'partials/asistencia/_pase_de_lista.html', _contexto_pase_de_lista(fecha))
+
+
+@permiso_requerido('programacion.add_asistencia')
+@require_POST
+def asistencia_todos_presentes(request):
+    fecha = _fecha_pase_de_lista(request)
+    if fecha > timezone.localdate():
+        return render(request, 'partials/asistencia/_pase_de_lista.html', {
+            **_contexto_pase_de_lista(fecha), 'error': 'No se puede marcar asistencia de un día que aún no llega.',
+        })
+    total = services.marcar_pendientes_presentes(fecha)
+    if total:
+        messages.success(request, f"Se marcaron {total} practicante{'s' if total != 1 else ''} como presente{'s' if total != 1 else ''}.")
+    return render(request, 'partials/asistencia/_pase_de_lista.html', _contexto_pase_de_lista(fecha))
+
+
+@permiso_requerido('programacion.view_asistencia')
+def buscar_asistencias(request):
+    return render(request, 'partials/asistencia/_historial_resultados.html', _contexto_historial(request))
+
+
+@permiso_requerido('programacion.view_asistencia')
+def asistencia_imprimir(request):
+    filtro_form, asistencias = _asistencias_filtradas(request)
+    filtros = datos_filtro(filtro_form)
+    return respuesta_pdf(request, 'partials/asistencia/reporte_pdf.html', {
+        'asistencias': asistencias,
+        'por_practicante': services.resumen_por_practicante(asistencias),
+        'filtros': filtros,
+    }, 'asistencia.pdf')
 
 
 def _convocatorias_filtradas(request, paginar=True):
@@ -648,52 +681,52 @@ def convocatoria_form(request, pk=None):
     )
 
 
-# Acciones del modal de auxiliares de un día y el permiso extra que pide cada una
+# Acciones del modal de personas de un día y el permiso extra que pide cada una
 # (agregar y quitar ya los exige el decorador de la vista).
 ACCIONES_DIA = {
     'agregar': None,
     'quitar': None,
-    'no_llego': 'programacion.add_ausencia',
-    'si_llego': 'programacion.delete_ausencia',
+    'no_llego': 'programacion.add_asistencia',
+    'si_llego': 'programacion.change_asistencia',
 }
 MENSAJES_DIA = {
-    'agregar': 'Auxiliar asignado al día.',
-    'quitar': 'Auxiliar quitado del día.',
-    'no_llego': 'Se registró que el auxiliar no llegó.',
-    'si_llego': 'Se quitó la inasistencia del auxiliar.',
+    'agregar': 'Persona asignada al día.',
+    'quitar': 'Persona quitada del día.',
+    'no_llego': 'Se registró que el practicante no llegó.',
+    'si_llego': 'El practicante quedó como presente.',
 }
 
 
-@permiso_requerido('programacion.add_convocatoriaauxiliar', 'programacion.delete_convocatoriaauxiliar')
-def convocatoria_dia_auxiliares(request, pk):
-    """Agregar y quitar auxiliares de un día de la convocatoria, y registrar si no llegaron. Cada acción
+@permiso_requerido('programacion.add_convocatoriapersonal', 'programacion.delete_convocatoriapersonal')
+def convocatoria_dia_personas(request, pk):
+    """Agregar y quitar personas de un día de la convocatoria, y registrar si no llegaron. Cada acción
     se guarda al momento: se vuelve a pintar la lista del modal (que sigue abierto) y se avisa a la
     agenda para refrescarse."""
     convocatoria = get_object_or_404(Convocatoria, pk=pk)
     fecha = _fecha(request.GET.get('fecha'))
     if not fecha or not convocatoria.fecha_inicio <= fecha <= convocatoria.fecha_fin:
         return HttpResponse('El día debe estar dentro de las fechas de la convocatoria.', status=400)
-    del_dia = AuxiliaresDelDia(convocatoria, fecha)
+    del_dia = PersonalDelDia(convocatoria, fecha)
 
     contexto = {"convocatoria": convocatoria, "fecha": fecha, "del_dia": del_dia}
     if request.method == "POST":
         error = None
-        # Cada botón manda una sola acción con el id del auxiliar: {"agregar": id}, {"no_llego": id}...
+        # Cada botón manda una sola acción con el id de la persona: {"agregar": id}, {"no_llego": id}...
         accion = next((nombre for nombre in ACCIONES_DIA if request.POST.get(nombre, '').isdigit()), None)
-        auxiliar_id = int(request.POST[accion]) if accion else None
+        persona_id = int(request.POST[accion]) if accion else None
         permiso = ACCIONES_DIA.get(accion)
         if permiso and not request.user.has_perm(permiso):
             raise PermissionDenied
         if accion == 'agregar':
-            error = del_dia.agregar(auxiliar_id)
+            error = del_dia.agregar(persona_id)
         elif accion == 'quitar':
-            del_dia.quitar(auxiliar_id)
+            del_dia.quitar(persona_id)
         elif accion == 'no_llego':
-            error = del_dia.registrar_inasistencia(auxiliar_id, request.POST.get('motivo', ''))
+            error = del_dia.registrar_inasistencia(persona_id, request.POST.get('motivo', ''))
         elif accion == 'si_llego':
-            del_dia.quitar_inasistencia(auxiliar_id)
+            del_dia.quitar_inasistencia(persona_id)
         contexto['asignados'], contexto['disponibles'] = del_dia.opciones()
-        respuesta = render(request, "partials/agenda/_asignar_auxiliares_lista.html", {**contexto, "error": error})
+        respuesta = render(request, "partials/agenda/_asignar_personal_lista.html", {**contexto, "error": error})
         if not error:
             if accion:
                 messages.success(request, MENSAJES_DIA[accion])
@@ -701,7 +734,7 @@ def convocatoria_dia_auxiliares(request, pk):
         return respuesta
 
     contexto['asignados'], contexto['disponibles'] = del_dia.opciones()
-    return render(request, "partials/agenda/modal_asignar_auxiliares.html", contexto)
+    return render(request, "partials/agenda/modal_asignar_personal.html", contexto)
 
 
 @permiso_requerido('programacion.delete_convocatoria')

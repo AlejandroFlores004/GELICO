@@ -4,12 +4,12 @@
             <form method="dialog">
                 <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button>
             </form>
-            <h3 class="font-bold text-xl">Auxiliares del {{ fecha|date:"l j \d\e F"|capfirst }}</h3>
+            <h3 class="font-bold text-xl">Personal del {{ fecha|date:"l j \d\e F"|capfirst }}</h3>
             <p class="mt-1 text-sm text-base-content/70">
                 {{ convocatoria.nombre }}. Cada cambio se guarda al momento; cubren las visitas de la jornada de su horario.
                 Si alguien no llega, márcalo con <b>No llegó</b>: deja de cubrir las visitas de ese día.
             </p>
-            {% include "partials/agenda/_asignar_auxiliares_lista.html" %}
+            {% include "partials/agenda/_asignar_personal_lista.html" %}
             <div class="modal-action">
                 <button type="button" class="btn btn-primary" onclick="document.getElementById('convocatoria-modal').close()">Listo</button>
             </div>

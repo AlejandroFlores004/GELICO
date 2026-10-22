@@ -1,17 +1,34 @@
 from django import forms
 from django_select2.forms import Select2Widget
+from django.db.models import Q
 from django.urls import reverse_lazy
 from django.utils import timezone
 
 from escuela.models import Escuela
-from .models import Auxiliar, Ausencia, Convocatoria, ConvocatoriaAuxiliar, Horario, Jornada, Programacion, jornadas_que_se_cruzan
+from .models import Asistencia, Personal, Convocatoria, ConvocatoriaPersonal, Horario, Jornada, Programacion, jornadas_que_se_cruzan
+from .services import registrar_asistencia
 
 
-class AuxiliarForm(forms.ModelForm):
+class PersonalForm(forms.ModelForm):
+    """Planta lleva cargo; practicante, institución (lo valida Personal.clean)."""
+
+    # Campo explícito para que los radios no incluyan la opción vacía "---------".
+    tipo = forms.ChoiceField(label='Tipo', choices=Personal.Tipo.choices, widget=forms.RadioSelect, initial=Personal.Tipo.PRACTICANTE)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        # Solo se guarda el dato que corresponde al tipo (el otro campo queda oculto en el formulario).
+        if cleaned_data.get('tipo') == Personal.Tipo.PLANTA:
+            cleaned_data['institucion'] = ''
+        elif cleaned_data.get('tipo') == Personal.Tipo.PRACTICANTE:
+            cleaned_data['cargo'] = ''
+        return cleaned_data
+
     class Meta:
-        model = Auxiliar
-        fields = ['nombre', 'apellido', 'email', 'telefono', 'institucion']
+        model = Personal
+        fields = ['tipo', 'nombre', 'apellido', 'email', 'telefono', 'cargo', 'institucion']
         widgets = {
+            'cargo': forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Ej. Contador', 'list': 'cargos-existentes'}),
             'nombre': forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Ej. María'}),
             'apellido': forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Ej. López'}),
             'email': forms.EmailInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'correo@ejemplo.com'}),
@@ -28,8 +45,8 @@ class AuxiliarForm(forms.ModelForm):
 CLASE_SELECT = 'select select-bordered w-full'
 
 
-class FiltrarAuxiliaresForm(forms.Form):
-    """Filtros del listado de auxiliares. Fecha, día y jornada se refieren a su horario semanal:
+class FiltrarPersonalForm(forms.Form):
+    """Filtros del listado de personas. Fecha, día y jornada se refieren a su horario semanal:
     con ellos, "con horario" significa que trabaja esa fecha / ese día / esa jornada."""
 
     HORARIO = [
@@ -43,7 +60,10 @@ class FiltrarAuxiliaresForm(forms.Form):
     q = forms.CharField(
         required=False,
         label='Buscar',
-        widget=forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Nombre, apellido, correo o teléfono'}),
+        widget=forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Nombre, correo, teléfono, cargo o institución'}),
+    )
+    tipo = forms.ChoiceField(
+        required=False, label='Tipo', choices=[('', 'Todos'), *Personal.Tipo.choices], widget=forms.Select(attrs={'class': CLASE_SELECT}),
     )
     institucion = forms.ChoiceField(required=False, label='Institución', widget=forms.Select(attrs={'class': CLASE_SELECT}))
     horario = forms.ChoiceField(required=False, label='Horario', choices=HORARIO, widget=forms.Select(attrs={'class': CLASE_SELECT}))
@@ -80,7 +100,7 @@ class FiltrarAuxiliaresForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        instituciones = Auxiliar.objects.order_by('institucion').values_list('institucion', flat=True).distinct()
+        instituciones = Personal.objects.exclude(institucion='').order_by('institucion').values_list('institucion', flat=True).distinct()
         self.fields['institucion'].choices = [('', 'Todas'), *[(nombre, nombre) for nombre in instituciones]]
 
     def filtros_activos(self):
@@ -90,44 +110,44 @@ class FiltrarAuxiliaresForm(forms.Form):
         return sum(1 for valor in self.cleaned_data.values() if valor not in (None, ''))
 
 
-class AusenciaForm(forms.ModelForm):
-    def __init__(self, *args, auxiliar=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.auxiliar = auxiliar or (self.instance.auxiliar if self.instance.pk else None)
+class FiltrarAsistenciaForm(forms.Form):
+    """Filtros del historial de asistencia."""
+
+    persona = forms.ModelChoiceField(
+        queryset=Personal.objects.filter(tipo=Personal.Tipo.PRACTICANTE).order_by('apellido', 'nombre'),
+        required=False,
+        label='Practicante',
+        widget=Select2Widget(attrs={
+            'data-placeholder': 'Todos los practicantes',
+            'style': 'width: 100%',
+            'class': 'select2-daisy',
+            'data-allow-clear': 'true',
+        }),
+    )
+    desde = forms.DateField(
+        required=False, label='Desde',
+        widget=forms.DateInput(format='%Y-%m-%d', attrs={'class': 'input input-bordered w-full', 'type': 'date'}),
+    )
+    hasta = forms.DateField(
+        required=False, label='Hasta',
+        widget=forms.DateInput(format='%Y-%m-%d', attrs={'class': 'input input-bordered w-full', 'type': 'date'}),
+    )
+    estado = forms.ChoiceField(
+        required=False, label='Estado', choices=[('', 'Todos'), *Asistencia.Estado.choices],
+        widget=forms.Select(attrs={'class': CLASE_SELECT}),
+    )
 
     def clean(self):
         cleaned_data = super().clean()
-        auxiliar = cleaned_data.get('auxiliar') or self.auxiliar
-        fecha = cleaned_data.get('fecha')
-        # Solo se registra ausencia en un día en que el auxiliar trabaja según su horario semanal.
-        if auxiliar and fecha and not Horario.objects.filter(auxiliar=auxiliar).del_dia(fecha).exists():
-            self.add_error('fecha', 'El auxiliar no tiene horario ese día.')
+        desde, hasta = cleaned_data.get('desde'), cleaned_data.get('hasta')
+        if desde and hasta and hasta < desde:
+            self.add_error('hasta', 'La fecha final debe ser igual o posterior a la inicial.')
         return cleaned_data
-
-    class Meta:
-        model = Ausencia
-        fields = ['auxiliar', 'fecha', 'motivo']
-        widgets = {
-            'auxiliar': Select2Widget(attrs={
-                'data-placeholder': 'Seleccione un auxiliar',
-                'style': 'width: 100%; display: none !important;',
-                'class': 'select2-daisy',
-            }),
-            'fecha': forms.DateInput(format='%Y-%m-%d', attrs={
-                'class': 'input input-bordered w-full',
-                'type': 'date',
-            }),
-            'motivo': forms.Textarea(attrs={
-                'class': 'textarea textarea-bordered w-full',
-                'placeholder': 'Motivo de la ausencia',
-                'rows': 4,
-            }),
-        }
 
 
 class HorarioForm(forms.ModelForm):
-    """Al crear se pueden marcar varios días con el mismo horario (se guarda un Horario por día);
-    al editar se cambia un solo día."""
+    """Horario semanal de un practicante. Al crear se pueden marcar varios días con el mismo horario
+    (se guarda un Horario por día); al editar se cambia un solo día."""
 
     dias = forms.TypedMultipleChoiceField(
         label='Días',
@@ -142,18 +162,21 @@ class HorarioForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Solo los practicantes tienen horario: el personal de planta llega cuando se le indica.
+        self.fields['persona'].queryset = Personal.objects.filter(tipo=Personal.Tipo.PRACTICANTE).order_by('apellido', 'nombre')
+        self.fields['persona'].label = 'Practicante'
         if self.instance.pk:
-            self.fields['auxiliar'].disabled = True
+            self.fields['persona'].disabled = True
             del self.fields['dias']
         else:
             del self.fields['dia']
 
     class Meta:
         model = Horario
-        fields = ['auxiliar', 'dia', 'jornada', 'fecha_inicio', 'fecha_fin']
+        fields = ['persona', 'dia', 'jornada', 'fecha_inicio', 'fecha_fin']
         widgets = {
-            'auxiliar': Select2Widget(attrs={
-                'data-placeholder': 'Seleccione un auxiliar',
+            'persona': Select2Widget(attrs={
+                'data-placeholder': 'Seleccione un practicante',
                 'style': 'width: 100%; display: none !important;',
                 'class': 'select2-daisy',
             }),
@@ -178,7 +201,7 @@ class HorarioForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        auxiliar = cleaned_data.get('auxiliar')
+        persona = cleaned_data.get('persona')
         jornada = cleaned_data.get('jornada')
         fecha_inicio = cleaned_data.get('fecha_inicio')
         fecha_fin = cleaned_data.get('fecha_fin')
@@ -187,13 +210,13 @@ class HorarioForm(forms.ModelForm):
             self.add_error('fecha_fin', 'El fin de labores debe ser igual o posterior al inicio de labores.')
 
         dias = self._dias()
-        if self.errors or not (auxiliar and dias):
+        if self.errors or not (persona and dias):
             return cleaned_data
 
-        # Un auxiliar no puede tener dos horarios que se crucen el mismo día dentro del mismo periodo
+        # Una persona no puede tener dos horarios que se crucen el mismo día dentro del mismo periodo
         # (p. ej. "mañana" y "todo el día").
         cruces = Horario.objects.filter(
-            auxiliar=auxiliar,
+            persona=persona,
             dia__in=dias,
             jornada__in=jornadas_que_se_cruzan(jornada),
         ).vigentes_entre(fecha_inicio, fecha_fin).exclude(pk=self.instance.pk)
@@ -201,14 +224,14 @@ class HorarioForm(forms.ModelForm):
         if dias_con_cruce:
             self.add_error(
                 None,
-                f"El auxiliar ya tiene un horario que se cruza el {', '.join(dias_con_cruce).lower()} en ese periodo.",
+                f"La persona ya tiene un horario que se cruza el {', '.join(dias_con_cruce).lower()} en ese periodo.",
             )
         return cleaned_data
 
     def save(self, commit=True):
         if 'dias' not in self.fields:
             return super().save(commit)
-        datos = {campo: self.cleaned_data[campo] for campo in ('auxiliar', 'jornada', 'fecha_inicio', 'fecha_fin')}
+        datos = {campo: self.cleaned_data[campo] for campo in ('persona', 'jornada', 'fecha_inicio', 'fecha_fin')}
         horarios = [Horario(dia=dia, **datos) for dia in self.cleaned_data['dias']]
         if commit:
             for horario in horarios:
@@ -217,8 +240,8 @@ class HorarioForm(forms.ModelForm):
 
 
 class ProgramacionForm(forms.ModelForm):
-    """Visita a una escuela en la jornada de la mañana, de la tarde o todo el día. No lleva auxiliar:
-    la cubren los auxiliares de la convocatoria que trabajan esa jornada según su horario."""
+    """Visita a una escuela en la jornada de la mañana, de la tarde o todo el día. No lleva persona:
+    la cubren las personas de la convocatoria que trabajan esa jornada según su horario."""
 
     # Campo explícito para que los radios no incluyan la opción vacía "---------".
     jornada = forms.ChoiceField(label='Jornada', choices=Jornada.choices, widget=forms.RadioSelect)
@@ -289,12 +312,13 @@ class ProgramacionForm(forms.ModelForm):
         }
 
 
-class AuxiliaresDelDia:
-    """Gestión de los auxiliares asignados a un día de una convocatoria.
+class PersonalDelDia:
+    """Gestión del personal asignado a un día de una convocatoria.
 
-    Se puede agregar a quien tiene horario ese día y no está ausente; se puede quitar a cualquiera
-    de los asignados (aunque su horario haya cambiado después de asignarlo). A los asignados se les
-    registra la inasistencia ("no llegó") a partir de ese día, como una Ausencia de esa fecha."""
+    Se puede agregar a cualquier persona de planta (no tiene horario fijo) y a los practicantes que
+    tienen horario ese día y no están ausentes; se puede quitar a cualquiera de los asignados. A los
+    practicantes asignados se les registra que no llegaron ("ausente" en su asistencia) a partir de
+    ese día; al personal de planta no se le toma asistencia."""
 
     MOTIVO_POR_DEFECTO = 'No se presentó'
 
@@ -302,76 +326,83 @@ class AuxiliaresDelDia:
         self.convocatoria, self.fecha = convocatoria, fecha
         self.horarios = {}
         for horario in Horario.objects.del_dia(fecha):
-            self.horarios.setdefault(horario.auxiliar_id, []).append(horario)
-        self._cargar_ausencias()
+            self.horarios.setdefault(horario.persona_id, []).append(horario)
+        self._cargar_asistencias()
 
-    def _cargar_ausencias(self):
-        self.ausencias = {ausencia.auxiliar_id: ausencia for ausencia in Ausencia.objects.filter(fecha=self.fecha)}
-        self.ausentes = set(self.ausencias)
+    def _cargar_asistencias(self):
+        self.asistencias = {asistencia.persona_id: asistencia for asistencia in Asistencia.objects.filter(fecha=self.fecha)}
+        self.ausentes = {persona_id for persona_id, asistencia in self.asistencias.items() if asistencia.no_trabajo}
 
     @property
     def se_puede_registrar_inasistencia(self):
         return self.fecha <= timezone.localdate()
 
     def asignados_ids(self):
-        return set(self.convocatoria.asignaciones.filter(fecha=self.fecha).values_list('auxiliar_id', flat=True))
+        return set(self.convocatoria.asignaciones.filter(fecha=self.fecha).values_list('persona_id', flat=True))
 
-    def puede_agregarse(self, auxiliar_id):
-        return auxiliar_id in self.horarios and auxiliar_id not in self.ausentes
+    def puede_agregarse(self, persona):
+        if not persona.es_practicante:
+            return True
+        return persona.pk in self.horarios and persona.pk not in self.ausentes
 
     def opciones(self):
-        """(asignados, los demás con horario ese día), cada uno con su jornada y si está ausente."""
+        """(asignados, los demás disponibles ese día): practicantes con horario ese día y todo el personal
+        de planta, cada uno con su jornada y si está ausente."""
         asignados = self.asignados_ids()
-        auxiliares = Auxiliar.objects.filter(pk__in=set(self.horarios) | asignados).order_by('apellido', 'nombre')
+        personas = Personal.objects.filter(
+            Q(pk__in=set(self.horarios) | asignados) | Q(tipo=Personal.Tipo.PLANTA)
+        ).order_by('-tipo', 'apellido', 'nombre')
         filas = [
             {
-                'auxiliar': auxiliar,
-                'jornadas': [horario.get_jornada_display() for horario in self.horarios.get(auxiliar.pk, [])],
-                'ausente': auxiliar.pk in self.ausentes,
-                'ausencia': self.ausencias.get(auxiliar.pk),
-                'puede_agregarse': self.puede_agregarse(auxiliar.pk),
+                'persona': persona,
+                'jornadas': [horario.get_jornada_display() for horario in self.horarios.get(persona.pk, [])],
+                'ausente': persona.pk in self.ausentes,
+                'asistencia': self.asistencias.get(persona.pk),
+                'puede_agregarse': self.puede_agregarse(persona),
             }
-            for auxiliar in auxiliares
+            for persona in personas
         ]
         return (
-            [fila for fila in filas if fila['auxiliar'].pk in asignados],
-            [fila for fila in filas if fila['auxiliar'].pk not in asignados],
+            [fila for fila in filas if fila['persona'].pk in asignados],
+            [fila for fila in filas if fila['persona'].pk not in asignados],
         )
 
-    def agregar(self, auxiliar_id):
+    def agregar(self, persona_id):
         """Devuelve un mensaje de error, o None si se agregó (o ya estaba)."""
-        auxiliar = Auxiliar.objects.filter(pk=auxiliar_id).first()
-        if auxiliar is None:
-            return 'El auxiliar no existe.'
-        if auxiliar.pk in self.asignados_ids():
+        persona = Personal.objects.filter(pk=persona_id).first()
+        if persona is None:
+            return 'La persona no existe.'
+        if persona.pk in self.asignados_ids():
             return None
-        if not self.puede_agregarse(auxiliar.pk):
-            motivo = 'tiene registrado que no llegó' if auxiliar.pk in self.ausentes else 'no tiene horario'
-            return f'No se puede asignar a {auxiliar.nombre} {auxiliar.apellido}: {motivo} ese día.'
-        ConvocatoriaAuxiliar.objects.create(convocatoria=self.convocatoria, auxiliar=auxiliar, fecha=self.fecha)
+        if not self.puede_agregarse(persona):
+            motivo = f'tiene registrado «{self.asistencias[persona.pk].get_estado_display().lower()}»' if persona.pk in self.ausentes else 'no tiene horario'
+            return f'No se puede asignar a {persona.nombre} {persona.apellido}: {motivo} ese día.'
+        ConvocatoriaPersonal.objects.create(convocatoria=self.convocatoria, persona=persona, fecha=self.fecha)
         return None
 
-    def quitar(self, auxiliar_id):
+    def quitar(self, persona_id):
         # delete() por objeto para que la auditoría registre la baja.
-        for asignacion in self.convocatoria.asignaciones.filter(fecha=self.fecha, auxiliar_id=auxiliar_id):
+        for asignacion in self.convocatoria.asignaciones.filter(fecha=self.fecha, persona_id=persona_id):
             asignacion.delete()
 
-    def registrar_inasistencia(self, auxiliar_id, motivo=''):
-        """Marca que un auxiliar asignado no llegó ese día. Devuelve un mensaje de error, o None."""
+    def registrar_inasistencia(self, persona_id, motivo=''):
+        """Marca que un practicante asignado no llegó ese día. Devuelve un mensaje de error, o None."""
         if not self.se_puede_registrar_inasistencia:
             return 'La inasistencia se registra a partir de ese día.'
-        if int(auxiliar_id) not in self.asignados_ids():
-            return 'Solo se registra la inasistencia de auxiliares asignados a este día.'
-        if int(auxiliar_id) not in self.ausentes:
-            Ausencia.objects.create(auxiliar_id=auxiliar_id, fecha=self.fecha, motivo=motivo.strip() or self.MOTIVO_POR_DEFECTO)
-            self._cargar_ausencias()
+        if int(persona_id) not in self.asignados_ids():
+            return 'Solo se registra la inasistencia de personas asignadas a este día.'
+        if not Personal.objects.filter(pk=persona_id, tipo=Personal.Tipo.PRACTICANTE).exists():
+            return 'Al personal de planta no se le toma asistencia.'
+        if int(persona_id) not in self.ausentes:
+            registrar_asistencia(persona_id, self.fecha, Asistencia.Estado.AUSENTE, motivo.strip() or self.MOTIVO_POR_DEFECTO, validar=False)
+            self._cargar_asistencias()
         return None
 
-    def quitar_inasistencia(self, auxiliar_id):
-        """Deshace el "no llegó": borra la ausencia de ese día."""
-        for ausencia in Ausencia.objects.filter(auxiliar_id=auxiliar_id, fecha=self.fecha):
-            ausencia.delete()
-        self._cargar_ausencias()
+    def quitar_inasistencia(self, persona_id):
+        """Deshace el "no llegó": el practicante queda presente ese día."""
+        if int(persona_id) in self.ausentes:
+            registrar_asistencia(persona_id, self.fecha, Asistencia.Estado.PRESENTE, validar=False)
+            self._cargar_asistencias()
 
 
 class ProgramacionEstadoForm(forms.ModelForm):

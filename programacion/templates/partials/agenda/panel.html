@@ -83,8 +83,8 @@
                     <dd class="text-2xl font-bold tabular-nums">{{ estados.no_asistio }}</dd>
                 </div>
                 <div class="rounded-lg bg-base-200/60 p-3">
-                    <dt class="text-xs text-base-content/60">Auxiliares</dt>
-                    <dd class="text-2xl font-bold tabular-nums">{{ auxiliares|length }}</dd>
+                    <dt class="text-xs text-base-content/60">Personal</dt>
+                    <dd class="text-2xl font-bold tabular-nums">{{ personas|length }}</dd>
                     {% if sin_cobertura %}<dd class="text-xs text-warning">{{ sin_cobertura }} visita{{ sin_cobertura|pluralize }} sin cobertura</dd>{% endif %}
                 </div>
                 <div class="rounded-lg bg-base-200/60 p-3">
@@ -94,11 +94,11 @@
             </dl>
 
             <div class="flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-                <span class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Auxiliares asignados</span>
+                <span class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Personal asignado</span>
                 {% for item in leyenda %}
                 <span class="badge badge-ghost gap-1.5 border-base-300 py-3">
                     <span class="size-2.5 rounded-full {{ item.tono.punto }}" aria-hidden="true"></span>
-                    {{ item.auxiliar.nombre }} {{ item.auxiliar.apellido }}
+                    {{ item.persona.nombre }} {{ item.persona.apellido }}
                     <span class="tabular-nums opacity-60">· {{ item.dias }} día{{ item.dias|pluralize }}</span>
                 </span>
                 {% empty %}

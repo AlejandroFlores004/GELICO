@@ -1,0 +1,89 @@
+<div id="historial-resultados" class="space-y-4">
+    {% if por_practicante %}
+    <section class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body p-0">
+            <div class="flex items-center justify-between gap-3 px-6 py-4 border-b border-base-200">
+                <h2 class="card-title m-0 text-base">Resumen por practicante</h2>
+                <a href="{% url 'asistencia_imprimir' %}{% querystring vista=None page=None %}" target="_blank" class="btn btn-ghost btn-sm gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" /></svg>
+                    Imprimir
+                </a>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Practicante</th>
+                            <th class="text-right">Presente</th>
+                            <th class="text-right">Tarde</th>
+                            <th class="text-right">Ausente</th>
+                            <th class="text-right">Justificado</th>
+                            <th class="text-right" title="Presente o tarde, sobre los días en que se esperaba que fuera (los justificados no cuentan en contra)">% asistencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fila in por_practicante %}
+                        <tr>
+                            <td class="font-medium">{{ fila.persona.nombre }} {{ fila.persona.apellido }}</td>
+                            <td class="text-right tabular-nums">{{ fila.presente }}</td>
+                            <td class="text-right tabular-nums {% if fila.tarde %}text-warning{% endif %}">{{ fila.tarde }}</td>
+                            <td class="text-right tabular-nums {% if fila.ausente %}text-error font-semibold{% endif %}">{{ fila.ausente }}</td>
+                            <td class="text-right tabular-nums">{{ fila.justificado }}</td>
+                            <td class="text-right tabular-nums font-semibold">{% if fila.porcentaje is None %}—{% else %}{{ fila.porcentaje }}%{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body p-0">
+            <div class="flex items-center justify-between gap-3 px-6 py-4 border-b border-base-200">
+                <h2 class="card-title m-0 text-base">Registros</h2>
+                <span class="badge badge-outline">{{ asistencias.paginator.count }} registro{{ asistencias.paginator.count|pluralize }}</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table table-sm">
+                    <thead><tr><th>Fecha</th><th>Practicante</th><th>Estado</th><th>Observación</th></tr></thead>
+                    <tbody>
+                        {% for asistencia in asistencias %}
+                        <tr>
+                            <td class="whitespace-nowrap">
+                                <a href="{% url 'home_asistencia' %}?fecha={{ asistencia.fecha|date:'Y-m-d' }}" class="link link-hover">{{ asistencia.fecha|date:"D d/m/Y" }}</a>
+                            </td>
+                            <td>{{ asistencia.persona.nombre }} {{ asistencia.persona.apellido }}</td>
+                            <td>
+                                <span class="badge badge-sm badge-soft {% if asistencia.estado == 'presente' %}badge-success{% elif asistencia.estado == 'tarde' %}badge-warning{% elif asistencia.estado == 'ausente' %}badge-error{% else %}badge-info{% endif %}">{{ asistencia.get_estado_display }}</span>
+                            </td>
+                            <td class="text-base-content/70">{{ asistencia.observacion|default:"—" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="py-10 text-center text-base-content/60">No hay asistencias registradas con estos filtros.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if asistencias.paginator.num_pages > 1 %}
+            <div class="flex justify-center py-4">
+                <div class="join">
+                    {% if asistencias.has_previous %}
+                    <a href="{% url 'home_asistencia' %}{% querystring vista='historial' page=asistencias.previous_page_number %}"
+                       hx-get="{% url 'buscar_asistencias' %}{% querystring page=asistencias.previous_page_number %}"
+                       hx-target="#historial-resultados" hx-swap="outerHTML" class="join-item btn btn-sm">«</a>
+                    {% endif %}
+                    <span class="join-item btn btn-sm btn-disabled">Página {{ asistencias.number }} de {{ asistencias.paginator.num_pages }}</span>
+                    {% if asistencias.has_next %}
+                    <a href="{% url 'home_asistencia' %}{% querystring vista='historial' page=asistencias.next_page_number %}"
+                       hx-get="{% url 'buscar_asistencias' %}{% querystring page=asistencias.next_page_number %}"
+                       hx-target="#historial-resultados" hx-swap="outerHTML" class="join-item btn btn-sm">»</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+</div>

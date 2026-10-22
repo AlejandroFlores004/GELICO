@@ -18,7 +18,7 @@ from easyaudit.models import CRUDEvent, LoginEvent, RequestEvent
 
 from escuela.models import Encargado, Escuela
 from liquidacion.models import ESTADO_LIQUIDACION_CHOICES, Asignacion, Bono, Observacion, Recibo
-from programacion.models import ORDEN_JORNADA, Ausencia, Convocatoria, Programacion
+from programacion.models import ORDEN_JORNADA, Asistencia, Convocatoria, Programacion
 from .forms import NOMBRES_APPS
 
 CERO = Decimal('0')
@@ -217,7 +217,7 @@ def panel_inicio(anio, hoy):
         'programaciones_semana': Programacion.objects.filter(
             fecha_programada__gt=hoy, fecha_programada__lte=hoy + timedelta(days=7), estado='pendiente',
         ).count(),
-        'ausencias_hoy': Ausencia.objects.filter(fecha=hoy).select_related('auxiliar'),
+        'ausentes_hoy': Asistencia.objects.filter(fecha=hoy, estado__in=Asistencia.NO_TRABAJO).select_related('persona'),
         'convocatoria_vigente': convocatoria_vigente,
         'proxima_convocatoria': None if convocatoria_vigente else Convocatoria.objects.filter(
             fecha_inicio__gt=hoy,

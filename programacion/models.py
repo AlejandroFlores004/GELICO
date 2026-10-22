@@ -9,7 +9,7 @@ from escuela.models import Escuela
 
 
 class Jornada(models.TextChoices):
-    """Jornada de una visita o del horario de un auxiliar."""
+    """Jornada de una visita o del horario de una persona."""
     MANANA = 'manana', 'Mañana'
     TARDE = 'tarde', 'Tarde'
     COMPLETA = 'completa', 'Todo el día'
@@ -53,50 +53,81 @@ class Convocatoria(models.Model):
         verbose_name = "Convocatoria"
         verbose_name_plural = "Convocatorias"
 
-class Auxiliar(models.Model):
+class Personal(models.Model):
+    """Persona que puede salir a las visitas de una convocatoria.
+
+    - Planta: trabajadores de la institución (contadores, técnicos...). No tienen horario fijo
+      (llegan cuando se les indica) y no se les toma asistencia; asignados a un día cubren la
+      jornada completa.
+    - Practicante: jóvenes en prácticas. Tienen horario semanal, cubren las jornadas de su
+      horario y se les toma asistencia cada día que trabajan.
+    """
+
+    class Tipo(models.TextChoices):
+        PLANTA = 'planta', 'Planta'
+        PRACTICANTE = 'practicante', 'Practicante'
+
+    tipo = models.CharField('tipo', max_length=20, choices=Tipo.choices, default=Tipo.PRACTICANTE)
     nombre = models.CharField(max_length=255)
     apellido = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
-    institucion = models.CharField(max_length=255)
+    cargo = models.CharField('cargo', max_length=255, blank=True, help_text='Solo personal de planta. Ej. Contador.')
+    institucion = models.CharField('institución', max_length=255, blank=True, help_text='Solo practicantes: de dónde vienen.')
 
     def __str__(self):
-        return f"{self.nombre} {self.apellido} - {self.institucion}"
-    
+        return f"{self.nombre} {self.apellido} - {self.detalle}"
+
+    @property
+    def es_practicante(self):
+        return self.tipo == self.Tipo.PRACTICANTE
+
+    @property
+    def detalle(self):
+        """Cargo (planta) o institución (practicante)."""
+        return (self.institucion if self.es_practicante else self.cargo) or self.get_tipo_display()
+
+    def clean(self):
+        if self.es_practicante and not self.institucion:
+            raise ValidationError({'institucion': 'Indica la institución de donde viene el practicante.'})
+        if not self.es_practicante and not self.cargo:
+            raise ValidationError({'cargo': 'Indica el cargo de la persona (ej. Contador).'})
+
     class Meta:
-        verbose_name = "Auxiliar"
-        verbose_name_plural = "Auxiliares"
+        verbose_name = "Personal"
+        verbose_name_plural = "Personal"
 
 
-class ConvocatoriaAuxiliar(models.Model):
-    """Auxiliar asignado a un día de una convocatoria. Solo se puede asignar si ese día cae dentro de
-    la convocatoria y su horario semanal incluye ese día; la jornada en que cubre sale de su horario."""
+class ConvocatoriaPersonal(models.Model):
+    """Persona asignada a un día de una convocatoria. El día debe caer dentro de la convocatoria.
+    Un practicante solo se asigna si su horario semanal incluye ese día (y cubre las jornadas de su
+    horario); el personal de planta no tiene horario fijo y cubre el día completo."""
     convocatoria = models.ForeignKey(Convocatoria, on_delete=models.CASCADE, related_name='asignaciones')
-    auxiliar = models.ForeignKey(Auxiliar, on_delete=models.CASCADE, related_name='asignaciones')
+    persona = models.ForeignKey(Personal, on_delete=models.CASCADE, related_name='asignaciones')
     fecha = models.DateField('día')
 
     def __str__(self):
-        return f"{self.auxiliar.nombre} {self.auxiliar.apellido} en {self.convocatoria.nombre} ({self.fecha:%d/%m/%Y})"
+        return f"{self.persona.nombre} {self.persona.apellido} en {self.convocatoria.nombre} ({self.fecha:%d/%m/%Y})"
 
     def clean(self):
-        if not (self.convocatoria_id and self.auxiliar_id and self.fecha):
+        if not (self.convocatoria_id and self.persona_id and self.fecha):
             return
         if not self.convocatoria.fecha_inicio <= self.fecha <= self.convocatoria.fecha_fin:
             raise ValidationError({'fecha': 'El día debe estar dentro de las fechas de la convocatoria.'})
-        if not Horario.objects.filter(auxiliar_id=self.auxiliar_id).del_dia(self.fecha).exists():
-            raise ValidationError({'fecha': 'El auxiliar no tiene horario ese día.'})
+        if self.persona.es_practicante and not Horario.objects.filter(persona_id=self.persona_id).del_dia(self.fecha).exists():
+            raise ValidationError({'fecha': 'El practicante no tiene horario ese día.'})
 
     class Meta:
-        verbose_name = "Auxiliar asignado a un día"
-        verbose_name_plural = "Auxiliares asignados a días"
-        ordering = ['convocatoria', 'fecha', 'auxiliar']
+        verbose_name = "Personal asignado a un día"
+        verbose_name_plural = "Personal asignado a días"
+        ordering = ['convocatoria', 'fecha', 'persona']
         constraints = [
-            models.UniqueConstraint(fields=['convocatoria', 'auxiliar', 'fecha'], name='convocatoria_auxiliar_dia_unico'),
+            models.UniqueConstraint(fields=['convocatoria', 'persona', 'fecha'], name='convocatoria_persona_dia_unico'),
         ]
 
 
 class Programacion(models.Model):
-    """Visita a una escuela en una jornada. No lleva auxiliar: la cubren los auxiliares de la
+    """Visita a una escuela en una jornada. No lleva persona: la cubren las personas de la
     convocatoria cuyo horario incluye esa jornada ese día."""
     convocatoria = models.ForeignKey(Convocatoria, on_delete=models.CASCADE)
     fecha_programada = models.DateField()
@@ -136,7 +167,7 @@ class HorarioQuerySet(models.QuerySet):
 
 
 class Horario(models.Model):
-    """Horario semanal de un auxiliar: se repite cada semana, el mismo día, mientras dure su periodo de labores."""
+    """Horario semanal de una persona: se repite cada semana, el mismo día, mientras dure su periodo de labores."""
 
     class Dia(models.IntegerChoices):
         # Mismos valores que date.isoweekday()
@@ -148,7 +179,7 @@ class Horario(models.Model):
         SABADO = 6, 'Sábado'
         DOMINGO = 7, 'Domingo'
 
-    auxiliar = models.ForeignKey(Auxiliar, on_delete=models.CASCADE)
+    persona = models.ForeignKey(Personal, on_delete=models.CASCADE)
     dia = models.PositiveSmallIntegerField('día', choices=Dia.choices)
     jornada = models.CharField('jornada', max_length=10, choices=Jornada.choices)
     fecha_inicio = models.DateField('inicio de labores')
@@ -158,7 +189,7 @@ class Horario(models.Model):
 
     def __str__(self):
         return (
-            f"Horario: {self.auxiliar.nombre} {self.auxiliar.apellido} - {self.get_dia_display()} "
+            f"Horario: {self.persona.nombre} {self.persona.apellido} - {self.get_dia_display()} "
             f"{self.get_jornada_display()} ({self.fecha_inicio:%d/%m/%Y} al {self.fecha_fin:%d/%m/%Y})"
         )
 
@@ -172,7 +203,7 @@ class Horario(models.Model):
     class Meta:
         verbose_name = "Horario"
         verbose_name_plural = "Horarios"
-        ordering = ['auxiliar', 'dia']
+        ordering = ['persona', 'dia']
         constraints = [
             models.CheckConstraint(
                 condition=Q(fecha_fin__gte=F('fecha_inicio')),
@@ -181,14 +212,49 @@ class Horario(models.Model):
             ),
         ]
 
-class Ausencia(models.Model):
-    auxiliar = models.ForeignKey(Auxiliar, on_delete=models.CASCADE)
+class Asistencia(models.Model):
+    """Asistencia de un practicante en un día que trabaja según su horario (una por día).
+
+    Ausente y justificado significan que ese día no trabajó: no cubre visitas ni se le puede
+    asignar. "Justificado" se puede registrar por adelantado (un permiso); los demás estados
+    solo desde ese día.
+    """
+
+    class Estado(models.TextChoices):
+        PRESENTE = 'presente', 'Presente'
+        TARDE = 'tarde', 'Llegó tarde'
+        AUSENTE = 'ausente', 'Ausente'
+        JUSTIFICADO = 'justificado', 'Justificado'
+
+    # Estados en que la persona no trabajó ese día.
+    NO_TRABAJO = (Estado.AUSENTE, Estado.JUSTIFICADO)
+
+    persona = models.ForeignKey(Personal, on_delete=models.CASCADE, related_name='asistencias')
     fecha = models.DateField()
-    motivo = models.TextField()
+    estado = models.CharField(max_length=20, choices=Estado.choices)
+    observacion = models.TextField('observación', blank=True, help_text='Motivo de la ausencia o del permiso, o cualquier nota.')
 
     def __str__(self):
-        return f"Ausencia: {self.auxiliar.nombre} {self.auxiliar.apellido} - {self.fecha}"
-    
+        return f"{self.persona.nombre} {self.persona.apellido} - {self.fecha:%d/%m/%Y}: {self.get_estado_display()}"
+
+    @property
+    def no_trabajo(self):
+        return self.estado in self.NO_TRABAJO
+
+    def clean(self):
+        if not (self.persona_id and self.fecha and self.estado):
+            return
+        if not self.persona.es_practicante:
+            raise ValidationError({'persona': 'La asistencia solo se toma a los practicantes.'})
+        if not Horario.objects.filter(persona_id=self.persona_id).del_dia(self.fecha).exists():
+            raise ValidationError({'fecha': 'El practicante no tiene horario ese día.'})
+        if self.estado != self.Estado.JUSTIFICADO and self.fecha > timezone.localdate():
+            raise ValidationError({'estado': 'Por adelantado solo se puede registrar una ausencia justificada.'})
+
     class Meta:
-        verbose_name = "Ausencia"
-        verbose_name_plural = "Ausencias"
+        verbose_name = "Asistencia"
+        verbose_name_plural = "Asistencias"
+        ordering = ['-fecha', 'persona__apellido', 'persona__nombre']
+        constraints = [
+            models.UniqueConstraint(fields=['persona', 'fecha'], name='asistencia_persona_dia_unica'),
+        ]
