@@ -11,7 +11,7 @@ from django.utils import timezone
 from escuela.models import Distrito, Escuela
 from . import services
 from .agenda import agenda_de_convocatoria, personal_asignado, convocatoria_por_defecto, tonos_por_persona
-from .forms import HorarioForm, PersonalDelDia, ProgramacionForm
+from .forms import PersonalDelDia, ProgramacionForm
 from .models import Asistencia, Personal, Convocatoria, ConvocatoriaPersonal, Horario, Programacion
 
 
@@ -450,9 +450,9 @@ class ProgramacionPaginaTests(AgendaBase):
 		self._programar('manana')
 		self._programar('tarde')
 		base = {'convocatoria': self.convocatoria.pk, 'fecha': self.dia.isoformat()}
-		for alcance in ('convocatoria', 'semana', 'dia', 'persona', 'sin_cobertura', 'pendientes'):
+		for alcance in ('convocatoria', 'semana', 'dia', 'control'):
 			with self.subTest(alcance=alcance):
-				respuesta = self.client.get(reverse('agenda_imprimir'), {**base, 'alcance': alcance, 'persona': self.persona.pk})
+				respuesta = self.client.get(reverse('agenda_imprimir'), {**base, 'alcance': alcance})
 				self.assertEqual(respuesta['Content-Type'], 'application/pdf')
 				self.assertTrue(respuesta.content.startswith(b'%PDF'))
 
@@ -503,12 +503,16 @@ class HorarioSemanalTests(TestCase):
 		)
 
 	def _datos(self, **cambios):
+		"""Semana con martes y jueves en la tarde, en todo mayo."""
 		datos = {
-			'persona': self.persona.pk, 'jornada': 'tarde',
+			'activo_2': 'on', 'jornada_2': 'tarde', 'activo_4': 'on', 'jornada_4': 'tarde',
 			'fecha_inicio': '2026-05-04', 'fecha_fin': '2026-05-31',
 		}
 		datos.update(cambios)
 		return datos
+
+	def _guardar(self, persona=None, **cambios):
+		return self.client.post(reverse('horario_editar', args=[(persona or self.persona).pk]), self._datos(**cambios))
 
 	def test_aplica_cada_semana_dentro_del_periodo(self):
 		lunes_de_mayo = [date(2026, 5, dia) for dia in (4, 11, 18, 25)]
@@ -524,33 +528,33 @@ class HorarioSemanalTests(TestCase):
 			with self.subTest(fecha=fecha):
 				self.assertEqual(PersonalDelDia(mayo, fecha).puede_agregarse(self.persona), fecha in lunes_de_mayo)
 
-	def test_crear_varios_dias_a_la_vez(self):
-		respuesta = self.client.post(reverse('horario_nuevo'), self._datos(dias=['2', '4']))
+	def test_guardar_reemplaza_el_horario(self):
+		# Tiene uno solo: el lunes que tenía se reemplaza por la semana marcada.
+		respuesta = self._guardar()
 		self.assertEqual(respuesta.status_code, 200)
 		self.assertEqual(
-			sorted(Horario.objects.filter(jornada='tarde').values_list('dia', flat=True)),
-			[Horario.Dia.MARTES, Horario.Dia.JUEVES],
+			sorted(Horario.objects.filter(persona=self.persona).values_list('dia', 'jornada')),
+			[(Horario.Dia.MARTES, 'tarde'), (Horario.Dia.JUEVES, 'tarde')],
 		)
 
-	def test_exige_al_menos_un_dia_y_periodo_valido(self):
-		respuesta = self.client.post(reverse('horario_nuevo'), self._datos(fecha_fin='2026-05-01'))
-		errores = respuesta.context['form'].errors
-		self.assertIn('dias', errores)
+	def test_se_abre_con_el_horario_que_tiene(self):
+		form = self.client.get(reverse('horario_editar', args=[self.persona.pk])).context['form']
+		self.assertTrue(form['activo_1'].value())
+		self.assertEqual(form['jornada_1'].value(), 'manana')
+		self.assertFalse(form['activo_2'].value())
+		self.assertEqual(form['fecha_inicio'].value(), date(2026, 5, 4))
+
+	def test_exige_un_dia_su_jornada_y_periodo_valido(self):
+		errores = self._guardar(activo_2='', activo_4='', fecha_fin='2026-05-01').context['form'].errors
+		self.assertIn('__all__', errores)
 		self.assertIn('fecha_fin', errores)
+		self.assertIn('jornada_3', self._guardar(activo_3='on').context['form'].errors)
+		self.assertEqual(Horario.objects.get(persona=self.persona), self.horario)
 
-	def test_rechaza_horario_que_se_cruza_el_mismo_dia(self):
-		# "Todo el día" se cruza con la mañana que ya tiene el lunes; la tarde no.
-		respuesta = self.client.post(reverse('horario_nuevo'), self._datos(dias=['1'], jornada='completa'))
-		self.assertIn('lunes', respuesta.context['form'].non_field_errors()[0])
-		self.client.post(reverse('horario_nuevo'), self._datos(dias=['1']))
-		# En otro periodo no se cruza.
-		self.client.post(reverse('horario_nuevo'), self._datos(dias=['1'], jornada='completa', fecha_inicio='2026-06-01', fecha_fin='2026-06-30'))
-		self.assertEqual(Horario.objects.filter(dia=Horario.Dia.LUNES).count(), 3)
-
-	def test_editar_cambia_un_solo_dia(self):
-		self.client.post(reverse('horario_editar', args=[self.horario.pk]), self._datos(dia='3', jornada='manana'))
-		self.horario.refresh_from_db()
-		self.assertEqual(self.horario.dia, Horario.Dia.MIERCOLES)
+	def test_eliminar_quita_todo_el_horario(self):
+		self._guardar()
+		self.client.post(reverse('horario_eliminar', args=[self.persona.pk]))
+		self.assertFalse(Horario.objects.filter(persona=self.persona).exists())
 
 	def test_asistencia_solo_en_dia_con_horario(self):
 		datos = {'persona': self.persona.pk, 'estado': 'ausente', 'observacion': 'Consulta médica'}
@@ -683,31 +687,34 @@ class ProgramacionServicesTests(AgendaBase):
 	def test_reporte_agenda_por_alcance(self):
 		manana = self._programar('manana')
 		tarde = self._programar('tarde')
-		tarde.estado = 'completado'
-		tarde.save()
+		fuera_de_la_semana = Programacion.objects.create(
+			convocatoria=self.convocatoria, escuela=self.escuela, jornada='manana',
+			fecha_programada=self.dia + timedelta(days=7),
+		)
 
-		def visitas(alcance, persona=None):
-			reporte = services.reporte_agenda(self.convocatoria, alcance, self.dia, persona)
+		def visitas(alcance, dia=self.dia):
+			reporte = services.reporte_agenda(self.convocatoria, alcance, dia)
 			return [p for dia in reporte['dias'] for p in dia['programaciones']]
 
-		self.assertEqual(visitas('convocatoria'), [manana, tarde])
+		self.assertEqual(visitas('convocatoria'), [manana, tarde, fuera_de_la_semana])
+		self.assertEqual(visitas('semana'), [manana, tarde])
 		self.assertEqual(visitas('dia'), [manana, tarde])
-		self.assertEqual(visitas('sin_cobertura'), [tarde])
-		self.assertEqual(visitas('pendientes'), [manana])
-		self.assertEqual(visitas('persona', self.persona), [manana])
-
-		reporte = services.reporte_agenda(self.convocatoria, 'persona', self.dia, self.persona)
-		self.assertEqual(reporte['subtitulo'], 'Hoja de ruta de Luis Gómez')
-		self.assertTrue(reporte['para_campo'])
+		self.assertEqual(visitas('dia', self.dia + timedelta(days=1)), [])
+		self.assertEqual(visitas('control'), [manana, tarde])
+		control = services.reporte_agenda(self.convocatoria, 'control', self.dia)
+		self.assertTrue(control['control'])
+		self.assertEqual(control['personal_del_dia'], [self.persona])
+		self.assertEqual(control['personal_del_dia'][0].jornada, 'Mañana')
+		self.assertEqual(services.reporte_agenda(self.convocatoria, 'convocatoria', self.dia)['total'], 3)
 
 	def test_estado_horario_y_horario_inicial(self):
 		persona = services.con_estado_horario(list(services.filtrar_personas({'q': 'Luis'})))[0]
 		# El horario de prueba empieza la próxima semana.
 		self.assertEqual(persona.estado_horario, 'futuro')
 
-		inicial = services.horario_inicial(self.persona.pk)
+
+		inicial = services.horario_inicial(self.persona)
 		self.assertEqual((inicial['fecha_inicio'], inicial['fecha_fin']), (self.dia, self.dia))
-		self.assertEqual(services.horario_inicial(None), {'persona': None})
 
 	def test_filtrar_asistencias(self):
 		otro = self._persona('Ana', 'Ruiz', 'tarde')
@@ -792,7 +799,52 @@ class PersonalPlantaTests(AgendaBase):
 		self.assertIn('cargo', respuesta.context['form'].errors)
 
 	def test_horario_solo_para_practicantes(self):
-		self.assertNotIn(self.contador, HorarioForm().fields['persona'].queryset)
+		self.client.force_login(get_user_model().objects.create_superuser('horario-planta', password='Clave-2026'))
+		self.assertEqual(self.client.get(reverse('horario_editar', args=[self.contador.pk])).status_code, 404)
+
+
+class DesactivarPersonalTests(AgendaBase):
+	"""Al personal no se le elimina (se perdería su historial): se desactiva."""
+
+	def setUp(self):
+		super().setUp()
+		self.client.force_login(get_user_model().objects.create_superuser('desactivar', password='Clave-2026'))
+		self.hoy = timezone.localdate()
+		# Además del horario de la próxima semana (AgendaBase), uno que ya empezó y sigue vigente.
+		self.vigente = Horario.objects.create(
+			persona=self.persona, dia=1, jornada='manana',
+			fecha_inicio=self.hoy - timedelta(days=30), fecha_fin=self.hoy + timedelta(days=30),
+		)
+		self.asistencia = Asistencia.objects.create(persona=self.persona, fecha=self.hoy - timedelta(days=7), estado='presente')
+
+	def _cambiar_estado(self):
+		return self.client.post(reverse('persona_estado', args=[self.persona.pk]))
+
+	def test_desactivar_conserva_el_historial(self):
+		self.assertEqual(self._cambiar_estado().status_code, 200)
+		self.persona.refresh_from_db()
+		self.assertFalse(self.persona.activo)
+		self.assertTrue(Asistencia.objects.filter(pk=self.asistencia.pk).exists())
+		# El horario vigente termina hoy; el que empezaba después se quita, igual que la asignación futura.
+		self.assertEqual(list(Horario.objects.filter(persona=self.persona)), [self.vigente])
+		self.vigente.refresh_from_db()
+		self.assertEqual(self.vigente.fecha_fin, self.hoy)
+		self.assertFalse(self.convocatoria.asignaciones.filter(persona=self.persona).exists())
+
+	def test_inactivo_no_se_lista_ni_se_asigna(self):
+		self._cambiar_estado()
+		self.persona.refresh_from_db()
+		self.assertNotIn(self.persona, services.filtrar_personas({}))
+		self.assertIn(self.persona, services.filtrar_personas({'estado': 'inactivos'}))
+		self.assertIn('inactivo', PersonalDelDia(self.convocatoria, self.dia).agregar(self.persona.pk))
+		self.assertEqual(self.client.get(reverse('horario_editar', args=[self.persona.pk])).status_code, 404)
+
+	def test_se_puede_activar_de_nuevo(self):
+		self._cambiar_estado()
+		self._cambiar_estado()
+		self.persona.refresh_from_db()
+		self.assertTrue(self.persona.activo)
+		self.assertIn(self.persona, services.filtrar_personas({}))
 
 
 class AsistenciaTests(TestCase):

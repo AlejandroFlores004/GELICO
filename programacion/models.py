@@ -30,6 +30,7 @@ HORAS_TURNO = {
 # Para ordenar por jornada: primero la mañana (y todo el día, que también empieza en la mañana), luego la tarde.
 ORDEN_JORNADA = Case(When(jornada=Jornada.TARDE, then=1), default=0, output_field=IntegerField())
 FIN_DE_SEMANA = (6, 7)  # isoweekday: sábado y domingo
+DIAS_HABILES = (1, 2, 3, 4, 5)  # isoweekday: lunes a viernes
 
 
 def es_fin_de_semana(fecha):
@@ -80,6 +81,8 @@ class Personal(models.Model):
     telefono = models.CharField(max_length=20, blank=True, null=True)
     cargo = models.CharField('cargo', max_length=255, blank=True, help_text='Solo personal de planta. Ej. Contador.')
     institucion = models.CharField('institución', max_length=255, blank=True, help_text='Solo practicantes: de dónde vienen.')
+    # No se elimina a nadie (se perdería su asistencia y sus asignaciones): se desactiva.
+    activo = models.BooleanField('activo', default=True)
 
     def __str__(self):
         return f"{self.nombre} {self.apellido} - {self.detalle}"

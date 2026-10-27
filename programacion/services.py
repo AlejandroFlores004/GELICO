@@ -13,11 +13,11 @@ from django.utils.formats import date_format
 from django.utils.text import capfirst
 
 from .agenda import Agenda, estado_convocatoria, rango_visible, resumen_estados, sumar_meses
-from .models import ORDEN_JORNADA, Asistencia, Convocatoria, ConvocatoriaPersonal, Horario, Jornada, Personal, Programacion
+from .models import DIAS_HABILES, ORDEN_JORNADA, Asistencia, Convocatoria, ConvocatoriaPersonal, Horario, Jornada, Personal, Programacion, turnos_de
 
 FORMATO_DIA = 'l j \\d\\e F \\d\\e Y'
 FORMATO_FECHA = 'j \\d\\e F Y'
-ALCANCES_IMPRESION = ('convocatoria', 'semana', 'dia', 'persona', 'sin_cobertura', 'pendientes')
+ALCANCES_IMPRESION = ('convocatoria', 'semana', 'dia', 'control')
 
 
 def titulo_periodo(modo, dia):
@@ -96,12 +96,10 @@ def dias_asignados_por_persona(convocatoria):
     )
 
 
-def reporte_agenda(convocatoria, alcance, dia, persona=None):
-    """Datos del PDF de la agenda según el alcance: toda la convocatoria, una semana, un día,
-    la hoja de ruta de una persona, las visitas sin cobertura o las pendientes."""
-    programaciones = convocatoria.programacion_set.select_related(
-        'escuela__distrito',
-    ).order_by('fecha_programada', ORDEN_JORNADA, 'escuela__nombre')
+def reporte_agenda(convocatoria, alcance, dia):
+    """Datos del PDF de la agenda: las escuelas a visitar en toda la convocatoria, en una semana
+    o en un día (para publicar), agrupadas por día; o el control de un día, con espacio para
+    anotar a mano quién atendió cada visita."""
     inicio, fin = convocatoria.fecha_inicio, convocatoria.fecha_fin
     subtitulo = f"Del {date_format(inicio, FORMATO_FECHA)} al {date_format(fin, FORMATO_FECHA)}"
 
@@ -110,45 +108,41 @@ def reporte_agenda(convocatoria, alcance, dia, persona=None):
         # La semana se recorta al periodo de la convocatoria.
         inicio, fin = max(semana_inicio, inicio), min(semana_fin, fin)
         subtitulo = f"Semana: {titulo_periodo('semana', dia)}"
-    elif alcance == 'dia':
+    elif alcance in ('dia', 'control'):
         inicio = fin = dia
         subtitulo = capfirst(date_format(dia, FORMATO_DIA))
-    elif alcance == 'persona' and persona:
-        subtitulo = f"Hoja de ruta de {persona.nombre} {persona.apellido}"
-    elif alcance == 'sin_cobertura':
-        subtitulo = 'Visitas que ninguna persona cubre'
-    elif alcance == 'pendientes':
-        programaciones = programaciones.filter(estado='pendiente')
-        subtitulo = 'Visitas pendientes'
-    programaciones = list(programaciones.filter(fecha_programada__range=(inicio, fin)))
 
-    # Quién cubre cada visita: las personas asignadas a su día cuyo horario incluye su jornada.
-    cobertura = Agenda(convocatoria, inicio, fin, con_visitas=False)
-    for programacion in programaciones:
-        programacion.cubren = cobertura.cubren_visita(programacion)
-        programacion.cubierta = cobertura.visita_cubierta(programacion)
-    if alcance == 'persona' and persona:
-        # Hoja de ruta: las visitas de las jornadas en que trabaja.
-        programaciones = [programacion for programacion in programaciones if persona in programacion.cubren]
-    elif alcance == 'sin_cobertura':
-        programaciones = [programacion for programacion in programaciones if not programacion.cubierta]
+    programaciones = convocatoria.programacion_set.filter(fecha_programada__range=(inicio, fin)).select_related(
+        'escuela',
+    ).order_by('fecha_programada', ORDEN_JORNADA, 'escuela__nombre')
 
     por_dia = defaultdict(list)
     for programacion in programaciones:
-        programacion.bloque = programacion.get_jornada_display()
         por_dia[programacion.fecha_programada].append(programacion)
 
     return {
         'convocatoria': convocatoria,
         'alcance': alcance,
         'subtitulo': subtitulo,
-        'persona': persona if alcance == 'persona' else None,
         'dias': [{'fecha': fecha, 'programaciones': lista} for fecha, lista in sorted(por_dia.items())],
-        'total': len(programaciones),
-        'estados': resumen_estados(programaciones),
-        # La hoja de ruta lleva columnas para llenar a mano en campo.
-        'para_campo': alcance in ('persona', 'dia'),
+        'total': sum(len(lista) for lista in por_dia.values()),
+        'control': alcance == 'control',
+        'personal_del_dia': personal_del_dia(convocatoria, dia) if alcance == 'control' else [],
     }
+
+
+def personal_del_dia(convocatoria, dia):
+    """Personas asignadas a ese día de la convocatoria, con la jornada que trabajan y si están ausentes."""
+    agenda = Agenda(convocatoria, dia, dia, con_visitas=False)
+    personal = []
+    for persona in agenda.asignados_el(dia):
+        turnos = agenda.turnos_que_trabaja(persona.pk, dia)
+        persona.jornada = next(
+            (etiqueta for jornada, etiqueta in Jornada.choices if set(turnos_de(jornada)) == turnos), 'Sin horario',
+        )
+        persona.ausente = agenda.ausente(persona.pk, dia)
+        personal.append(persona)
+    return personal
 
 
 # ---------------------------------------------------------------------------
@@ -164,6 +158,12 @@ def filtrar_personas(filtros):
             to_attr='horarios',
         ),
     ).order_by('apellido', 'nombre')
+    # Por defecto solo el personal activo.
+    estado_persona = (filtros or {}).get('estado')
+    if estado_persona == 'inactivos':
+        personas = personas.filter(activo=False)
+    elif estado_persona != 'todos':
+        personas = personas.filter(activo=True)
     if not filtros:
         return personas
 
@@ -211,6 +211,29 @@ def filtrar_personas(filtros):
     return personas
 
 
+def desactivar_persona(persona):
+    """Da de baja a una persona sin borrar nada de lo que ya pasó: su asistencia y sus asignaciones
+    hasta hoy se conservan. Su horario termina hoy y se quitan sus asignaciones de días futuros."""
+    hoy = timezone.localdate()
+    persona.activo = False
+    persona.save(update_fields=['activo'])
+    # Objeto por objeto para que la auditoría registre cada cambio.
+    for horario in persona.horario_set.filter(fecha_fin__gt=hoy):
+        if horario.fecha_inicio > hoy:
+            horario.delete()
+        else:
+            horario.fecha_fin = hoy
+            horario.save(update_fields=['fecha_fin'])
+    for asignacion in persona.asignaciones.filter(fecha__gt=hoy):
+        asignacion.delete()
+
+
+def activar_persona(persona):
+    """Vuelve a dar de alta a una persona. Si es practicante, hay que asignarle un horario nuevo."""
+    persona.activo = True
+    persona.save(update_fields=['activo'])
+
+
 def cargos_existentes():
     """Cargos ya usados por el personal de planta, para sugerirlos al escribir uno nuevo."""
     return list(
@@ -225,7 +248,10 @@ def con_estado_horario(personas):
     for persona in personas:
         if not persona.es_practicante:
             persona.estado_horario = 'no_aplica'
-        elif not persona.horarios:
+            continue
+        persona.periodo_inicio, persona.periodo_fin, dias = semana_de(persona.horarios)
+        persona.semana = [(Horario.Dia(dia).label, Jornada(dias[dia]).label if dia in dias else None) for dia in DIAS_HABILES]
+        if not persona.horarios:
             persona.estado_horario = 'sin'
         elif any(h.fecha_inicio <= hoy <= h.fecha_fin for h in persona.horarios):
             persona.estado_horario = 'vigente'
@@ -236,13 +262,26 @@ def con_estado_horario(personas):
     return personas
 
 
-def horario_inicial(persona_id):
-    """Valores con que se abre un horario nuevo. Lo usual es agregar más días al mismo
-    periodo de labores: se propone el del último horario de la persona."""
-    inicial = {'persona': persona_id}
-    ultimo = Horario.objects.filter(persona_id=persona_id).order_by('-fecha_fin').first() if persona_id else None
-    if ultimo:
-        inicial.update(fecha_inicio=ultimo.fecha_inicio, fecha_fin=ultimo.fecha_fin)
+def semana_de(horarios):
+    """Horario semanal a partir de los registros de una persona (uno por día): (inicio, fin, {día: jornada}).
+    Cada practicante tiene un solo horario; si quedaran registros de periodos viejos, manda el más reciente."""
+    if not horarios:
+        return None, None, {}
+    ultimo = max(horarios, key=lambda horario: horario.fecha_fin)
+    dias = {
+        horario.dia: horario.jornada for horario in horarios
+        if (horario.fecha_inicio, horario.fecha_fin) == (ultimo.fecha_inicio, ultimo.fecha_fin)
+    }
+    return ultimo.fecha_inicio, ultimo.fecha_fin, dias
+
+
+def horario_inicial(persona):
+    """Valores con que se abre el horario de un practicante: el que ya tiene, o la semana vacía."""
+    fecha_inicio, fecha_fin, dias = semana_de(list(persona.horario_set.all()))
+    inicial = {'fecha_inicio': fecha_inicio, 'fecha_fin': fecha_fin}
+    for dia in DIAS_HABILES:
+        inicial[f'activo_{dia}'] = dia in dias
+        inicial[f'jornada_{dia}'] = dias.get(dia, Jornada.MANANA)
     return inicial
 
 

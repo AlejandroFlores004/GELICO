@@ -140,6 +140,7 @@ def _contexto_agenda(request):
         'url_siguiente': url(modo, siguiente) if fin_visible < convocatoria.fecha_fin else None,
         'url_hoy': url(modo, hoy) if en_periodo else None,
         'url_primer_dia': url(modo, convocatoria.fecha_inicio),
+        'dia_impresion': _dia_impresion(convocatoria),
         'modos': [(clave, etiqueta, url(clave, dia)) for clave, etiqueta in (('semana', 'Semana'), ('dia', 'Día'), ('mes', 'Mes'))],
         'leyenda': [
             {'persona': aux, 'tono': tonos[aux.pk], 'dias': dias_asignados.get(aux.pk, 0)} for aux in personas
@@ -191,20 +192,25 @@ def convocatoria_agenda(request, pk):
 
 
 # ---------------------------------------------------------------------------
-# Impresión de la agenda: convocatoria, semana, día, hoja de ruta por persona...
+# Impresión de la agenda: convocatoria completa, una semana o un día
 # ---------------------------------------------------------------------------
+
+def _dia_impresion(convocatoria):
+    """Día con que se abre la impresión por semana o por día: hoy si la convocatoria está en curso; si no, su primer día."""
+    hoy = timezone.localdate()
+    return hoy if convocatoria.fecha_inicio <= hoy <= convocatoria.fecha_fin else convocatoria.fecha_inicio
+
 
 @permiso_requerido('programacion.view_programacion')
 def agenda_imprimir(request):
     convocatoria = get_object_or_404(Convocatoria, pk=request.GET.get('convocatoria') or 0)
     alcance = request.GET.get('alcance')
     alcance = alcance if alcance in services.ALCANCES_IMPRESION else 'convocatoria'
-    dia = _fecha(request.GET.get('fecha')) or convocatoria.fecha_inicio
-    persona = _por_id(Personal, request.GET.get('persona'))
+    dia = _fecha(request.GET.get('fecha')) or _dia_impresion(convocatoria)
 
     return respuesta_pdf(
         request, 'partials/agenda/reporte_pdf.html',
-        services.reporte_agenda(convocatoria, alcance, dia, persona),
+        services.reporte_agenda(convocatoria, alcance, dia),
         f'programacion-{alcance}.pdf',
     )
 
@@ -372,7 +378,7 @@ def personalHomeView(request):
         {
             "personas": personas,
             "filtro_form": filtro_form,
-            "form_media": HorarioForm().media + filtro_form.media,
+            "form_media": filtro_form.media,
             "breadcrumbs": [
                 {"name": "Inicio", "url": reverse("home")},
                 {"name": "Personal"},
@@ -418,13 +424,18 @@ def persona_form(request, pk=None):
     )
 
 
-@permiso_requerido('programacion.delete_personal')
-def persona_eliminar(request, pk):
+@permiso_requerido('programacion.change_personal')
+def persona_estado(request, pk):
+    """Desactiva o vuelve a activar a una persona. Nunca se elimina: se perdería su historial."""
     instance = get_object_or_404(Personal, pk=pk)
 
     if request.method == "POST":
-        instance.delete()
-        messages.success(request, f'Se eliminó a la persona {instance.nombre} {instance.apellido}.')
+        if instance.activo:
+            services.desactivar_persona(instance)
+            messages.success(request, f'Se desactivó a {instance.nombre} {instance.apellido}.')
+        else:
+            services.activar_persona(instance)
+            messages.success(request, f'Se activó de nuevo a {instance.nombre} {instance.apellido}.')
         _, personas = _filtrar_personas(request)
         return render(
             request,
@@ -434,49 +445,49 @@ def persona_eliminar(request, pk):
 
     return render(
         request,
-        "partials/personal/modal_delete.html",
+        "partials/personal/modal_estado.html",
         {"instance": instance},
     )
 
 
-@permiso_formulario('programacion.horario')
-def horario_form(request, pk=None):
-    instance = get_object_or_404(Horario, pk=pk) if pk else None
+def _practicante(persona_pk):
+    # Al personal inactivo no se le cambia el horario: primero hay que activarlo.
+    return get_object_or_404(Personal, pk=persona_pk, tipo=Personal.Tipo.PRACTICANTE, activo=True)
+
+
+@permiso_requerido('programacion.add_horario', 'programacion.change_horario', 'programacion.delete_horario')
+def horario_form(request, persona_pk):
+    """Horario semanal del practicante: al guardar reemplaza el que tenía (tiene uno solo)."""
+    persona = _practicante(persona_pk)
+    tenia_horario = persona.horario_set.exists()
     if request.method == "POST":
-        form = HorarioForm(request.POST, instance=instance)
+        form = HorarioForm(persona, request.POST)
         if form.is_valid():
-            # Al crear se guarda un horario por cada día elegido (save devuelve la lista).
-            guardados = form.save()
-            persona = form.cleaned_data['persona']
-            if instance is None:
-                dias = len(guardados)
-                messages.success(request, f"Se agregó el horario de {persona.nombre} {persona.apellido} ({dias} día{'s' if dias != 1 else ''}).")
-            else:
-                messages.success(request, f'Se actualizó el horario de {persona.nombre} {persona.apellido}.')
+            form.save()
+            accion = 'actualizó' if tenia_horario else 'asignó'
+            messages.success(request, f'Se {accion} el horario de {persona.nombre} {persona.apellido}.')
             _, personas = _filtrar_personas(request)
             return render(
                 request,
                 "partials/horario/modal_form_success.html",
                 {"personas": personas},
             )
-    elif instance:
-        form = HorarioForm(instance=instance)
     else:
-        form = HorarioForm(initial=services.horario_inicial(request.GET.get('persona')))
+        form = HorarioForm(persona, initial=services.horario_inicial(persona))
 
     return render(
         request,
         "partials/horario/modal_form.html",
-        {"form": form, "instance": instance},
+        {"form": form, "persona": persona, "tenia_horario": tenia_horario},
     )
 
 
 @permiso_requerido('programacion.delete_horario')
-def horario_eliminar(request, pk):
-    instance = get_object_or_404(Horario, pk=pk)
+def horario_eliminar(request, persona_pk):
+    persona = _practicante(persona_pk)
     if request.method == "POST":
-        instance.delete()
-        messages.success(request, f'Se eliminó el horario de {instance.persona.nombre} {instance.persona.apellido}.')
+        persona.horario_set.all().delete()
+        messages.success(request, f'Se eliminó el horario de {persona.nombre} {persona.apellido}.')
         _, personas = _filtrar_personas(request)
         return render(
             request,
@@ -484,10 +495,12 @@ def horario_eliminar(request, pk):
             {"personas": personas},
         )
 
+    persona.horarios = list(persona.horario_set.all())
+    services.con_estado_horario([persona])
     return render(
         request,
         "partials/horario/modal_delete.html",
-        {"instance": instance},
+        {"persona": persona},
     )
 
 

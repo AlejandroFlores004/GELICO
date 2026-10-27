@@ -23,18 +23,22 @@ class ConvocatoriaAdmin(admin.ModelAdmin):
 
 @admin.register(Personal)
 class PersonalAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'apellido', 'tipo', 'cargo', 'institucion', 'email', 'telefono')
-    list_filter = ('tipo',)
+    list_display = ('nombre', 'apellido', 'tipo', 'activo', 'cargo', 'institucion', 'email', 'telefono')
+    list_filter = ('tipo', 'activo')
     search_fields = ('nombre', 'apellido', 'email', 'cargo', 'institucion')
     ordering = ('apellido', 'nombre')
     fieldsets = (
         ('Información personal', {
-            'fields': ('tipo', 'nombre', 'apellido', 'email', 'telefono')
+            'fields': ('tipo', 'nombre', 'apellido', 'email', 'telefono', 'activo')
         }),
         ('Planta / práctica', {
             'fields': ('cargo', 'institucion')
         }),
     )
+
+    def has_delete_permission(self, request, obj=None):
+        # Se desactiva en lugar de eliminar, para no perder su asistencia ni sus asignaciones.
+        return False
 
 
 @admin.register(Programacion)

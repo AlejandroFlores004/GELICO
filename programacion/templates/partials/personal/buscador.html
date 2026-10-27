@@ -20,6 +20,12 @@
                     </label>
                     {{ filtro_form.tipo }}
                 </div>
+                <div class="form-control w-full sm:w-48 shrink-0">
+                    <label class="label pt-0 pb-1" for="{{ filtro_form.estado.id_for_label }}">
+                        <span class="label-text font-medium">{{ filtro_form.estado.label }}</span>
+                    </label>
+                    {{ filtro_form.estado }}
+                </div>
                 {% url 'home_personal' as limpiar %}{% include "partials/base/_filtros_botones.html" with limpiar_url=limpiar spinner_id="persona-search-spinner" %}
             </div>
 

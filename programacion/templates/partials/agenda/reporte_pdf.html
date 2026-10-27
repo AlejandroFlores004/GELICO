@@ -5,7 +5,7 @@
     <title>Programación · {{ convocatoria.nombre }}</title>
     <style>
         @page {
-            size: letter landscape;
+            size: letter;
             margin: 1.2cm 1.3cm 1.5cm;
             @bottom-left { content: "Impreso el {{ fecha_impresion|date:'d/m/Y' }} a las {{ fecha_impresion|date:'h:i A' }}"; font-family: Arial, Helvetica, sans-serif; font-size: 7px; color: #555; }
             @bottom-right { content: "Página " counter(page) " de " counter(pages); font-family: Arial, Helvetica, sans-serif; font-size: 8px; }
@@ -23,7 +23,10 @@
         .titulos .t3 { font-size: 13px; font-weight: bold; margin-top: 2px; }
         .fila-sub { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 11px; }
         .fila-sub td { border: none; padding: 0; }
-        .resumen { margin-top: 4px; font-size: 10px; }
+        .convocatoria { margin-top: 10px; padding: 6px 8px; border: 1px solid #000; }
+        .convocatoria .nombre { font-size: 12px; font-weight: bold; }
+        .convocatoria .descripcion { margin-top: 3px; white-space: pre-line; }
+        .resumen { margin-top: 6px; font-size: 10px; }
 
         /* Días y tablas */
         h2.dia { font-size: 12px; margin: 14px 0 4px; padding: 3px 6px; background: #e8e8e8; border: 1px solid #000; }
@@ -35,9 +38,10 @@
         table.datos tr { page-break-inside: avoid; }
         .centro { text-align: center; }
         .nowrap { white-space: nowrap; }
-        .tenue { color: #555; }
         .vacio { font-style: italic; color: #444; }
-        .campo { height: 22px; }
+        /* Control: filas altas para anotar a mano quién atendió. */
+        table.datos.control td { height: 1.3cm; vertical-align: middle; }
+        h2.seccion { font-size: 12px; margin: 12px 0 4px; }
     </style>
 </head>
 <body>
@@ -47,7 +51,7 @@
             <td class="titulos">
                 <div class="t1">MINISTERIO DE EDUCACION</div>
                 <div class="t2">GESTIÓN DE LIQUIDACIONES Y CONVOCATORIAS</div>
-                <div class="t3">Programación · {{ convocatoria.nombre }}</div>
+                <div class="t3">{% if control %}Control de visitas a escuelas{% else %}Programación de visitas a escuelas{% endif %}</div>
             </td>
             <td style="width: 2.6cm;"><div class="logo"><img src="{% static 'brand/gelico-mark-primary.svg' %}" alt="GELICO"></div></td>
         </tr>
@@ -59,51 +63,69 @@
             <td style="text-align: right;">Convocatoria: {{ convocatoria.fecha_inicio|date:"d/m/Y" }} al {{ convocatoria.fecha_fin|date:"d/m/Y" }}</td>
         </tr>
     </table>
-    <div class="resumen">
-        <b>Total de visitas:</b> {{ total }}
-        &nbsp;·&nbsp; Pendientes: {{ estados.pendiente }}
-        &nbsp;·&nbsp; Completadas: {{ estados.completado }}
-        &nbsp;·&nbsp; No asistió: {{ estados.no_asistio }}
+    {% if not control %}
+    <div class="convocatoria">
+        <div class="nombre">{{ convocatoria.nombre }}</div>
+        <div class="descripcion">{{ convocatoria.descripcion }}</div>
     </div>
+    {% endif %}
 
-    {% for dia in dias %}
-    <h2 class="dia">{{ dia.fecha|date:"l j \d\e F \d\e Y"|capfirst }} · {{ dia.programaciones|length }} visita{{ dia.programaciones|length|pluralize }}</h2>
+    {% if control %}
+    <h2 class="seccion">Personal asignado · {{ personal_del_dia|length }} persona{{ personal_del_dia|length|pluralize }}</h2>
     <table class="datos">
         <thead>
             <tr>
-                <th style="width: 4%;">Nº</th>
-                <th style="width: 10%;">Jornada</th>
-                <th class="izq" style="width: 8%;">Código</th>
+                <th style="width: 6%;">Nº</th>
+                <th class="izq">Nombre</th>
+                <th class="izq" style="width: 26%;">Cargo / institución</th>
+                <th class="izq" style="width: 15%;">Teléfono</th>
+                <th style="width: 14%;">Jornada</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for persona in personal_del_dia %}
+            <tr>
+                <td class="centro">{{ forloop.counter }}</td>
+                <td>{{ persona.nombre }} {{ persona.apellido }}{% if persona.ausente %} <i>(ausente)</i>{% endif %}</td>
+                <td>{{ persona.detalle }}</td>
+                <td class="nowrap">{{ persona.telefono|default:"—" }}</td>
+                <td class="centro nowrap">{{ persona.jornada }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="vacio">No hay personal asignado a este día.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <div class="resumen"><b>Escuelas a visitar:</b> {{ total }}</div>
+
+    {% for dia in dias %}
+    <h2 class="dia">{{ dia.fecha|date:"l j \d\e F \d\e Y"|capfirst }} · {{ dia.programaciones|length }} escuela{{ dia.programaciones|length|pluralize }}</h2>
+    <table class="datos{% if control %} control{% endif %}">
+        <thead>
+            <tr>
+                <th style="width: 6%;">Nº</th>
+                <th class="izq" style="width: {% if control %}12{% else %}16{% endif %}%;">Código</th>
                 <th class="izq">Escuela</th>
-                <th class="izq" style="width: 13%;">Distrito</th>
-                {% if not persona %}<th class="izq" style="width: 16%;">Personal que cubren</th>{% endif %}
-                <th style="width: 9%;">Estado</th>
-                {% if para_campo %}
-                <th style="width: 9%;">Hora de llegada</th>
-                <th style="width: 15%;">Firma / sello</th>
-                {% endif %}
+                <th style="width: {% if control %}11{% else %}16{% endif %}%;">Jornada</th>
+                {% if control %}<th class="izq" style="width: 34%;">Atendió (nombre)</th>{% endif %}
             </tr>
         </thead>
         <tbody>
             {% for programacion in dia.programaciones %}
             <tr>
                 <td class="centro">{{ forloop.counter }}</td>
-                <td class="centro nowrap">{{ programacion.bloque }}</td>
                 <td>{{ programacion.escuela.codigo }}</td>
-                <td class="campo">{{ programacion.escuela.nombre }}</td>
-                <td>{{ programacion.escuela.distrito.nombre }}</td>
-                {% if not persona %}<td>{% for aux in programacion.cubren %}{{ aux.nombre }} {{ aux.apellido }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="vacio">Sin cobertura</span>{% endfor %}</td>{% endif %}
-                <td class="centro">{{ programacion.get_estado_display }}</td>
-                {% if para_campo %}
-                <td></td>
-                <td></td>
-                {% endif %}
+                <td>{{ programacion.escuela.nombre }}</td>
+                <td class="centro nowrap">{{ programacion.get_jornada_display }}</td>
+                {% if control %}<td></td>{% endif %}
             </tr>
             {% endfor %}
         </tbody>
     </table>
     {% empty %}
-    <p class="vacio" style="margin-top: 16px;">No hay visitas programadas para este reporte.</p>
+    <p class="vacio" style="margin-top: 16px;">No hay escuelas programadas para este periodo.</p>
     {% endfor %}
 </body>
 </html>

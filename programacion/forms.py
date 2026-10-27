@@ -1,12 +1,13 @@
 from django import forms
 from django_select2.forms import Select2Widget
+from django.db import transaction
 from django.db.models import Q
 from django.urls import reverse_lazy
 from django.utils import timezone
 
 from escuela.models import Escuela
 from .models import (
-    Asistencia, Personal, Convocatoria, ConvocatoriaPersonal, Horario, Jornada, Programacion, es_fin_de_semana,
+    DIAS_HABILES, Asistencia, Personal, Convocatoria, ConvocatoriaPersonal, Horario, Jornada, Programacion, es_fin_de_semana,
     jornadas_que_se_cruzan,
 )
 from .services import registrar_asistencia
@@ -60,11 +61,18 @@ class FiltrarPersonalForm(forms.Form):
         ('vencido', 'Con horario ya vencido'),
     ]
 
+    ESTADO = [
+        ('', 'Activos'),
+        ('inactivos', 'Inactivos'),
+        ('todos', 'Todos'),
+    ]
+
     q = forms.CharField(
         required=False,
         label='Buscar',
         widget=forms.TextInput(attrs={'class': 'input input-bordered w-full', 'placeholder': 'Nombre, correo, teléfono, cargo o institución'}),
     )
+    estado = forms.ChoiceField(required=False, label='Estado', choices=ESTADO, widget=forms.Select(attrs={'class': CLASE_SELECT}))
     tipo = forms.ChoiceField(
         required=False, label='Tipo', choices=[('', 'Todos'), *Personal.Tipo.choices], widget=forms.Select(attrs={'class': CLASE_SELECT}),
     )
@@ -148,98 +156,69 @@ class FiltrarAsistenciaForm(forms.Form):
         return cleaned_data
 
 
-class HorarioForm(forms.ModelForm):
-    """Horario semanal de un practicante. Al crear se pueden marcar varios días con el mismo horario
-    (se guarda un Horario por día); al editar se cambia un solo día."""
+class HorarioForm(forms.Form):
+    """Horario semanal de un practicante (tiene uno solo): el periodo de labores y, de lunes a viernes,
+    si trabaja ese día y en qué jornada. Se guarda un Horario por cada día que trabaja."""
 
-    dias = forms.TypedMultipleChoiceField(
-        label='Días',
-        choices=Horario.Dia.choices,
-        coerce=int,
-        widget=forms.CheckboxSelectMultiple,
-        error_messages={'required': 'Selecciona al menos un día.'},
+    fecha_inicio = forms.DateField(
+        label='Inicio de labores',
+        widget=forms.DateInput(format='%Y-%m-%d', attrs={'class': 'input input-bordered w-full', 'type': 'date'}),
+    )
+    fecha_fin = forms.DateField(
+        label='Fin de labores',
+        widget=forms.DateInput(format='%Y-%m-%d', attrs={'class': 'input input-bordered w-full', 'type': 'date'}),
     )
 
-    # Campo explícito para que los radios no incluyan la opción vacía "---------".
-    jornada = forms.ChoiceField(label='Jornada', choices=Jornada.choices, widget=forms.RadioSelect)
-
-    def __init__(self, *args, **kwargs):
+    def __init__(self, persona, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Solo los practicantes tienen horario: el personal de planta llega cuando se le indica.
-        self.fields['persona'].queryset = Personal.objects.filter(tipo=Personal.Tipo.PRACTICANTE).order_by('apellido', 'nombre')
-        self.fields['persona'].label = 'Practicante'
-        if self.instance.pk:
-            self.fields['persona'].disabled = True
-            del self.fields['dias']
-        else:
-            del self.fields['dia']
+        self.persona = persona
+        for dia in DIAS_HABILES:
+            nombre = Horario.Dia(dia).label
+            self.fields[f'activo_{dia}'] = forms.BooleanField(required=False, label=nombre)
+            self.fields[f'jornada_{dia}'] = forms.ChoiceField(
+                required=False, label=f'Jornada del {nombre.lower()}', choices=Jornada.choices, widget=forms.RadioSelect,
+            )
 
-    class Meta:
-        model = Horario
-        fields = ['persona', 'dia', 'jornada', 'fecha_inicio', 'fecha_fin']
-        widgets = {
-            'persona': Select2Widget(attrs={
-                'data-placeholder': 'Seleccione un practicante',
-                'style': 'width: 100%; display: none !important;',
-                'class': 'select2-daisy',
-            }),
-            'dia': forms.Select(attrs={
-                'class': 'select select-bordered w-full',
-            }),
-            'fecha_inicio': forms.DateInput(format='%Y-%m-%d', attrs={
-                'class': 'input input-bordered w-full',
-                'type': 'date',
-            }),
-            'fecha_fin': forms.DateInput(format='%Y-%m-%d', attrs={
-                'class': 'input input-bordered w-full',
-                'type': 'date',
-            }),
+    def dias(self):
+        """(nombre, campo activo, campo jornada) de lunes a viernes, para pintar la semana."""
+        return [
+            (Horario.Dia(dia).label, self[f'activo_{dia}'], self[f'jornada_{dia}'])
+            for dia in DIAS_HABILES
+        ]
+
+    def jornadas(self):
+        """{día: jornada} de los días que trabaja."""
+        return {
+            dia: self.cleaned_data.get(f'jornada_{dia}')
+            for dia in DIAS_HABILES if self.cleaned_data.get(f'activo_{dia}')
         }
-
-    def _dias(self):
-        if 'dias' in self.fields:
-            return self.cleaned_data.get('dias') or []
-        dia = self.cleaned_data.get('dia')
-        return [dia] if dia else []
 
     def clean(self):
         cleaned_data = super().clean()
-        persona = cleaned_data.get('persona')
-        jornada = cleaned_data.get('jornada')
         fecha_inicio = cleaned_data.get('fecha_inicio')
         fecha_fin = cleaned_data.get('fecha_fin')
-
         if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
             self.add_error('fecha_fin', 'El fin de labores debe ser igual o posterior al inicio de labores.')
 
-        dias = self._dias()
-        if self.errors or not (persona and dias):
-            return cleaned_data
-
-        # Una persona no puede tener dos horarios que se crucen el mismo día dentro del mismo periodo
-        # (p. ej. "mañana" y "todo el día").
-        cruces = Horario.objects.filter(
-            persona=persona,
-            dia__in=dias,
-            jornada__in=jornadas_que_se_cruzan(jornada),
-        ).vigentes_entre(fecha_inicio, fecha_fin).exclude(pk=self.instance.pk)
-        dias_con_cruce = sorted({horario.get_dia_display() for horario in cruces}, key=lambda nombre: Horario.Dia.labels.index(nombre))
-        if dias_con_cruce:
-            self.add_error(
-                None,
-                f"La persona ya tiene un horario que se cruza el {', '.join(dias_con_cruce).lower()} en ese periodo.",
-            )
+        jornadas = self.jornadas()
+        if not jornadas:
+            self.add_error(None, 'Activa al menos un día de la semana.')
+        for dia, jornada in jornadas.items():
+            if not jornada:
+                self.add_error(f'jornada_{dia}', 'Elige la jornada.')
         return cleaned_data
 
-    def save(self, commit=True):
-        if 'dias' not in self.fields:
-            return super().save(commit)
-        datos = {campo: self.cleaned_data[campo] for campo in ('persona', 'jornada', 'fecha_inicio', 'fecha_fin')}
-        horarios = [Horario(dia=dia, **datos) for dia in self.cleaned_data['dias']]
-        if commit:
-            for horario in horarios:
-                horario.save()
-        return horarios
+    @transaction.atomic
+    def save(self):
+        """Reemplaza el horario de la persona por el de la semana marcada."""
+        Horario.objects.filter(persona=self.persona).delete()
+        return Horario.objects.bulk_create([
+            Horario(
+                persona=self.persona, dia=dia, jornada=jornada,
+                fecha_inicio=self.cleaned_data['fecha_inicio'], fecha_fin=self.cleaned_data['fecha_fin'],
+            )
+            for dia, jornada in self.jornadas().items()
+        ])
 
 
 class ProgramacionForm(forms.ModelForm):
@@ -351,6 +330,8 @@ class PersonalDelDia:
         return set(self.convocatoria.asignaciones.filter(fecha=self.fecha).values_list('persona_id', flat=True))
 
     def puede_agregarse(self, persona):
+        if not persona.activo:
+            return False
         if not persona.es_practicante:
             return True
         return persona.pk in self.horarios and persona.pk not in self.ausentes
@@ -360,7 +341,7 @@ class PersonalDelDia:
         de planta, cada uno con su jornada y si está ausente."""
         asignados = self.asignados_ids()
         personas = Personal.objects.filter(
-            Q(pk__in=set(self.horarios) | asignados) | Q(tipo=Personal.Tipo.PLANTA)
+            Q(pk__in=set(self.horarios) | asignados) | Q(tipo=Personal.Tipo.PLANTA, activo=True)
         ).order_by('-tipo', 'apellido', 'nombre')
         filas = [
             {
@@ -387,6 +368,8 @@ class PersonalDelDia:
         if not self.se_puede_asignar:
             return 'No se asigna personal en sábado ni domingo.'
         if not self.puede_agregarse(persona):
+            if not persona.activo:
+                return f'No se puede asignar a {persona.nombre} {persona.apellido}: está inactivo.'
             motivo = f'tiene registrado «{self.asistencias[persona.pk].get_estado_display().lower()}»' if persona.pk in self.ausentes else 'no tiene horario'
             return f'No se puede asignar a {persona.nombre} {persona.apellido}: {motivo} ese día.'
         ConvocatoriaPersonal.objects.create(convocatoria=self.convocatoria, persona=persona, fecha=self.fecha)

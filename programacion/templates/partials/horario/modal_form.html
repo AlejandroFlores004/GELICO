@@ -2,41 +2,31 @@
     <dialog id="horario-modal" class="modal">
         <div class="modal-box max-w-2xl rounded-2xl border border-base-300 shadow-2xl">
             <form method="dialog"><button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar">✕</button></form>
-            <h3 class="font-bold text-xl">{% if instance %}Editar Horario{% else %}Agregar Horario{% endif %}</h3>
-            <form hx-post="{% if instance %}{% url 'horario_editar' instance.pk %}{% else %}{% url 'horario_nuevo' %}{% endif %}{% querystring %}" hx-target="#horario-modal-wrapper" hx-swap="outerHTML" class="space-y-4 mt-4">
+            <h3 class="font-bold text-xl">{% if tenia_horario %}Editar horario{% else %}Asignar horario{% endif %}</h3>
+            <p class="text-sm text-base-content/60 mt-1">{{ persona.nombre }} {{ persona.apellido }} · {{ persona.institucion }}</p>
+            <form hx-post="{% url 'horario_editar' persona.pk %}{% querystring %}" hx-target="#horario-modal-wrapper" hx-swap="outerHTML" class="space-y-4 mt-4">
                 {% csrf_token %}
-                <div class="form-control w-full">
-                    <label class="label" for="{{ form.persona.id_for_label }}"><span class="label-text font-medium">Practicante</span></label>
-                    {{ form.persona }}
-                    {% if form.persona.errors %}<span class="text-error text-xs mt-1">{{ form.persona.errors.0 }}</span>{% endif %}
-                </div>
                 {% if form.non_field_errors %}
                 <div role="alert" class="alert alert-error text-sm">{{ form.non_field_errors.0 }}</div>
                 {% endif %}
-                {% if form.dias %}
-                <div class="form-control w-full">
-                    <span class="label"><span class="label-text font-medium">Días que trabaja</span></span>
-                    <p class="text-xs text-base-content/60 mb-2">Se repite cada semana en los días marcados, con la misma jornada.</p>
-                    <div class="flex flex-wrap gap-2" role="group" aria-label="Días que trabaja">
-                        {% for opcion in form.dias %}
-                        <input type="checkbox" name="{{ opcion.data.name }}" value="{{ opcion.data.value }}" aria-label="{{ opcion.choice_label }}"
-                            class="btn btn-sm btn-outline checked:btn-primary" {% if opcion.data.selected %}checked{% endif %}>
+                <fieldset class="rounded-lg border border-base-300 p-4">
+                    <legend class="px-1 text-sm font-medium">Semana</legend>
+                    <p class="text-xs text-base-content/60 mb-3">Activa los días que trabaja y elige su jornada. Se repite cada semana durante el periodo de labores.</p>
+                    <div class="divide-y divide-base-200">
+                        {% for nombre, activo, jornada in form.dias %}
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-2 py-2" data-dia>
+                            <label class="flex items-center gap-3 sm:w-36 shrink-0 cursor-pointer">
+                                <input type="checkbox" name="{{ activo.html_name }}" id="{{ activo.id_for_label }}" class="toggle toggle-primary toggle-sm" {% if activo.value %}checked{% endif %}>
+                                <span class="font-medium">{{ nombre }}</span>
+                            </label>
+                            <fieldset class="flex-1 disabled:opacity-40" {% if not activo.value %}disabled{% endif %}>
+                                {% include "partials/programacion/_jornada_radios.html" with field=jornada %}
+                                {% if jornada.errors %}<span class="text-error text-xs mt-1">{{ jornada.errors.0 }}</span>{% endif %}
+                            </fieldset>
+                        </div>
                         {% endfor %}
                     </div>
-                    {% if form.dias.errors %}<span class="text-error text-xs mt-1">{{ form.dias.errors.0 }}</span>{% endif %}
-                </div>
-                {% else %}
-                <div class="form-control w-full">
-                    <label class="label" for="{{ form.dia.id_for_label }}"><span class="label-text font-medium">Día</span></label>
-                    {{ form.dia }}
-                    {% if form.dia.errors %}<span class="text-error text-xs mt-1">{{ form.dia.errors.0 }}</span>{% endif %}
-                </div>
-                {% endif %}
-                <div class="form-control w-full">
-                    <span class="label"><span class="label-text font-medium">Jornada</span></span>
-                    {% include "partials/programacion/_jornada_radios.html" with field=form.jornada %}
-                    {% if form.jornada.errors %}<span class="text-error text-xs mt-1">{{ form.jornada.errors.0 }}</span>{% endif %}
-                </div>
+                </fieldset>
                 <fieldset class="rounded-lg border border-base-300 p-4">
                     <legend class="px-1 text-sm font-medium">Periodo de labores</legend>
                     <p class="text-xs text-base-content/60 mb-2">Desde cuándo empieza a trabajar y hasta cuándo termina con este horario.</p>
@@ -63,21 +53,15 @@
             var wrapper = document.currentScript.closest('#horario-modal-wrapper');
             var dialog = wrapper.querySelector('#horario-modal');
             dialog.showModal();
-            wrapper.querySelectorAll('.django-select2').forEach(function (el) {
-                try {
-                    var $el = $(el);
-                    if ($el.hasClass('select2-hidden-accessible')) {
-                        $el.select2('destroy');
-                    }
-                    $el.djangoSelect2({ width: '100%', dropdownParent: $(dialog) });
-                } catch (err) {
-                    console.error('No se pudo inicializar select2', err);
-                }
+            // Un día apagado no trabaja: su jornada queda deshabilitada (y no se envía).
+            wrapper.querySelectorAll('[data-dia]').forEach(function (fila) {
+                var activo = fila.querySelector('.toggle');
+                var jornada = fila.querySelector('fieldset');
+                activo.addEventListener('change', function () {
+                    jornada.disabled = !activo.checked;
+                });
             });
             dialog.addEventListener('close', function () {
-                wrapper.querySelectorAll('.django-select2.select2-hidden-accessible').forEach(function (el) {
-                    $(el).select2('destroy');
-                });
                 wrapper.innerHTML = '';
             }, { once: true });
         })();
