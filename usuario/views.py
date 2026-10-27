@@ -109,19 +109,6 @@ def usuario_toggle_estado(request, pk):
 
 
 @staff_requerido
-def usuario_eliminar(request, pk):
-    instance = _usuario_editable(request, pk)
-    es_propio = instance.pk == request.user.pk
-
-    if request.method == 'POST' and not es_propio:
-        instance.delete()
-        messages.success(request, f'Se eliminó el usuario {instance.username}.')
-        return _tabla_usuarios(request, 'partials/usuario/modal_form_success.html')
-
-    return render(request, 'partials/usuario/modal_delete.html', {'instance': instance, 'es_propio': es_propio})
-
-
-@staff_requerido
 def usuario_imprimir(request):
     _, usuarios = _usuarios_filtrados(request, paginar=False)
     return respuesta_pdf(request, 'partials/usuario/reporte_pdf.html', {'usuarios': usuarios}, 'usuarios.pdf')

@@ -44,7 +44,10 @@ def permisos_gestionables():
     )
     # Se omiten los de modelos ya eliminados del código (quedan huérfanos en la BD).
     vigentes = [content_type.pk for content_type in content_types if content_type.model_class()]
-    return Permission.objects.filter(content_type__in=vigentes).select_related('content_type')
+    # Los usuarios no se eliminan (solo se desactivan), así que su permiso de borrado no se ofrece.
+    return Permission.objects.filter(content_type__in=vigentes).exclude(
+        content_type__app_label='auth', codename='delete_user',
+    ).select_related('content_type')
 
 
 def _select2(placeholder, buscar=True):

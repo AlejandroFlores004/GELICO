@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Reportes
+{% endblock %}
+
+{% block extra_head %}
+    {{ form_media }}
+{% endblock %}
+
+{% block content %}
+<main class="px-2 lg:px-6 pb-6 space-y-4 max-w-5xl mx-auto">
+    <div class="flex items-center gap-3">
+        <div class="bg-primary text-primary-content rounded-xl p-2.5 shadow-md shadow-primary/20">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
+                 stroke-width="1.75" fill="none" stroke="currentColor" class="w-6 h-6">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <path d="M14 2v6h6"/>
+                <path d="M8 13h8M8 17h8M8 9h2"/>
+            </svg>
+        </div>
+        <div>
+            <h1 class="text-2xl font-bold leading-tight">Reportes</h1>
+            <p class="text-sm text-base-content/70">
+                Todos los reportes del sistema en un solo lugar. "Imprimir" saca el reporte completo;
+                "Con filtros" abre el módulo para imprimir solo lo que busques.
+            </p>
+        </div>
+    </div>
+
+    {# ---------------- Escuelas ---------------- #}
+    {% if perms.escuela.view_escuela or perms.escuela.view_encargado or perms.escuela.view_cde %}
+    <section class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body gap-1 p-4 sm:p-5">
+            <h2 class="card-title text-base">Escuelas</h2>
+            <div class="divide-y divide-base-200">
+                {% if perms.escuela.view_escuela %}
+                    {% url 'escuela_imprimir' as imprimir %}{% url 'home_escuelas' as filtros %}
+                    {% include "partials/reportes/_reporte.html" with titulo="Escuelas" descripcion="Listado de escuelas con su distrito y estado." %}
+
+                    {% url 'escuela_imprimir_general' as imprimir %}
+                    {% include "partials/reportes/_reporte.html" with titulo="Reporte general" descripcion="Escuela, encargado y CDE en una sola hoja." %}
+
+                    <form action="{% url 'reporte_individual' 'ficha_escuela' %}" method="get" target="_blank" class="flex flex-col gap-3 py-3 sm:flex-row sm:items-center">
+                        <div class="min-w-0 flex-1">
+                            <p class="font-medium">Ficha de escuela</p>
+                            <p class="text-xs text-base-content/60">Todos los datos de una sola escuela.</p>
+                        </div>
+                        <div class="flex shrink-0 items-center gap-2 sm:w-96">
+                            <div class="select2-sm min-w-0 flex-1">{{ form.escuela }}</div>
+                            <button type="submit" class="btn btn-primary btn-sm gap-2">
+                                {% include "partials/reportes/_icono_imprimir.html" %}
+                                Imprimir
+                            </button>
+                        </div>
+                    </form>
+                {% endif %}
+
+                {% if perms.escuela.view_encargado %}
+                    {% url 'encargado_imprimir' as imprimir %}{% url 'home_encargados' as filtros %}
+                    {% include "partials/reportes/_reporte.html" with titulo="Encargados" descripcion="Listado de encargados con sus teléfonos." %}
+
+                    {% if perms.escuela.view_escuela %}
+                        {% url 'escuela_imprimir_encargados' as ruta %}
+                        {% include "partials/reportes/_reporte.html" with titulo="Encargados (con anteriores)" descripcion="Encargado actual de cada escuela y los que tuvo antes." imprimir=ruta|add:"?anteriores=1" filtros="" %}
+                    {% endif %}
+                {% endif %}
+
+                {% if perms.escuela.view_cde %}
+                    {% url 'cde_imprimir' as imprimir %}{% url 'home_cde' as filtros %}
+                    {% include "partials/reportes/_reporte.html" with titulo="CDE" descripcion="Periodos de CDE de las escuelas." %}
+                {% endif %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {# ---------------- Convocatorias ---------------- #}
+    {% if perms.programacion.view_programacion or perms.programacion.view_convocatoria %}
+    <section class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body gap-1 p-4 sm:p-5">
+            <h2 class="card-title text-base">Convocatorias</h2>
+            <div class="divide-y divide-base-200">
+                {% if perms.programacion.view_programacion %}
+                    {% url 'programacion_imprimir' as imprimir %}{% url 'home_programacion' as filtros %}
+                    {% include "partials/reportes/_reporte.html" with titulo="Programación" descripcion="Visitas programadas a las escuelas." %}
+                {% endif %}
+
+                {% if perms.programacion.view_convocatoria %}
+                    {% url 'convocatoria_imprimir' as imprimir %}{% url 'home_convocatorias' as filtros %}
+                    {% include "partials/reportes/_reporte.html" with titulo="Convocatorias" descripcion="Listado de convocatorias con sus fechas." %}
+                {% endif %}
+
+                {% if perms.programacion.view_programacion %}
+                    <form action="{% url 'agenda_imprimir' %}" method="get" target="_blank" class="flex flex-col gap-3 py-3 lg:flex-row lg:items-center">
+                        <div class="min-w-0 flex-1">
+                            <p class="font-medium">Agenda de convocatoria</p>
+                            <p class="text-xs text-base-content/60">
+                                Escuelas a visitar o control del día. Sin fecha se usa hoy (si la convocatoria está en curso) o su primer día.
+                            </p>
+                        </div>
+                        <div class="flex shrink-0 flex-wrap items-center gap-2 lg:w-[34rem]">
+                            <div class="select2-sm min-w-48 flex-1">{{ form.convocatoria }}</div>
+                            <select name="alcance" class="select select-bordered select-sm w-auto" aria-label="Qué imprimir">
+                                <option value="convocatoria">Completa</option>
+                                <option value="semana">Por semana</option>
+                                <option value="dia">Por día</option>
+                                <option value="control">Control del día</option>
+                            </select>
+                            <input type="date" name="fecha" class="input input-bordered input-sm w-auto" aria-label="Día a imprimir (opcional)">
+                            <button type="submit" class="btn btn-primary btn-sm gap-2">
+                                {% include "partials/reportes/_icono_imprimir.html" %}
+                                Imprimir
+                            </button>
+                        </div>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {# ---------------- Personal ---------------- #}
+    {% if perms.programacion.view_personal or perms.programacion.view_asistencia %}
+    <section class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body gap-1 p-4 sm:p-5">
+            <h2 class="card-title text-base">Personal</h2>
+            <div class="divide-y divide-base-200">
+                {% if perms.programacion.view_personal %}
+                    {% url 'persona_imprimir' as imprimir %}{% url 'home_personal' as filtros %}
+                    {% include "partials/reportes/_reporte.html" with titulo="Personal" descripcion="Practicantes y personal de planta con sus datos de contacto." %}
+                {% endif %}
+
+                {% if perms.programacion.view_asistencia %}
+                    {% url 'asistencia_imprimir' as imprimir %}{% url 'home_asistencia' as filtros %}
+                    {% include "partials/reportes/_reporte.html" with titulo="Asistencia" descripcion="Historial de asistencia con resumen por practicante." %}
+                {% endif %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {# ---------------- Liquidaciones ---------------- #}
+    {% if perms.liquidacion.view_asignacion or perms.liquidacion.view_bono %}
+    <section class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body gap-1 p-4 sm:p-5">
+            <h2 class="card-title text-base">Liquidaciones</h2>
+            <div class="divide-y divide-base-200">
+                {% if perms.liquidacion.view_asignacion %}
+                    <form action="{% url 'reporte_individual' 'asignacion' %}" method="get" target="_blank" class="flex flex-col gap-3 py-3 sm:flex-row sm:items-center">
+                        <div class="min-w-0 flex-1">
+                            <p class="font-medium">Liquidación de asignación</p>
+                            <p class="text-xs text-base-content/60">Recibos, abonos y observaciones de una asignación.</p>
+                        </div>
+                        <div class="flex shrink-0 items-center gap-2 sm:w-96">
+                            <div class="select2-sm min-w-0 flex-1">{{ form.asignacion }}</div>
+                            <button type="submit" class="btn btn-primary btn-sm gap-2">
+                                {% include "partials/reportes/_icono_imprimir.html" %}
+                                Imprimir
+                            </button>
+                        </div>
+                    </form>
+                {% endif %}
+
+                {% if perms.liquidacion.view_bono %}
+                    {% url 'bono_imprimir' as imprimir %}{% url 'home_bonos' as filtros %}
+                    {% include "partials/reportes/_reporte.html" with titulo="Bonos" descripcion="Listado de bonos con su año." %}
+                {% endif %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {# ---------------- Sistema ---------------- #}
+    {% if request.user.is_staff %}
+    <section class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body gap-1 p-4 sm:p-5">
+            <h2 class="card-title text-base">Sistema</h2>
+            <div class="divide-y divide-base-200">
+                {% url 'usuario_imprimir' as imprimir %}{% url 'home_usuarios' as filtros %}
+                {% include "partials/reportes/_reporte.html" with titulo="Usuarios" descripcion="Usuarios del sistema con sus grupos, rol y último acceso." %}
+
+                {% url 'grupo_imprimir' as imprimir %}{% url 'home_grupos' as filtros %}
+                {% include "partials/reportes/_reporte.html" with titulo="Grupos" descripcion="Grupos con sus usuarios y permisos por módulo." %}
+
+                <form action="{% url 'auditoria_imprimir' %}" method="get" target="_blank" class="flex flex-col gap-3 py-3 sm:flex-row sm:items-center">
+                    <div class="min-w-0 flex-1">
+                        <p class="font-medium">Auditoría</p>
+                        <p class="text-xs text-base-content/60">Bitácora del sistema (los eventos más recientes).</p>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2">
+                        <select name="vista" class="select select-bordered select-sm w-auto" aria-label="Bitácora a imprimir">
+                            {% for clave, vista in vistas_auditoria.items %}
+                            <option value="{{ clave }}">{{ vista.titulo }}</option>
+                            {% endfor %}
+                        </select>
+                        <a href="{% url 'home_auditoria' %}" class="btn btn-ghost btn-sm" title="Abrir el módulo para imprimir con filtros">Con filtros</a>
+                        <button type="submit" class="btn btn-primary btn-sm gap-2">
+                            {% include "partials/reportes/_icono_imprimir.html" %}
+                            Imprimir
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+</main>
+{% endblock %}

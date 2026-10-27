@@ -4,6 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from . import services
+from .forms import permisos_gestionables
 
 User = get_user_model()
 CLAVE = 'Clave-Segura-2026'
@@ -42,7 +43,7 @@ class AccesoTests(GestionUsuariosBase):
 
     def test_administrador_no_puede_tocar_un_superusuario(self):
         jefe = User.objects.create_superuser('jefe', password=CLAVE)
-        for nombre in ('usuario_editar', 'usuario_contrasena', 'usuario_toggle', 'usuario_eliminar'):
+        for nombre in ('usuario_editar', 'usuario_contrasena', 'usuario_toggle'):
             with self.subTest(vista=nombre):
                 self.assertEqual(self.client.get(reverse(nombre, args=[jefe.pk])).status_code, 403)
 
@@ -99,11 +100,16 @@ class UsuarioTests(GestionUsuariosBase):
         self.assertIn('is_active', errores)
         self.assertIn('is_staff', errores)
 
-    def test_no_puede_desactivarse_ni_eliminarse_a_si_mismo(self):
+    def test_no_puede_desactivarse_a_si_mismo(self):
         self.client.post(reverse('usuario_toggle', args=[self.admin.pk]))
-        self.client.post(reverse('usuario_eliminar', args=[self.admin.pk]))
         self.admin.refresh_from_db()
         self.assertTrue(self.admin.is_active)
+
+    def test_los_usuarios_no_se_pueden_eliminar(self):
+        otro = User.objects.create_user('otro', password=CLAVE)
+        self.assertEqual(self.client.post(f'/usuario/{otro.pk}/eliminar/').status_code, 404)
+        self.assertTrue(User.objects.filter(pk=otro.pk).exists())
+        self.assertFalse(permisos_gestionables().filter(codename='delete_user').exists())
 
     def test_activa_y_desactiva_otro_usuario(self):
         otro = User.objects.create_user('otro', password=CLAVE)

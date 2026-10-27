@@ -42,3 +42,7 @@ class UsuarioAdmin(UserAdmin):
             'fields': ('username', 'email', 'usable_password', 'password1', 'password2'),
         }),
     )
+
+    def has_delete_permission(self, request, obj=None):
+        # Los usuarios no se eliminan, solo se desactivan, para conservar su historial.
+        return False

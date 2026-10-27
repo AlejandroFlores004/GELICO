@@ -1,0 +1,16 @@
+{# Fila de un reporte de listado. Recibe: titulo, descripcion, imprimir (url del PDF) y filtros (url del módulo, opcional) #}
+<div class="flex flex-col gap-3 py-3 sm:flex-row sm:items-center">
+    <div class="min-w-0 flex-1">
+        <p class="font-medium">{{ titulo }}</p>
+        <p class="text-xs text-base-content/60">{{ descripcion }}</p>
+    </div>
+    <div class="flex shrink-0 gap-2">
+        {% if filtros %}
+        <a href="{{ filtros }}" class="btn btn-ghost btn-sm" title="Abrir el módulo para imprimir con filtros">Con filtros</a>
+        {% endif %}
+        <a href="{{ imprimir }}" target="_blank" class="btn btn-primary btn-sm gap-2">
+            {% include "partials/reportes/_icono_imprimir.html" %}
+            Imprimir
+        </a>
+    </div>
+</div>

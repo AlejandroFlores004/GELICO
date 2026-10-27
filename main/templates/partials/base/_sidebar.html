@@ -159,6 +159,24 @@
       </li>
       {% endif %}
 
+      <!-- Reportes -->
+      {% if perms.escuela or perms.programacion or perms.liquidacion or request.user.is_staff %}
+      <li class="menu-title"><span class="gelico-sidebar-label">Reportes</span></li>
+      <li>
+        <a href="{% url 'home_reportes' %}" class="{% if url_name == 'home_reportes' %}menu-active{% endif %}" title="Reportes">
+          <span class="gelico-sidebar-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round"
+                stroke-width="2" fill="none" stroke="currentColor">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <path d="M14 2v6h6"/>
+              <path d="M8 13h8M8 17h8M8 9h2"/>
+            </svg>
+          </span>
+          <span class="gelico-sidebar-label">Reportes</span>
+        </a>
+      </li>
+      {% endif %}
+
       <!-- Sistema -->
       {% if request.user.is_staff %}
       <li class="menu-title"><span class="gelico-sidebar-label">Sistema</span></li>

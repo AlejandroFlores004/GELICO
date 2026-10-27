@@ -4,6 +4,10 @@ from django.contrib.contenttypes.models import ContentType
 from django_select2.forms import Select2Widget
 from easyaudit.models import CRUDEvent, LoginEvent
 
+from escuela.models import Escuela
+from liquidacion.models import Asignacion
+from programacion.models import Convocatoria
+
 # Los verbose_name de las apps no llevan tildes; para la bitácora se muestran estos.
 NOMBRES_APPS = {
     'escuela': 'Escuelas',
@@ -126,3 +130,28 @@ class FiltrarAuditoriaForm(forms.Form):
         if desde and hasta and hasta < desde:
             self.add_error('hasta', 'La fecha final debe ser igual o posterior a la inicial.')
         return cleaned_data
+
+
+class AsignacionChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, asignacion):
+        return f'{asignacion.bono.nombre} · {asignacion.escuela.nombre_corto}'
+
+
+class ReportesForm(forms.Form):
+    """Selectores de la página de Reportes para los reportes de un solo registro."""
+
+    escuela = forms.ModelChoiceField(
+        queryset=Escuela.objects.select_related('distrito').order_by('nombre_corto'),
+        label='Escuela',
+        widget=_select2('Escuela'),
+    )
+    asignacion = AsignacionChoiceField(
+        queryset=Asignacion.objects.select_related('bono', 'escuela').order_by('-bono__anio', 'bono__nombre', 'escuela__nombre_corto'),
+        label='Asignación',
+        widget=_select2('Asignación'),
+    )
+    convocatoria = forms.ModelChoiceField(
+        queryset=Convocatoria.objects.order_by('-fecha_inicio'),
+        label='Convocatoria',
+        widget=_select2('Convocatoria'),
+    )

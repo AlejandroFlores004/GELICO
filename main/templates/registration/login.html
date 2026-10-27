@@ -13,62 +13,151 @@
   <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}">
   <link rel="alternate icon" href="{% static 'favicon.ico' %}">
   <meta name="theme-color" content="#111E60">
+  <style>
+    /* Isotipo en blanco sobre el panel navy: se pinta con máscara a partir de
+       gelico-mark.svg (currentColor no aplica dentro de un <img>). */
+    .login-mark {
+      -webkit-mask: url("{% static 'brand/gelico-mark.svg' %}") center / contain no-repeat;
+      mask: url("{% static 'brand/gelico-mark.svg' %}") center / contain no-repeat;
+      background-color: currentColor;
+    }
+  </style>
 </head>
-<body class="min-h-screen bg-base-200 flex items-center justify-center">
+<body class="min-h-screen bg-base-200">
 
-  <div class="card w-full max-w-sm shadow-xl bg-base-100">
-    <div class="card-body gap-4">
+  <main class="grid min-h-screen lg:grid-cols-2">
 
-      <img src="{% static 'brand/gelico-wordmark.svg' %}" alt="GELICO" class="h-9 w-auto mx-auto mb-1">
-      <p class="text-center text-sm text-base-content/60 -mt-3">Gestión de Liquidaciones y Convocatorias</p>
+    <!-- Panel de marca (solo escritorio) -->
+    <section class="relative hidden overflow-hidden bg-primary text-primary-content lg:flex lg:flex-col lg:justify-between lg:p-12">
+      <!-- Decoración: isotipo gigante y círculos difuminados -->
+      <div class="login-mark pointer-events-none absolute -bottom-32 -right-32 size-[28rem] text-white opacity-[0.06]" aria-hidden="true"></div>
+      <div class="pointer-events-none absolute -left-24 -top-24 size-80 rounded-full bg-secondary opacity-60 blur-3xl" aria-hidden="true"></div>
+      <div class="pointer-events-none absolute bottom-1/4 left-1/3 size-56 rounded-full bg-accent opacity-20 blur-3xl" aria-hidden="true"></div>
 
-      {% if messages %}
-        {% for message in messages %}
-          <div role="alert" class="alert {% if message.tags == 'success' %}alert-success{% else %}alert-error{% endif %}">
-            <span>{{ message }}</span>
+      <div class="relative flex items-center gap-3">
+        <div class="login-mark size-10 text-white"></div>
+        <span class="text-xl font-bold tracking-wide">GELICO</span>
+      </div>
+
+      <div class="relative max-w-md">
+        <h1 class="text-4xl font-bold leading-tight">Gestión de Liquidaciones y Convocatorias</h1>
+        <p class="mt-4 text-base text-primary-content/70">
+          Administra escuelas, personal, convocatorias y liquidaciones desde un solo lugar.
+        </p>
+        <ul class="mt-8 space-y-3 text-sm text-primary-content/80">
+          <li class="flex items-center gap-3">
+            <span class="flex size-7 items-center justify-center rounded-full bg-white/10">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" class="size-4"><path d="M20 6 9 17l-5-5"/></svg>
+            </span>
+            Programación de convocatorias y horarios
+          </li>
+          <li class="flex items-center gap-3">
+            <span class="flex size-7 items-center justify-center rounded-full bg-white/10">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" class="size-4"><path d="M20 6 9 17l-5-5"/></svg>
+            </span>
+            Liquidaciones y reportes en PDF
+          </li>
+          <li class="flex items-center gap-3">
+            <span class="flex size-7 items-center justify-center rounded-full bg-white/10">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" class="size-4"><path d="M20 6 9 17l-5-5"/></svg>
+            </span>
+            Bitácora de auditoría de cada acción
+          </li>
+        </ul>
+      </div>
+
+      <p class="relative text-xs text-primary-content/50">&copy; {% now "Y" %} GELICO · Ministerio de Educación</p>
+    </section>
+
+    <!-- Formulario -->
+    <section class="flex items-center justify-center px-4 py-12 sm:px-8">
+      <div class="w-full max-w-sm">
+
+        <img src="{% static 'brand/gelico-wordmark.svg' %}" alt="GELICO" class="mb-10 h-9 w-auto lg:hidden">
+
+        <h2 class="text-2xl font-bold">Bienvenido de nuevo</h2>
+        <p class="mt-1 text-sm text-base-content/60">Ingresa tus credenciales para continuar.</p>
+
+        <form method="post" class="mt-8 space-y-5" id="login-form">
+          {% csrf_token %}
+          {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+          <div>
+            <label class="mb-1.5 block text-sm font-medium" for="username">Usuario</label>
+            <label class="input w-full">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-4 text-base-content/40"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+              <input
+                type="text"
+                id="username"
+                name="username"
+                value="{{ request.POST.username|default:'' }}"
+                placeholder="Tu usuario"
+                autocomplete="username"
+                autofocus
+                required
+              />
+            </label>
           </div>
-        {% endfor %}
-      {% endif %}
 
-      <form method="post">
-        {% csrf_token %}
-        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+          <div>
+            <label class="mb-1.5 block text-sm font-medium" for="password">Contraseña</label>
+            <label class="input w-full">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-4 text-base-content/40"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                placeholder="••••••••"
+                autocomplete="current-password"
+                required
+              />
+              <button type="button" id="toggle-password" class="btn btn-ghost btn-xs btn-square -mr-1 text-base-content/50" aria-label="Mostrar contraseña">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icono-ver size-4"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icono-ocultar hidden size-4"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a10 10 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+              </button>
+            </label>
+          </div>
 
-        <div class="form-control">
-          <label class="label" for="username">
-            <span class="label-text">Usuario</span>
-          </label>
-          <input
-            type="text"
-            id="username"
-            name="username"
-            class="input input-bordered w-full"
-            placeholder="Tu usuario"
-            required
-          />
+          <button type="submit" class="btn btn-primary w-full" id="login-submit">
+            <span class="loading loading-spinner loading-sm hidden"></span>
+            Iniciar sesión
+          </button>
+        </form>
+
+        <div class="mt-6 flex items-start gap-3 rounded-box border border-base-300 bg-base-100 p-3 text-sm text-base-content/70">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 size-4 shrink-0 text-info"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <p>¿Olvidaste tu usuario o contraseña? Comunícate con un administrador del sistema para recuperar tu acceso.</p>
         </div>
 
-        <div class="form-control mt-3">
-          <label class="label" for="password">
-            <span class="label-text">Contraseña</span>
-          </label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            class="input input-bordered w-full"
-            placeholder="••••••••"
-            required
-          />
-        </div>
+        <p class="mt-10 text-center text-xs text-base-content/40 lg:hidden">&copy; {% now "Y" %} GELICO · Ministerio de Educación</p>
+      </div>
+    </section>
+  </main>
 
-        <div class="form-control mt-6">
-          <button type="submit" class="btn btn-primary w-full">Iniciar sesión</button>
-        </div>
+  <script>
+    (function () {
+      var boton = document.getElementById('toggle-password');
+      var campo = document.getElementById('password');
+      boton.addEventListener('click', function () {
+        var mostrar = campo.type === 'password';
+        campo.type = mostrar ? 'text' : 'password';
+        boton.setAttribute('aria-label', mostrar ? 'Ocultar contraseña' : 'Mostrar contraseña');
+        boton.querySelector('.icono-ver').classList.toggle('hidden', mostrar);
+        boton.querySelector('.icono-ocultar').classList.toggle('hidden', !mostrar);
+      });
 
-      </form>
-    </div>
-  </div>
+      // Spinner y botón deshabilitado mientras se envía (evita doble envío).
+      document.getElementById('login-form').addEventListener('submit', function () {
+        var enviar = document.getElementById('login-submit');
+        enviar.querySelector('.loading').classList.remove('hidden');
+        enviar.disabled = true;
+      });
 
+      // Si el usuario ya viene escrito (credenciales incorrectas), el foco va a la contraseña.
+      if (document.getElementById('username').value) campo.focus();
+    })();
+  </script>
+
+  {% include 'partials/base/_messages.html' with avisos_top='top-4' %}
 </body>
 </html>

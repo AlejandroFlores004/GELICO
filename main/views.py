@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_not_required, login_required
 from django.core.paginator import Paginator
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -10,7 +11,7 @@ from django.views.decorators.http import require_POST
 from easyaudit.models import CRUDEvent
 
 from . import services
-from .forms import FiltrarAuditoriaForm
+from .forms import FiltrarAuditoriaForm, ReportesForm
 from .notificaciones import NIVELES, agrupar_por_categoria, notificaciones_de
 from .pdf import datos_filtro, respuesta_pdf
 from .permisos import staff_requerido
@@ -59,6 +60,44 @@ def notificacionesHomeView(request):
         'total': len(notificaciones),
         'por_nivel': {nivel: sum(n.nivel == nivel for n in notificaciones) for nivel in NIVELES},
     })
+
+
+# ---------------------------------------------------------------------------
+# Reportes: acceso directo a todos los "Imprimir" del sistema. Sin decorador de
+# permisos: la página solo muestra los reportes de los módulos que el usuario
+# tiene permitidos, y cada vista de impresión vuelve a validar su permiso.
+# ---------------------------------------------------------------------------
+
+# Reportes de un solo registro: campo del selector -> vista de impresión (recibe el pk)
+REPORTES_INDIVIDUALES = {
+    'ficha_escuela': ('escuela', 'escuela_imprimir_ficha'),
+    'asignacion': ('asignacion', 'asignacion_imprimir'),
+}
+
+
+def reportesHomeView(request):
+    form = ReportesForm()
+    return render(request, 'reportes/reportesHome.html', {
+        'breadcrumbs': [
+            {'name': 'Inicio', 'url': reverse('home')},
+            {'name': 'Reportes'},
+        ],
+        'form': form,
+        'form_media': form.media,
+        'vistas_auditoria': VISTAS_AUDITORIA,
+    })
+
+
+def reporte_individual(request, reporte):
+    """Lleva del selector de la página de Reportes al PDF del registro elegido."""
+    if reporte not in REPORTES_INDIVIDUALES:
+        raise Http404
+    campo, url_name = REPORTES_INDIVIDUALES[reporte]
+    pk = request.GET.get(campo, '')
+    if not pk.isdigit():
+        messages.error(request, 'Elige un registro para imprimir el reporte.')
+        return redirect('home_reportes')
+    return redirect(url_name, pk=int(pk))
 
 
 @login_not_required

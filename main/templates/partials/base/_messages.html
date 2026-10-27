@@ -4,8 +4,9 @@
   - messages de Django al cargar la página (ej: después de un HX-Redirect),
   - el evento htmx "aviso" que arma main.middleware.MensajesHtmxMiddleware,
   - errores de htmx (403, 404, 500) en htmx:responseError.
+  En páginas sin barra superior (login) se incluye con avisos_top='top-4'.
 -->
-<div id="avisos" class="pointer-events-none fixed right-4 top-24 z-[60] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2" aria-live="polite"></div>
+<div id="avisos" class="pointer-events-none fixed right-4 {{ avisos_top|default:'top-24' }} z-[60] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2" aria-live="polite"></div>
 
 <template id="aviso-plantilla">
   <div class="aviso pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-box border border-base-300 bg-base-100 py-3 pl-3 pr-2 shadow-lg transition duration-300 ease-out translate-x-6 opacity-0">

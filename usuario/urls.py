@@ -9,7 +9,6 @@ urlpatterns = [
     path('<int:pk>/editar/', views.usuario_form, name='usuario_editar'),
     path('<int:pk>/contrasena/', views.usuario_contrasena, name='usuario_contrasena'),
     path('<int:pk>/toggle/', views.usuario_toggle_estado, name='usuario_toggle'),
-    path('<int:pk>/eliminar/', views.usuario_eliminar, name='usuario_eliminar'),
 
     path('grupos/', views.gruposHomeView, name='home_grupos'),
     path('grupos/buscar/', views.buscar_grupos, name='buscar_grupos'),

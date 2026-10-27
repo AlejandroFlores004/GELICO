@@ -16,7 +16,8 @@
 }
 
 .select2-container--default .select2-selection--single .select2-selection__rendered {
-    padding: 0;
+    /* Espacio a la derecha para que el texto largo no quede debajo de la flecha */
+    padding: 0 1.25rem 0 0;
     color: var(--color-base-content, oklch(var(--bc)));
     line-height: normal;
     font-size: 0.875rem;
@@ -30,6 +31,16 @@
 .select2-container--default .select2-selection--single .select2-selection__arrow {
     height: 100%;
     right: 0.75rem;
+}
+
+/* Variante compacta (envolver en .select2-sm), a la altura de input-sm / btn-sm */
+.select2-sm .select2-container--default .select2-selection--single {
+    height: 2rem;
+    padding: 0 0.75rem;
+}
+
+.select2-sm .select2-container--default .select2-selection--single .select2-selection__rendered {
+    font-size: 0.75rem;
 }
 
 /* Focus state matching daisyUI focus ring */
