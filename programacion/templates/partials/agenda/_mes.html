@@ -25,7 +25,7 @@
                         <span class="badge badge-error badge-soft badge-xs whitespace-nowrap" title="No llegaron: {% for ausente in dia_mes.ausentes %}{{ ausente.nombre }} {{ ausente.apellido }}{% if not forloop.last %}, {% endif %}{% endfor %}">{{ dia_mes.ausentes|length }} no llegó</span>
                         {% endif %}
                         {% include "partials/agenda/_cubren.html" with cubren=dia_mes.asignados %}
-                        {% if not dia_mes.fuera_periodo %}
+                        {% if dia_mes.puede_asignar %}
                         {% include "partials/agenda/_boton_asignar.html" with fecha=dia_mes.fecha asignados=dia_mes.asignados %}
                         {% endif %}
                         {% if dia_mes.puede_programar %}

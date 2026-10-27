@@ -16,10 +16,12 @@ from datetime import datetime, timedelta
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from .models import HORAS_TURNO, ORDEN_JORNADA, TURNOS, TURNOS_JORNADA, Asistencia, Personal, Convocatoria, Horario, Jornada
+from .models import (
+    HORAS_TURNO, ORDEN_JORNADA, TURNOS, TURNOS_JORNADA, Asistencia, Personal, Convocatoria, Horario, Jornada,
+    es_fin_de_semana,
+)
 
 MODOS = ('mes', 'semana', 'dia')
-FIN_DE_SEMANA = (6, 7)  # isoweekday: sábado y domingo
 
 # Colores por persona. Se evitan success/warning/error porque esos indican el estado.
 TONOS_PERSONA = [
@@ -226,20 +228,23 @@ def _en_periodo(dia, convocatoria):
     return convocatoria.fecha_inicio <= dia <= convocatoria.fecha_fin
 
 
+def _puede_asignar(dia, asignados, convocatoria):
+    """El fin de semana no se asigna personal; el botón solo queda si hay asignados de antes, para quitarlos."""
+    return _en_periodo(dia, convocatoria) and (not es_fin_de_semana(dia) or bool(asignados))
+
+
 def _columnas(modo, dia, agenda):
-    """Semana: un día por columna (sábado y domingo solo si algún practicante tiene horario, hay personal
-    asignado o hay visitas). Día: una columna."""
+    """Semana: un día por columna (sábado y domingo no se trabaja: solo aparecen si quedó personal
+    asignado o visitas de antes). Día: una columna."""
     if modo == 'dia':
         return [{'fecha': dia}]
     columnas = []
     for desplazamiento in range(7):
         fecha = inicio_semana(dia) + timedelta(days=desplazamiento)
-        if fecha.isoweekday() in FIN_DE_SEMANA:
-            # Cualquier practicante con horario ese día (aunque aún no esté asignado), para poder asignarlo.
-            hay_horario = Horario.objects.del_dia(fecha).exists()
+        if es_fin_de_semana(fecha):
             hay_asignados = bool(agenda.asignados_el(fecha))
             hay_visitas = any(programacion.fecha_programada == fecha for programacion in agenda.programaciones)
-            if not (hay_horario or hay_asignados or hay_visitas):
+            if not (hay_asignados or hay_visitas):
                 continue
         columnas.append({'fecha': fecha})
     return columnas
@@ -258,7 +263,7 @@ def _celda(fecha, turno, agenda, convocatoria):
         'fuera_periodo': not _en_periodo(fecha, convocatoria),
         'paso': turno_paso(fecha, turno),
     }
-    celda['puede_programar'] = not celda['fuera_periodo'] and not celda['paso']
+    celda['puede_programar'] = not celda['fuera_periodo'] and not celda['paso'] and not es_fin_de_semana(fecha)
     return celda
 
 
@@ -288,7 +293,8 @@ def agenda_de_convocatoria(convocatoria, modo, dia, personas, tonos, solo_las_qu
                     'asignados': _con_tono(agenda.asignados_el(fecha), tonos),
                     'ausentes': [persona for persona in agenda.asignados_el(fecha) if agenda.ausente(persona.pk, fecha)],
                     'fuera_periodo': not _en_periodo(fecha, convocatoria),
-                    'puede_programar': fecha >= hoy and _en_periodo(fecha, convocatoria),
+                    'puede_programar': fecha >= hoy and _en_periodo(fecha, convocatoria) and not es_fin_de_semana(fecha),
+                    'puede_asignar': _puede_asignar(fecha, agenda.asignados_el(fecha), convocatoria),
                 }
                 for fecha in semana
             ]
@@ -306,6 +312,7 @@ def agenda_de_convocatoria(convocatoria, modo, dia, personas, tonos, solo_las_qu
         columna['ausentes'] = [persona for persona in agenda.asignados_el(columna['fecha']) if agenda.ausente(persona.pk, columna['fecha'])]
         columna['asignados'] = _con_tono(agenda.asignados_el(columna['fecha']), tonos)
         columna['fuera_periodo'] = not _en_periodo(columna['fecha'], convocatoria)
+        columna['puede_asignar'] = _puede_asignar(columna['fecha'], columna['asignados'], convocatoria)
 
     # Franja con el nombre de la convocatoria sobre los días de su periodo: cada tramo
     # empieza donde la columna anterior queda fuera (o al inicio) y termina donde la siguiente sale.

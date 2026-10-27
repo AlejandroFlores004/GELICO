@@ -5,7 +5,10 @@ from django.urls import reverse_lazy
 from django.utils import timezone
 
 from escuela.models import Escuela
-from .models import Asistencia, Personal, Convocatoria, ConvocatoriaPersonal, Horario, Jornada, Programacion, jornadas_que_se_cruzan
+from .models import (
+    Asistencia, Personal, Convocatoria, ConvocatoriaPersonal, Horario, Jornada, Programacion, es_fin_de_semana,
+    jornadas_que_se_cruzan,
+)
 from .services import registrar_asistencia
 
 
@@ -272,6 +275,9 @@ class ProgramacionForm(forms.ModelForm):
                 f'({convocatoria.fecha_inicio:%d/%m/%Y} al {convocatoria.fecha_fin:%d/%m/%Y}).',
             )
 
+        if fecha and es_fin_de_semana(fecha):
+            self.add_error('fecha_programada', 'No se pueden programar visitas en sábado ni domingo.')
+
         # Una escuela no recibe dos visitas el mismo día en jornadas que se cruzan (la mañana se cruza con "todo el día").
         if escuela and fecha and jornada and Programacion.objects.filter(
             escuela=escuela,
@@ -334,6 +340,10 @@ class PersonalDelDia:
         self.ausentes = {persona_id for persona_id, asistencia in self.asistencias.items() if asistencia.no_trabajo}
 
     @property
+    def se_puede_asignar(self):
+        return not es_fin_de_semana(self.fecha)
+
+    @property
     def se_puede_registrar_inasistencia(self):
         return self.fecha <= timezone.localdate()
 
@@ -374,6 +384,8 @@ class PersonalDelDia:
             return 'La persona no existe.'
         if persona.pk in self.asignados_ids():
             return None
+        if not self.se_puede_asignar:
+            return 'No se asigna personal en sábado ni domingo.'
         if not self.puede_agregarse(persona):
             motivo = f'tiene registrado «{self.asistencias[persona.pk].get_estado_display().lower()}»' if persona.pk in self.ausentes else 'no tiene horario'
             return f'No se puede asignar a {persona.nombre} {persona.apellido}: {motivo} ese día.'

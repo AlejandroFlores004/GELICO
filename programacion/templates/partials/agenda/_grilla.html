@@ -39,7 +39,9 @@
                     {% if not columna.fuera_periodo %}
                     <div class="mt-1 flex flex-wrap items-center justify-center gap-1">
                         {% include "partials/agenda/_cubren.html" with cubren=columna.asignados %}
+                        {% if columna.puede_asignar %}
                         {% include "partials/agenda/_boton_asignar.html" with fecha=columna.fecha asignados=columna.asignados %}
+                        {% endif %}
                     </div>
                     {% endif %}
                 </th>

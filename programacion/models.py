@@ -29,6 +29,12 @@ HORAS_TURNO = {
 }
 # Para ordenar por jornada: primero la mañana (y todo el día, que también empieza en la mañana), luego la tarde.
 ORDEN_JORNADA = Case(When(jornada=Jornada.TARDE, then=1), default=0, output_field=IntegerField())
+FIN_DE_SEMANA = (6, 7)  # isoweekday: sábado y domingo
+
+
+def es_fin_de_semana(fecha):
+    """Sábado y domingo no se trabaja: no se programan visitas esos días."""
+    return fecha.isoweekday() in FIN_DE_SEMANA
 
 
 def turnos_de(jornada):
