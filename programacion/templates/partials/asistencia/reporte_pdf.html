@@ -1,60 +1,117 @@
-<!doctype html>
+{% load static %}<!doctype html>
 <html lang="es">
 <head>
     <meta charset="utf-8">
     <title>Reporte de asistencia</title>
     <style>
-        @page { size: letter landscape; margin: 1.5cm; }
-        body { font-family: sans-serif; color: #222; font-size: 11px; }
-        h1 { margin: 0 0 4px; font-size: 22px; }
-        h2 { margin: 22px 0 8px; font-size: 15px; }
-        p { color: #666; margin: 0 0 6px; }
-        table { width: 100%; border-collapse: collapse; }
-        th { background: #eeeeee; text-align: left; }
-        th, td { border: 1px solid #cccccc; padding: 6px 8px; }
-        .num { text-align: right; }
+        @page {
+            size: letter;
+            margin: 1.2cm 1.3cm 1.5cm;
+            @bottom-left { content: "Impreso el {{ fecha_impresion|date:'d/m/Y' }} a las {{ fecha_impresion|date:'h:i A' }}"; font-family: Arial, Helvetica, sans-serif; font-size: 7px; color: #555; }
+            @bottom-right { content: "Página " counter(page) " de " counter(pages); font-family: Arial, Helvetica, sans-serif; font-size: 8px; }
+        }
+        body { font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 10.5px; margin: 0; }
+
+        /* Encabezado */
+        .encabezado { width: 100%; border-collapse: collapse; }
+        .encabezado td { border: none; padding: 0; vertical-align: top; }
+        .logo { width: 2.2cm; height: 2cm; text-align: center; }
+        .logo img { max-width: 100%; max-height: 100%; }
+        .titulos { text-align: center; }
+        .titulos .t1 { font-size: 15px; font-weight: bold; }
+        .titulos .t2 { font-size: 14px; font-weight: bold; margin-top: 2px; }
+        .titulos .t3 { font-size: 13px; font-weight: bold; margin-top: 2px; }
+        .fila-sub { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 11px; }
+        .fila-sub td { border: none; padding: 0; }
+
+        /* Secciones */
+        .seccion { margin-top: 16px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+
+        /* Tablas */
+        table.datos { width: 100%; border-collapse: collapse; margin-top: 4px; }
+        table.datos th, table.datos td { border: 1px solid #000; padding: 3px 5px; vertical-align: top; }
+        table.datos th { font-weight: bold; text-align: center; }
+        table.datos th.izq { text-align: left; }
+        .centro { text-align: center; }
+        .vacio { font-style: italic; color: #444; }
     </style>
 </head>
 <body>
-    <h1>Asistencia de practicantes</h1>
-    <p>
-        {% if filtros.persona %}{{ filtros.persona.nombre }} {{ filtros.persona.apellido }} · {% endif %}
-        {% if filtros.desde or filtros.hasta %}Del {{ filtros.desde|date:"d/m/Y"|default:"inicio" }} al {{ filtros.hasta|date:"d/m/Y"|default:"hoy" }} · {% endif %}
-        Generado el {{ fecha_impresion|date:"d/m/Y H:i" }}
-    </p>
+    <table class="encabezado">
+        <tr>
+            <td style="width: 2.6cm;"><div class="logo"><img src="{% static 'instituciones/ministerio-educacion-sello.png' %}" alt="Ministerio de Educación"></div></td>
+            <td class="titulos">
+                <div class="t1">MINISTERIO DE EDUCACION</div>
+                <div class="t2">GESTIÓN DE LIQUIDACIONES Y CONVOCATORIAS</div>
+                <div class="t3">Reporte de asistencia de practicantes</div>
+            </td>
+            <td style="width: 2.6cm;"><div class="logo"><img src="{% static 'brand/gelico-mark-primary.svg' %}" alt="GELICO"></div></td>
+        </tr>
+    </table>
+    <table class="fila-sub">
+        <tr>
+            <td style="width: 2.6cm;"></td>
+            <td>
+                {% if filtros.persona %}<b>Practicante:</b>&nbsp;&nbsp;&nbsp;{{ filtros.persona.nombre|upper }} {{ filtros.persona.apellido|upper }}&nbsp;&nbsp;&nbsp;&nbsp;{% endif %}
+                {% if filtros.desde or filtros.hasta %}<b>Período:</b>&nbsp;&nbsp;&nbsp;del {{ filtros.desde|date:"d/m/Y"|default:"inicio" }} al {{ filtros.hasta|date:"d/m/Y"|default:"hoy" }}&nbsp;&nbsp;&nbsp;&nbsp;{% endif %}
+                <b>Registros:</b>&nbsp;&nbsp;&nbsp;{{ asistencias|length }}
+            </td>
+            <td style="text-align: right;">{{ fecha_generacion|date:"d/m/Y" }}</td>
+        </tr>
+    </table>
 
-    <h2>Resumen por practicante</h2>
-    <table>
-        <thead><tr><th>Practicante</th><th class="num">Presente</th><th class="num">Tarde</th><th class="num">Ausente</th><th class="num">Justificado</th><th class="num">% asistencia</th></tr></thead>
+    <div class="seccion">Resumen por practicante</div>
+    <table class="datos">
+        <thead>
+            <tr>
+                <th style="width: 5%;">Nº</th>
+                <th class="izq">Practicante</th>
+                <th style="width: 11%;">Presente</th>
+                <th style="width: 11%;">Tarde</th>
+                <th style="width: 11%;">Ausente</th>
+                <th style="width: 11%;">Justificado</th>
+                <th style="width: 12%;">% asistencia</th>
+            </tr>
+        </thead>
         <tbody>
             {% for fila in por_practicante %}
             <tr>
-                <td>{{ fila.persona.nombre }} {{ fila.persona.apellido }}</td>
-                <td class="num">{{ fila.presente }}</td>
-                <td class="num">{{ fila.tarde }}</td>
-                <td class="num">{{ fila.ausente }}</td>
-                <td class="num">{{ fila.justificado }}</td>
-                <td class="num">{% if fila.porcentaje is None %}—{% else %}{{ fila.porcentaje }}%{% endif %}</td>
+                <td class="centro">{{ forloop.counter }}</td>
+                <td>{{ fila.persona.nombre|upper }} {{ fila.persona.apellido|upper }}</td>
+                <td class="centro">{{ fila.presente }}</td>
+                <td class="centro">{{ fila.tarde }}</td>
+                <td class="centro">{{ fila.ausente }}</td>
+                <td class="centro">{{ fila.justificado }}</td>
+                <td class="centro">{% if fila.porcentaje is None %}—{% else %}{{ fila.porcentaje }}%{% endif %}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="6">No hay asistencias registradas.</td></tr>
+            <tr><td colspan="7" class="vacio">No hay asistencias registradas.</td></tr>
             {% endfor %}
         </tbody>
     </table>
 
-    <h2>Detalle</h2>
-    <table>
-        <thead><tr><th>Fecha</th><th>Practicante</th><th>Estado</th><th>Observación</th></tr></thead>
+    <div class="seccion">Detalle</div>
+    <table class="datos">
+        <thead>
+            <tr>
+                <th style="width: 5%;">Nº</th>
+                <th style="width: 15%;">Fecha</th>
+                <th class="izq" style="width: 30%;">Practicante</th>
+                <th style="width: 13%;">Estado</th>
+                <th class="izq">Observación</th>
+            </tr>
+        </thead>
         <tbody>
             {% for asistencia in asistencias %}
             <tr>
-                <td>{{ asistencia.fecha|date:"D d/m/Y" }}</td>
-                <td>{{ asistencia.persona.nombre }} {{ asistencia.persona.apellido }}</td>
-                <td>{{ asistencia.get_estado_display }}</td>
-                <td>{{ asistencia.observacion|default:"—" }}</td>
+                <td class="centro">{{ forloop.counter }}</td>
+                <td class="centro">{{ asistencia.fecha|date:"D d/m/Y" }}</td>
+                <td>{{ asistencia.persona.nombre|upper }} {{ asistencia.persona.apellido|upper }}</td>
+                <td class="centro">{{ asistencia.get_estado_display }}</td>
+                <td>{{ asistencia.observacion|default:"" }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="4">No hay asistencias registradas.</td></tr>
+            <tr><td colspan="5" class="vacio">No hay asistencias registradas.</td></tr>
             {% endfor %}
         </tbody>
     </table>
