@@ -131,6 +131,12 @@ def logout_view(request):
     messages.success(request, "Has cerrado sesión correctamente.")
     return redirect("login")
 
+
+@login_not_required
+def terminos_view(request):
+    """Términos y condiciones de uso. Pública: se enlaza desde el login."""
+    return render(request, "terminos.html")
+
 # ---------------------------------------------------------------------------
 # Auditoría: consulta de la bitácora que registra django-easy-audit.
 # ---------------------------------------------------------------------------

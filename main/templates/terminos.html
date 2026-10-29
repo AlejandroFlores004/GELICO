@@ -1,0 +1,264 @@
+{% load tailwind_tags %}
+{% load static %}
+{% comment %}
+  Términos y condiciones de uso. Página pública (se enlaza desde el login), por eso
+  no extiende base.html: quien la lee puede no haber iniciado sesión.
+{% endcomment %}
+<!DOCTYPE html>
+<html lang="es" data-theme="gelico">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Términos y Condiciones · GELICO</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  {% tailwind_css %}
+  <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}">
+  <link rel="alternate icon" href="{% static 'favicon.ico' %}">
+  <meta name="theme-color" content="#111E60">
+</head>
+<body class="min-h-screen bg-base-200">
+
+  <header class="bg-primary text-primary-content">
+    <div class="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-4 sm:px-8">
+      <img src="{% static 'brand/gelico-wordmark.svg' %}" alt="GELICO" class="h-8 w-auto brightness-0 invert">
+      <a href="{% if user.is_authenticated %}{% url 'home' %}{% else %}{% url 'login' %}{% endif %}" class="btn btn-sm btn-ghost">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-4"><path d="m15 18-6-6 6-6"/></svg>
+        {% if user.is_authenticated %}Volver al inicio{% else %}Volver al inicio de sesión{% endif %}
+      </a>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-4xl px-4 py-10 sm:px-8">
+    <div class="card border border-base-300 bg-base-100 shadow-sm">
+      <div class="card-body gap-8 leading-relaxed text-base-content/80">
+
+        <div>
+          <h1 class="text-3xl font-extrabold text-base-content">Términos y Condiciones de Uso</h1>
+          <p class="mt-2 text-sm text-base-content/60">GELICO · Gestión de Liquidaciones y Convocatorias</p>
+          <p class="text-sm text-base-content/60">Última actualización: 29 de octubre de 2026</p>
+        </div>
+
+        <p>
+          Estos Términos y Condiciones regulan el acceso y uso de GELICO (en adelante, “el Sistema”), herramienta
+          institucional de uso interno del Ministerio de Educación. Al iniciar sesión, la persona usuaria declara haber
+          leído y aceptado estas condiciones. Si no está de acuerdo con ellas, debe abstenerse de usar el Sistema.
+        </p>
+
+        <p>
+          El Sistema fue desarrollado por estudiantes de la Universidad de El Salvador como parte de su servicio social
+          (horas sociales), en beneficio del Ministerio de Educación, que es la institución usuaria y responsable de la
+          información que en él se registra.
+        </p>
+
+        <section class="space-y-3">
+          <h2 class="text-xl font-bold text-base-content">1. Objeto del Sistema</h2>
+          <p>GELICO tiene como finalidad centralizar y apoyar dos procesos administrativos principales:</p>
+          <ol class="list-decimal space-y-2 pl-6">
+            <li>
+              <strong>Organización de convocatorias:</strong> registro de cada convocatoria con su periodo de vigencia,
+              programación de las visitas a los centros escolares por fecha y jornada (mañana, tarde o todo el día),
+              asignación del personal que cubre cada día, gestión de los horarios semanales de los practicantes y
+              control de su asistencia, así como el seguimiento del resultado de cada visita (pendiente, completada o
+              no asistió).
+            </li>
+            <li>
+              <strong>Revisión de liquidaciones:</strong> registro de los bonos, de las asignaciones de cada bono a cada
+              centro escolar, de los recibos presentados y de los abonos aplicados a cada recibo, con el fin de
+              <strong>registrar observaciones sobre los recibos</strong> y darles seguimiento hasta su resolución.
+            </li>
+          </ol>
+          <p>
+            Como apoyo a estos procesos, el Sistema también administra el catálogo de centros escolares, sus Consejos
+            Directivos Escolares (CDE) y sus encargados; genera reportes en PDF; muestra notificaciones de pendientes y
+            mantiene una bitácora de auditoría.
+          </p>
+        </section>
+
+        <section class="space-y-3">
+          <h2 class="text-xl font-bold text-base-content">2. Alcance de las observaciones y del estado de liquidación</h2>
+          <ul class="list-disc space-y-2 pl-6">
+            <li>
+              Las observaciones son anotaciones que el personal autorizado registra sobre un recibo para señalar
+              inconsistencias, faltantes o cualquier aspecto que deba corregirse. Cada observación queda como
+              <em>pendiente</em> hasta que se marca como <em>resuelta</em>; el Sistema guarda la fecha de creación y la
+              de resolución.
+            </li>
+            <li>
+              El estado de liquidación de cada asignación se calcula automáticamente a partir de esas observaciones:
+              <em>Pendiente de revisión</em> (sin observaciones registradas), <em>Liquidado con observaciones</em>
+              (hay al menos una sin resolver) o <em>Liquidado</em> (todas resueltas).
+            </li>
+            <li>
+              Este estado es una herramienta de control interno. <strong>No sustituye</strong> la revisión documental,
+              las resoluciones oficiales ni los procedimientos de auditoría o rendición de cuentas establecidos por la
+              normativa vigente. El Sistema no efectúa pagos, transferencias ni descuentos de ningún tipo.
+            </li>
+            <li>
+              Los montos de asignaciones, recibos, abonos y diferencias que muestra el Sistema dependen de la información
+              registrada o importada. La persona usuaria debe verificarlos contra los documentos de respaldo antes de
+              tomar cualquier decisión.
+            </li>
+          </ul>
+        </section>
+
+        <section class="space-y-3">
+          <h2 class="text-xl font-bold text-base-content">3. Acceso y cuentas de usuario</h2>
+          <ul class="list-disc space-y-2 pl-6">
+            <li>
+              El acceso es exclusivo para personal autorizado. Las cuentas son creadas por un administrador del Sistema;
+              no existe registro público.
+            </li>
+            <li>
+              Cada cuenta es personal e intransferible. La persona usuaria es responsable de mantener la confidencialidad
+              de su contraseña y de toda acción realizada con su cuenta. Debe cerrar sesión al terminar, sobre todo en
+              equipos compartidos.
+            </li>
+            <li>
+              Ante la pérdida de credenciales o sospecha de uso indebido de una cuenta, se debe avisar de inmediato a un
+              administrador del Sistema.
+            </li>
+            <li>
+              Las funciones disponibles dependen de los permisos asignados al grupo de cada usuario (consultar, crear,
+              editar o eliminar en cada módulo). La gestión de usuarios, grupos y la consulta de la auditoría están
+              reservadas a los administradores. No está permitido intentar acceder a módulos o información para los que
+              no se tiene permiso.
+            </li>
+          </ul>
+        </section>
+
+        <section class="space-y-3">
+          <h2 class="text-xl font-bold text-base-content">4. Responsabilidades de la persona usuaria</h2>
+          <ul class="list-disc space-y-2 pl-6">
+            <li>Registrar información veraz, completa y actualizada, y corregirla en cuanto detecte un error.</li>
+            <li>
+              Redactar las observaciones de forma clara, objetiva y respetuosa, refiriéndose únicamente al recibo o
+              documento revisado, y marcarlas como resueltas solo cuando la corrección haya sido efectivamente
+              comprobada.
+            </li>
+            <li>
+              Registrar la asistencia de los practicantes y el resultado de las visitas conforme a lo ocurrido. Las
+              ausencias justificadas pueden registrarse por adelantado; los demás estados, solo a partir del día
+              correspondiente.
+            </li>
+            <li>
+              Revisar la vista previa antes de confirmar una carga desde archivos Excel (bonos o reporte de
+              transferencias por recibo). Las cargas se procesan completas o no se procesan; aun así, la persona
+              usuaria es responsable de que el archivo cargado sea el correcto.
+            </li>
+            <li>
+              Usar los reportes en PDF y la información obtenida del Sistema únicamente para fines institucionales.
+            </li>
+            <li>
+              No eliminar registros sin justificación. Al eliminar una asignación, un recibo o una convocatoria también se
+              eliminan los datos que dependen de ellos (recibos, abonos, observaciones, visitas, asignaciones de
+              personal).
+            </li>
+          </ul>
+        </section>
+
+        <section class="space-y-3">
+          <h2 class="text-xl font-bold text-base-content">5. Usos prohibidos</h2>
+          <ul class="list-disc space-y-2 pl-6">
+            <li>Compartir credenciales o usar la cuenta de otra persona.</li>
+            <li>Registrar información falsa, alterar montos u observaciones para ocultar inconsistencias.</li>
+            <li>Extraer, copiar o divulgar datos del Sistema a terceros no autorizados.</li>
+            <li>Intentar vulnerar la seguridad del Sistema, evadir sus controles de acceso o afectar su funcionamiento.</li>
+            <li>Usar el Sistema para fines personales, comerciales o ajenos a la institución.</li>
+          </ul>
+        </section>
+
+        <section class="space-y-3">
+          <h2 class="text-xl font-bold text-base-content">6. Datos personales y confidencialidad</h2>
+          <ul class="list-disc space-y-2 pl-6">
+            <li>
+              El Sistema almacena datos de contacto (nombre, apellido, correo electrónico y teléfono) de los encargados
+              de los centros escolares y del personal de planta y practicantes, así como los horarios y la asistencia de
+              estos últimos. Estos datos se usan exclusivamente para organizar las convocatorias y dar seguimiento a las
+              liquidaciones.
+            </li>
+            <li>
+              Toda la información del Sistema —incluidos montos, recibos y observaciones— es de carácter confidencial y
+              de uso interno. Solo puede compartirse por los canales oficiales y con quienes tengan la autorización
+              correspondiente.
+            </li>
+            <li>
+              El personal no se elimina del Sistema: se desactiva, para conservar su historial de asistencia y de
+              asignaciones.
+            </li>
+          </ul>
+        </section>
+
+        <section class="space-y-3">
+          <h2 class="text-xl font-bold text-base-content">7. Auditoría y registro de actividad</h2>
+          <p>
+            Para garantizar la trazabilidad, el Sistema registra automáticamente en una bitácora de auditoría: los
+            inicios y cierres de sesión (incluidos los intentos fallidos), las páginas consultadas y las creaciones,
+            modificaciones y eliminaciones de registros, junto con el usuario que las realizó, la fecha, la hora y la
+            dirección IP. Al usar el Sistema, la persona usuaria acepta este registro, que podrá ser consultado por los
+            administradores y usado como evidencia ante cualquier uso indebido.
+          </p>
+        </section>
+
+        <section class="space-y-3">
+          <h2 class="text-xl font-bold text-base-content">8. Notificaciones</h2>
+          <p>
+            Las notificaciones (CDE por vencer o vencidos, asistencia sin registrar, visitas sin resultado, entre otras)
+            se calculan a partir de los datos registrados y desaparecen cuando se resuelve lo que las provoca. Son un
+            apoyo: no reemplazan el seguimiento que cada responsable debe dar a sus tareas.
+          </p>
+        </section>
+
+        <section class="space-y-3">
+          <h2 class="text-xl font-bold text-base-content">9. Disponibilidad y limitación de responsabilidad</h2>
+          <ul class="list-disc space-y-2 pl-6">
+            <li>
+              Se procurará que el Sistema esté disponible de forma continua, pero puede interrumpirse por mantenimiento,
+              actualizaciones o fallas técnicas, sin que ello genere responsabilidad alguna.
+            </li>
+            <li>
+              Los cálculos, estados y reportes que genera el Sistema dependen de la información ingresada. Ni los
+              administradores ni el equipo de desarrollo de la Universidad de El Salvador responden por decisiones
+              tomadas a partir de datos incompletos, erróneos o mal registrados por las personas usuarias.
+            </li>
+          </ul>
+        </section>
+
+        <section class="space-y-3">
+          <h2 class="text-xl font-bold text-base-content">10. Sanciones</h2>
+          <p>
+            El incumplimiento de estos términos puede dar lugar a la suspensión o desactivación de la cuenta, sin
+            perjuicio de las responsabilidades administrativas, civiles o penales que correspondan según la normativa
+            institucional y la legislación vigente.
+          </p>
+        </section>
+
+        <section class="space-y-3">
+          <h2 class="text-xl font-bold text-base-content">11. Modificaciones</h2>
+          <p>
+            Estos términos pueden actualizarse cuando el Sistema incorpore nuevas funciones o cambie la normativa
+            aplicable. La versión vigente es siempre la publicada en esta página, y el uso continuado del Sistema implica
+            la aceptación de los cambios.
+          </p>
+        </section>
+
+        <section class="space-y-3">
+          <h2 class="text-xl font-bold text-base-content">12. Contacto</h2>
+          <p>
+            Para dudas sobre estos términos, solicitudes de acceso o reportes de problemas, comuníquese con un
+            administrador del Sistema.
+          </p>
+        </section>
+
+      </div>
+    </div>
+
+    <p class="mt-8 text-center text-xs text-base-content/40">
+      &copy; {% now "Y" %} GELICO · Ministerio de Educación<br>
+      Desarrollado por estudiantes de la Universidad de El Salvador como proyecto de servicio social
+    </p>
+  </main>
+
+</body>
+</html>
